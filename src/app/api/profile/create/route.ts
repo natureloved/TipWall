@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { kv } from '@vercel/kv'
+import { getProfile, setProfile } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 
 export async function POST(req: NextRequest) {
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid Nimiq wallet address' }, { status: 400 })
     }
 
-    const exists = await kv.exists(`profile:${handleStr}`)
+    const exists = await getProfile(handleStr)
     if (exists) {
       return NextResponse.json({ error: 'Handle already taken' }, { status: 409 })
     }
@@ -41,9 +41,10 @@ export async function POST(req: NextRequest) {
       createdAt: Date.now(),
     }
 
-    await kv.set(`profile:${handleStr}`, profile)
+    await setProfile(profile)
     return NextResponse.json({ success: true, handle: profile.handle })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('Profile creation error:', err)
+    return NextResponse.json({ error: err.message || 'Failed to create profile' }, { status: 500 })
   }
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { kv } from '@vercel/kv'
+import { getProfile, getTips, addTip, upsertSupporter, getMilestones, addMilestone } from '@/lib/kv'
 import { Tip, CreatorProfile, MilestoneEvent } from '@/lib/types'
 import { checkMilestone } from '@/lib/milestones'
 
@@ -30,14 +30,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'missing fields' }, { status: 400 })
     }
     const handle: string = body.handle
-    const profileRaw = await kv.get<CreatorProfile>(`profile:${handle}`)
-    if (!profileRaw) {
+    const profile = await getProfile(handle)
+    if (!profile) {
       return NextResponse.json({ error: 'creator not found' }, { status: 404 })
     }
-    const profile = profileRaw as any
 
     const verified = await verifyTx(body.txHash, profile.walletAddress, body.amountNIM * 100000)
-    const existing = await kv.get<Tip[]>(`tips:${handle}`) || []
+    const existing = await getTips(handle)
     const previousTotal = existing.reduce((sum, t) => sum + (t.amountNIM || 0), 0)
     const newTotal = previousTotal + body.amountNIM
 
@@ -54,20 +53,24 @@ export async function POST(req: NextRequest) {
       anonymous: !!body.anonymous,
     }
 
-    const updated = [tip, ...existing].slice(0, 200)
-    await kv.set(`tips:${handle}`, updated)
+    await addTip(handle, tip)
+    await upsertSupporter(handle, { senderAddress: tip.senderAddress, amountNIM: tip.amountNIM, timestamp: tip.timestamp })
 
-    const milestone = checkMilestone(previousTotal, newTotal, tip.senderAddress)
-    if (milestone) {
-      const updatedProfile = {
-        ...profile,
-        milestones: [...(profile.milestones || []), milestone],
+    let milestone: MilestoneEvent | null = null
+    const milestoneThreshold = checkMilestone(previousTotal, newTotal, tip.senderAddress)
+    if (milestoneThreshold) {
+      const event: MilestoneEvent = {
+        threshold: milestoneThreshold,
+        unlockedBy: tip.senderAddress,
+        timestamp: Date.now(),
       }
-      await kv.set(`profile:${handle}`, updatedProfile)
+      const added = await addMilestone(handle, event)
+      if (added) milestone = event
     }
 
     return NextResponse.json({ success: true, tip, milestone })
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
+    console.error('Tip submission error:', err)
+    return NextResponse.json({ error: err.message || 'Failed to submit tip' }, { status: 500 })
   }
 }
