@@ -44,7 +44,18 @@ export async function POST(req: NextRequest) {
     await setProfile(profile)
     return NextResponse.json({ success: true, handle: profile.handle })
   } catch (err: any) {
-    console.error('Profile creation error:', err)
-    return NextResponse.json({ error: err.message || 'Failed to create profile' }, { status: 500 })
+    const errorMsg = err.message || 'Failed to create profile'
+    const errorDetails = err.toString?.()
+    console.error('Profile creation error:', { msg: errorMsg, details: errorDetails, cause: err.cause })
+    
+    // Check if it's a KV connection error
+    if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('unauthorized') || errorMsg.includes('401') || errorMsg.includes('403')) {
+      return NextResponse.json(
+        { error: 'Database connection failed. Check KV_REST_API_URL and KV_REST_API_TOKEN in .env.local' },
+        { status: 503 }
+      )
+    }
+    
+    return NextResponse.json({ error: errorMsg }, { status: 500 })
   }
 }

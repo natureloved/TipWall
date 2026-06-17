@@ -57,15 +57,10 @@ export async function POST(req: NextRequest) {
     await upsertSupporter(handle, { senderAddress: tip.senderAddress, amountNIM: tip.amountNIM, timestamp: tip.timestamp })
 
     let milestone: MilestoneEvent | null = null
-    const milestoneThreshold = checkMilestone(previousTotal, newTotal, tip.senderAddress)
-    if (milestoneThreshold) {
-      const event: MilestoneEvent = {
-        threshold: milestoneThreshold,
-        unlockedBy: tip.senderAddress,
-        timestamp: Date.now(),
-      }
-      const added = await addMilestone(handle, event)
-      if (added) milestone = event
+    const milestoneEvent = checkMilestone(previousTotal, newTotal, tip.senderAddress)
+    if (milestoneEvent) {
+      const added = await addMilestone(handle, milestoneEvent)
+      if (added) milestone = milestoneEvent
     }
 
     return NextResponse.json({ success: true, tip, milestone })
