@@ -25,22 +25,52 @@ export async function getTips(handle: string): Promise<Tip[]> {
 }
 
 export async function getSupporters(handle: string): Promise<Supporter[]> {
-  const key = `${PREFIX}supporters:${handle.toLowerCase()}`
-  return (await kv.get<Supporter[]>(key)) || []
+  // Always derive supporters from tips to ensure consistency
+  const tips = await getTips(handle)
+  const supportersMap = new Map<string, Supporter>()
+  
+  tips.forEach(tip => {
+    const existing = supportersMap.get(tip.senderAddress)
+    if (existing) {
+      existing.totalNIM += tip.amountNIM
+      existing.tipCount += 1
+      existing.firstTipAt = Math.min(existing.firstTipAt, tip.timestamp)
+    } else {
+      supportersMap.set(tip.senderAddress, {
+        address: tip.senderAddress,
+        totalNIM: tip.amountNIM,
+        tipCount: 1,
+        firstTipAt: tip.timestamp,
+      })
+    }
+  })
+  
+  return Array.from(supportersMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
 }
 
 export async function upsertSupporter(handle: string, tip: { senderAddress: string; amountNIM: number; timestamp: number }): Promise<void> {
+  // Rebuild supporters from tips to ensure data consistency
+  const tips = await getTips(handle)
+  const supportersMap = new Map<string, { address: string; totalNIM: number; tipCount: number; firstTipAt: number }>()
+  
+  tips.forEach(t => {
+    const existing = supportersMap.get(t.senderAddress)
+    if (existing) {
+      existing.totalNIM += t.amountNIM
+      existing.tipCount += 1
+      existing.firstTipAt = Math.min(existing.firstTipAt, t.timestamp)
+    } else {
+      supportersMap.set(t.senderAddress, {
+        address: t.senderAddress,
+        totalNIM: t.amountNIM,
+        tipCount: 1,
+        firstTipAt: t.timestamp,
+      })
+    }
+  })
+  
+  const list = Array.from(supportersMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
   const key = `${PREFIX}supporters:${handle.toLowerCase()}`
-  const list = await getSupporters(handle)
-  const idx = list.findIndex(s => s.address === tip.senderAddress)
-  if (idx >= 0) {
-    list[idx].totalNIM += tip.amountNIM
-    list[idx].tipCount += 1
-    list[idx].firstTipAt = Math.min(list[idx].firstTipAt, tip.timestamp)
-  } else {
-    list.push({ address: tip.senderAddress, totalNIM: tip.amountNIM, tipCount: 1, firstTipAt: tip.timestamp })
-  }
-  list.sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
   await kv.set(key, list)
 }
 
@@ -64,17 +94,33 @@ export async function getTotalNim(handle: string): Promise<number> {
 
 export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
   try {
+    // Validate URL format
+    try {
+      new URL(url)
+    } catch {
+      return null
+    }
+    
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 5000)
-    const resp = await fetch(url, { signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0' } })
+    
+    const resp = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+    })
     clearTimeout(timeout)
+    
     if (!resp.ok) return null
+    
     const html = await resp.text()
+    if (!html) return null
+    
     const getMeta = (prop: string) => {
       const re = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i')
       const m = html.match(re)
       return m ? m[1] : null
     }
+    
     return {
       title: getMeta('og:title') || getMeta('title') || 'Untitled',
       description: getMeta('og:description') || getMeta('description') || '',
@@ -82,7 +128,9 @@ export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
       url: getMeta('og:url') || url,
       siteName: getMeta('og:site_name') || '',
     }
-  } catch {
+  } catch (err) {
+    // Log error for debugging but don't break the flow
+    console.warn('Failed to fetch OG metadata:', err)
     return null
   }
 }

@@ -1,6 +1,5 @@
 'use client'
 import { useEffect, useState } from 'react'
-import confetti from 'canvas-confetti'
 import { MILESTONES, MilestoneEvent } from '@/lib/types'
 
 interface Props {
@@ -21,12 +20,16 @@ export default function MilestoneCelebration({ previousTotal, newTotal, onUnlock
     setUnlocked(event)
     onUnlock?.(event)
 
-    confetti({
-      particleCount: 120,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#F6B221', '#EF9F27', '#1F2348', '#ffffff'],
-    })
+    // Dynamically load confetti to avoid SSR issues
+    import('canvas-confetti').then((module) => {
+      const confetti = module.default
+      confetti({
+        particleCount: 120,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#F6B221', '#EF9F27', '#1F2348', '#ffffff'],
+      })
+    }).catch(() => {})
 
     const timer = setTimeout(() => setUnlocked(null), 5000)
     return () => clearTimeout(timer)

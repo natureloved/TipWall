@@ -7,7 +7,7 @@ export default function TipFeed({ tips }: { tips: Tip[] }) {
     <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
       <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Live Feed</h2>
       {!tips.length && <p className="text-sm text-gray-500 text-center py-6">No tips yet. Be the first!</p>}
-      <div className="divide-y divide-slate-100">
+      <div className="divide-y divide-slate-100" suppressHydrationWarning>
         {tips.map((tip) => {
           const reason = tip.reason ? TIP_REASON_LABELS[tip.reason] : null
           return (

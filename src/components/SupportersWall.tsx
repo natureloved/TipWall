@@ -10,7 +10,7 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-2 mb-3" suppressHydrationWarning>
         {supporters.slice(0, 12).map((s) => {
           const initials = s.address.slice(2, 4).toUpperCase()
           const colors = [
