@@ -5,8 +5,103 @@
   --font-mono: var(--font-geist-mono);
 }
 
-body {
-  background: #0f172a;
+/* Theme variables */
+html[data-theme="dark"] {
+  --bg-primary: linear-gradient(-45deg, #0f1419, #1a1f2e, #16213e, #0f3460);
+  --bg-secondary: #1a202c;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --card-bg: #ffffff;
+  --card-border: rgba(246, 178, 33, 0.1);
+}
+
+html[data-theme="light"] {
+  --bg-primary: linear-gradient(-45deg, #ffffff, #f8fafc, #f1f5f9, #e2e8f0);
+  --bg-secondary: #f8fafc;
+  --text-primary: #1a202c;
+  --text-secondary: #475569;
+  --card-bg: #ffffff;
+  --card-border: rgba(246, 178, 33, 0.15);
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(246, 178, 33, 0.2), 0 20px 60px rgba(0, 0, 0, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(246, 178, 33, 0.4), 0 20px 60px rgba(0, 0, 0, 0.3); }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+html[data-theme="dark"] body {
+  background: linear-gradient(-45deg, #0f1419, #1a1f2e, #16213e, #0f3460);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
   color: #f1f5f9;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+html[data-theme="light"] body {
+  background: linear-gradient(-45deg, #ffffff, #f8fafc, #f1f5f9, #e2e8f0);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+  color: #1a202c;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-custom {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out;
+}
+
+.animate-glow {
+  animation: glow 4s ease-in-out infinite;
+}
+
+.animate-bounce-custom {
+  animation: bounce 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
 }

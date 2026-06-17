@@ -1,44 +1,52 @@
 export default function SupportersWall({ supporters }: { supporters: { address: string; totalNIM: number; tipCount: number }[] }) {
   if (!supporters.length) return null
 
+  const colors = [
+    { bg: 'from-blue-400 to-blue-600', hex: '#4C6EF5' },
+    { bg: 'from-purple-400 to-purple-600', hex: '#9C6EF5' },
+    { bg: 'from-pink-400 to-pink-600', hex: '#F55DA5' },
+    { bg: 'from-amber-400 to-amber-600', hex: '#F6B221' },
+    { bg: 'from-green-400 to-green-600', hex: '#10B981' },
+    { bg: 'from-cyan-400 to-cyan-600', hex: '#06B6D4' },
+  ]
+
   return (
-    <div className="mb-5">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Supporters</p>
-        <p className="text-xs text-gray-400">
-          {supporters.length} {supporters.length === 1 ? 'person' : 'people'} funded this creator
-        </p>
+    <div className="rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '1s'}}>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Supporters ({supporters.length})</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-3" suppressHydrationWarning>
-        {supporters.slice(0, 12).map((s) => {
+      <div className="flex flex-wrap gap-3 mb-5" suppressHydrationWarning>
+        {supporters.slice(0, 12).map((s, idx) => {
           const initials = s.address.slice(2, 4).toUpperCase()
-          const colors = [
-            ['#E1F5EE', '#085041'], ['#EEEDFE', '#3C3489'],
-            ['#FBEAF0', '#72243E'], ['#FEF3E0', '#854F0B'],
-            ['#E8F4FD', '#1A5276'], ['#F0FDF4', '#166534'],
-          ]
-          const [bg, color] = colors[s.address.charCodeAt(2) % colors.length]
+          const color = colors[idx % colors.length]
           return (
-            <div key={s.address} title={`${s.address.slice(0, 6)}…${s.address.slice(-4)} · ${s.totalNIM} NIM`} className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0" style={{ background: bg, color }}>
+            <div
+              key={s.address}
+              title={`${s.address.slice(0, 6)}…${s.address.slice(-4)} · ${s.totalNIM} NIM`}
+              className={`w-12 h-12 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 cursor-pointer transition-all duration-300 transform hover:scale-125 hover:-translate-y-2 shadow-md hover:shadow-lg border-2 border-white bg-gradient-to-br ${color.bg} text-white`}
+            >
               {initials}
             </div>
           )
         })}
         {supporters.length > 12 && (
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-medium bg-gray-100 text-gray-500 flex-shrink-0">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-xs font-bold bg-gray-100 text-gray-600 flex-shrink-0 border-2 border-gray-200">
             +{supporters.length - 12}
           </div>
         )}
       </div>
 
       {supporters[0] && (
-        <div className="rounded-xl p-3 flex items-center gap-3" style={{ background: '#FAEEDA' }}>
-          <span className="text-lg">🏆</span>
+        <div className="rounded-xl p-4 flex items-start gap-3 bg-gradient-to-br from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-150 transition-all cursor-pointer">
+          <span className="text-3xl animate-bounce-custom">🏆</span>
           <div>
-            <p className="text-xs font-medium" style={{ color: '#854F0B' }}>Top supporter</p>
-            <p className="text-sm" style={{ color: '#412402' }}>
-              {supporters[0].address.slice(0, 6)}…{supporters[0].address.slice(-4)} · {supporters[0].totalNIM} NIM across {supporters[0].tipCount} tips
+            <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">Top Supporter</p>
+            <p className="text-sm font-semibold text-amber-950 mt-1">
+              {supporters[0].address.slice(0, 6)}…{supporters[0].address.slice(-4)}
+            </p>
+            <p className="text-xs text-amber-800 mt-0.5">
+              {supporters[0].totalNIM} NIM across {supporters[0].tipCount} tip{supporters[0].tipCount === 1 ? '' : 's'}
             </p>
           </div>
         </div>
