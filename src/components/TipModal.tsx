@@ -1,8 +1,7 @@
-'use client'
 import { useState } from 'react'
 import TipReasonPicker from './TipReasonPicker'
 import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
-import { sendNimTip } from '@/lib/nimiq'
+import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
@@ -58,7 +57,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         setLoading(false)
         return
       }
-      const senderAddress = `NQ${result.txHash.slice(2, 10)}`
+      const senderAddress = await getSenderAddress() || ''
       const res = await fetch('/api/tips/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -3,14 +3,31 @@
   "short_name": "TipWall",
   "description": "A living community tipping wall for creators on Nimiq",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": true,
+  "related_applications": [
+    {
+      "platform": "nimiq",
+      "url": "https://pay.nimiq.com"
+    }
+  ],
   "icons": [
     {
       "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

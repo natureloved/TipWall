@@ -3,12 +3,11 @@ import { init, requestDeviceIdentifier } from '@nimiq/mini-app-sdk'
 let nimiqCache: { senderAddress: string | null; deviceId: string | null } | null = null
 
 export async function initNimiq() {
-  // Return cached result to prevent multiple initializations
   if (nimiqCache) return nimiqCache
   try {
     const nimiq = await init()
     const accounts = await nimiq.listAccounts()
-    const senderAddress = Array.isArray(accounts) ? (accounts as any[])[0]?.address || null : null
+    const senderAddress = Array.isArray(accounts) ? accounts[0] : null
     let deviceId: string | null = null
     try {
       const id = await requestDeviceIdentifier({ reason: 'Prevent tip spam and rate limiting' })
@@ -19,6 +18,17 @@ export async function initNimiq() {
   } catch (err) {
     nimiqCache = { senderAddress: null, deviceId: null }
     return nimiqCache
+  }
+}
+
+export async function getSenderAddress(): Promise<string | null> {
+  if (nimiqCache?.senderAddress) return nimiqCache.senderAddress
+  try {
+    const nimiq = await init()
+    const accounts = await nimiq.listAccounts()
+    return Array.isArray(accounts) ? accounts[0] : null
+  } catch {
+    return null
   }
 }
 

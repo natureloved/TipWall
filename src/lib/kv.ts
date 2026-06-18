@@ -48,32 +48,6 @@ export async function getSupporters(handle: string): Promise<Supporter[]> {
   return Array.from(supportersMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
 }
 
-export async function upsertSupporter(handle: string, tip: { senderAddress: string; amountNIM: number; timestamp: number }): Promise<void> {
-  // Rebuild supporters from tips to ensure data consistency
-  const tips = await getTips(handle)
-  const supportersMap = new Map<string, { address: string; totalNIM: number; tipCount: number; firstTipAt: number }>()
-  
-  tips.forEach(t => {
-    const existing = supportersMap.get(t.senderAddress)
-    if (existing) {
-      existing.totalNIM += t.amountNIM
-      existing.tipCount += 1
-      existing.firstTipAt = Math.min(existing.firstTipAt, t.timestamp)
-    } else {
-      supportersMap.set(t.senderAddress, {
-        address: t.senderAddress,
-        totalNIM: t.amountNIM,
-        tipCount: 1,
-        firstTipAt: t.timestamp,
-      })
-    }
-  })
-  
-  const list = Array.from(supportersMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
-  const key = `${PREFIX}supporters:${handle.toLowerCase()}`
-  await kv.set(key, list)
-}
-
 export async function getMilestones(handle: string): Promise<MilestoneEvent[]> {
   const key = `${PREFIX}milestones:${handle.toLowerCase()}`
   return (await kv.get<MilestoneEvent[]>(key)) || []
@@ -141,4 +115,26 @@ export async function cacheOg(handle: string, meta: OGMetadata): Promise<void> {
   profile.ogCache = meta
   profile.ogCachedAt = Date.now()
   await setProfile(profile)
+}
+
+export async function upsertSupporter(handle: string, tip: { senderAddress: string; amountNIM: number; timestamp: number }): Promise<void> {
+  const key = `${PREFIX}supporters:${handle.toLowerCase()}`
+  const existing = (await kv.get<{ address: string; totalNIM: number; tipCount: number; firstTipAt: number }[]>(key)) || []
+  
+  const idx = existing.findIndex(s => s.address === tip.senderAddress)
+  if (idx >= 0) {
+    existing[idx].totalNIM += tip.amountNIM
+    existing[idx].tipCount += 1
+    existing[idx].firstTipAt = Math.min(existing[idx].firstTipAt, tip.timestamp)
+  } else {
+    existing.unshift({
+      address: tip.senderAddress,
+      totalNIM: tip.amountNIM,
+      tipCount: 1,
+      firstTipAt: tip.timestamp,
+    })
+  }
+  
+  existing.sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
+  await kv.set(key, existing.slice(0, 200))
 }

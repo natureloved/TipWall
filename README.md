@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TipWall - Nimiq Mini App
 
-## Getting Started
+A living community tipping wall for creators on Nimiq. Built for the [Nimiq Mini Apps Competition](https://miniappscompetition.com).
 
-First, run the development server:
+## Features
 
+- **Instant wallet integration** via Nimiq Pay Mini Apps SDK
+- **NIM & USDT tipping** with customizable amounts
+- **Milestone celebrations** - gamified goal tracking with confetti
+- **Live tip feed** - real-time updates on your wall
+- **OG preview** - beautiful link previews for shared content
+- **Responsive design** - mobile-first with dark mode support
+
+## Quick Start
+
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Copy `.env.example` to `.env.local` and configure:
+```bash
+cp .env.example .env.local
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Required environment variables:
+- `KV_REST_API_URL` - Vercel KV Upstash Redis URL
+- `KV_REST_API_TOKEN` - Vercel KV token
+- `NEXT_PUBLIC_APP_URL` - Your deployed app URL
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3. Run development server:
+```bash
+npm run dev
+```
 
-## Learn More
+4. Load in Nimiq Pay for testing (see [Load a local Mini App](https://nimiq.dev/mini-apps/load-local-mini-app))
 
-To learn more about Next.js, take a look at the following resources:
+## Mini App Integration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This app uses:
+- `@nimiq/mini-app-sdk` for wallet connection and deep linking
+- `@nimiq/hub-api` for checkout transactions
+- Supports both NIM and USDT on Ethereum-compatible chains
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   ├── page.tsx              # Creator setup form
+│   ├── layout.tsx            # Root layout with theme support
+│   └── api/
+│       ├── tips/submit       # Tip submission endpoint
+│       ├── tips/[handle]     # Fetch tips for a creator
+│       ├── profile/create    # Create creator profile
+│       └── og/route.ts       # OG metadata fetcher
+├── components/
+│   ├── TipModal.tsx          # Payment modal
+│   ├── TipFeed.tsx           # Live tip feed display
+│   ├── SupportersWall.tsx    # Top supporters display
+│   ├── ContentPreviewCard.tsx  # Link preview card
+│   └── ThemeToggle.tsx       # Dark/light mode toggle
+└── lib/
+    ├── nimiq.ts              # Nimiq SDK utilities
+    ├── kv.ts                 # Vercel KV data layer
+    └── types.ts              # TypeScript types
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deploy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Deploy to Vercel with the KV integration for persistent storage.

@@ -7,9 +7,17 @@ export default function ThemeToggle() {
 
   useEffect(() => {
     setMounted(true)
-    const savedTheme = (localStorage.getItem('theme') || 'dark') as 'dark' | 'light'
-    setTheme(savedTheme)
-    document.documentElement.setAttribute('data-theme', savedTheme)
+    const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null
+    if (savedTheme) {
+      setTheme(savedTheme)
+      document.documentElement.setAttribute('data-theme', savedTheme)
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      const initialTheme = prefersDark ? 'dark' : 'light'
+      setTheme(initialTheme)
+      document.documentElement.setAttribute('data-theme', initialTheme)
+      localStorage.setItem('theme', initialTheme)
+    }
   }, [])
 
   const toggleTheme = () => {
