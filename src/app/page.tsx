@@ -31,13 +31,14 @@ export default function CreatorSetup() {
     setSubmitting(true)
     setError(null)
     try {
+      const displayNameVal = displayName || handle
       const res = await fetch('/api/profile/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           handle,
           walletAddress: wallet,
-          displayName,
+          displayName: displayNameVal,
           bio,
           contentUrl,
           goal: { label: goalLabel, targetNIM: parseInt(goalTarget) || 1000 },
@@ -58,7 +59,9 @@ export default function CreatorSetup() {
       <form onSubmit={submit} className="w-full max-w-md bg-slate-800 rounded-2xl p-6 space-y-4">
         <h1 className="text-2xl font-bold text-center">Create Your TipWall</h1>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Handle</label>
+          <label className="block text-xs text-slate-400 mb-1">
+            Handle <span className="text-slate-500">(your unique URL: tipwall.vercel.app/yourname)</span>
+          </label>
           <input value={handle} onChange={e => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} placeholder="yourname" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" required />
         </div>
         <div>
@@ -66,7 +69,9 @@ export default function CreatorSetup() {
           <input value={wallet} onChange={e => setWallet(e.target.value)} placeholder="NQ..." className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white font-mono text-sm" required />
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Display Name</label>
+          <label className="block text-xs text-slate-400 mb-1">
+            Display Name <span className="text-slate-500">(optional, defaults to handle)</span>
+          </label>
           <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your Name" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
         </div>
         <div>
