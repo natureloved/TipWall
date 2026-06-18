@@ -72,60 +72,60 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-4">
-            <StatCard value={<AnimatedNumber value={totalNIM} />} label="NIM Tipped" index={0} />
-            <StatCard value={<AnimatedNumber value={tips.length} />} label="Tips Sent" index={1} />
-            <StatCard value={`${Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))}%`} label="Goal Progress" index={2} />
-          </div>
+{/* Stats Grid */}
+           <div className="grid grid-cols-3 gap-4">
+             <StatCard value={<AnimatedNumber value={totalNIM} />} label="NIM Tipped" index={0} />
+             <StatCard value={<AnimatedNumber value={tips.length} />} label="Tips Sent" index={1} />
+             <StatCard value={`${Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))}%`} label="Goal Progress" index={2} />
+           </div>
 
-          {/* Goal Progress */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{profile.goal?.label || 'Goal'}</span>
-              <span className="text-xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
-                {Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))}%
-              </span>
-            </div>
-            <div className="relative w-full h-3 rounded-full overflow-hidden bg-gray-100">
-              <div
-                className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700 relative"
-                style={{ width: `${Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))}%` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-              </div>
-            </div>
-          </div>
+           {/* Supporters - prominently displayed for community recognition */}
+           <SupportersWall supporters={supporters} />
 
-          {/* Milestones */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
-            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Milestones</div>
-            <div className="grid grid-cols-5 gap-2">
-              {[100, 500, 1000, 5000, 10000].map((m, idx) => (
-                <div
-                  key={m}
-                  className={`py-3 px-2 rounded-xl text-center font-semibold text-sm transition-all duration-300 cursor-pointer ${
-                    unlockedMilestones.includes(m)
-                      ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 shadow-lg hover:shadow-xl animate-bounce-custom'
-                      : 'bg-gray-50 text-gray-500 border-2 border-gray-100 hover:border-gray-200 hover:bg-gray-100'
-                  }`}
-                  style={{animationDelay: `${0.6 + idx * 0.05}s`}}
-                >
-                  {unlockedMilestones.includes(m) && <span className="text-xs mr-1">✓</span>}
-                  {m >= 1000 ? `${m / 1000}k` : m}
-                </div>
-              ))}
-            </div>
-          </div>
+           {/* Goal Progress */}
+           <div className="rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
+             <div className="flex items-center justify-between mb-3">
+               <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{profile.goal?.label || 'Goal'}</span>
+               <span className="text-xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+                 {Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))}%
+               </span>
+             </div>
+             <div className="relative w-full h-3 rounded-full overflow-hidden bg-gray-100">
+               <div
+                 className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700 relative"
+                 style={{ width: `${Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))}%` }}
+               >
+                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+               </div>
+             </div>
+           </div>
 
-          {/* Content Preview */}
-          {profile.contentUrl && <ContentPreviewCard url={profile.contentUrl} />}
+           {/* Milestones */}
+           <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
+             <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Milestones</div>
+             <div className="grid grid-cols-5 gap-2">
+               {[100, 500, 1000, 5000, 10000].map((m, idx) => (
+                 <div
+                   key={m}
+                   className={`py-3 px-2 rounded-xl text-center font-semibold text-sm transition-all duration-300 cursor-pointer ${
+                     unlockedMilestones.includes(m)
+                       ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 shadow-lg hover:shadow-xl animate-bounce-custom'
+                       : 'bg-gray-50 text-gray-500 border-2 border-gray-100 hover:border-gray-200 hover:bg-gray-100'
+                   }`}
+                   style={{animationDelay: `${0.6 + idx * 0.05}s`}}
+                 >
+                   {unlockedMilestones.includes(m) && <span className="text-xs mr-1">✓</span>}
+                   {m >= 1000 ? `${m / 1000}k` : m}
+                 </div>
+               ))}
+             </div>
+           </div>
 
-          {/* Supporters */}
-          <SupportersWall supporters={supporters} />
+           {/* Content Preview */}
+           {profile.contentUrl && <ContentPreviewCard url={profile.contentUrl} />}
 
-          {/* Live Feed */}
-          <TipFeed tips={tips} />
+           {/* Live Feed */}
+           <TipFeed tips={tips} />
 
           {/* Share Button */}
           <ShareButton handle={handle} />

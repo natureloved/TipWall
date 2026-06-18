@@ -14,14 +14,15 @@ export async function setProfile(profile: CreatorProfile): Promise<void> {
 
 export async function addTip(handle: string, tip: Tip): Promise<void> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
-  const existing = (await kv.get<Tip[]>(key)) || []
-  const updated = [tip, ...existing].slice(0, 200)
-  await kv.set(key, updated)
+  // Use an atomic list push instead of read-modify-write so concurrent tips
+  // to the same creator can't clobber each other (lost-update race).
+  await kv.lpush(key, tip)
+  await kv.ltrim(key, 0, 199)
 }
 
 export async function getTips(handle: string): Promise<Tip[]> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
-  return (await kv.get<Tip[]>(key)) || []
+  return (await kv.lrange<Tip>(key, 0, -1)) || []
 }
 
 export async function getSupporters(handle: string): Promise<Supporter[]> {
