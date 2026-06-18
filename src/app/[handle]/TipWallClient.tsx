@@ -63,7 +63,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                )}
                <button
                  onClick={() => setShowTipModal(true)}
-                 className="inline-block mt-4 px-6 py-2.5 rounded-xl font-semibold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl relative overflow-hidden group animate-slide-up"
+                 className="inline-block mt-4 px-5 py-2 text-sm rounded-xl font-semibold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl relative overflow-hidden group animate-slide-up"
                  style={{animationDelay: '0.3s'}}
                >
                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/30 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
@@ -166,10 +166,10 @@ function StatCard({ value, label, index }: { value: any; label: string; index: n
     >
       <div className="absolute inset-0 bg-gradient-radial from-amber-400/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="relative z-10">
-        <div className="text-4xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+        <div className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
           {value}
         </div>
-        <div className="text-sm font-semibold text-gray-500 uppercase tracking-wide mt-2">{label}</div>
+        <div className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mt-2">{label}</div>
       </div>
     </div>
   )
