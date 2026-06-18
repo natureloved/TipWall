@@ -79,7 +79,3 @@ export default function ContentPreviewCard({ url }: { url: string }) {
     </a>
   )
 }
-      </div>
-    </a>
-  )
-}
