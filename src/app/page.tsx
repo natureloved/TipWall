@@ -1,9 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { connectWallet, signProfileAuth } from '@/lib/nimiq'
+import { normalizeHandle } from '@/lib/profile-auth'
 
 export default function CreatorSetup() {
   const [handle, setHandle] = useState('')
   const [wallet, setWallet] = useState('')
+  const [connecting, setConnecting] = useState(false)
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [contentUrl, setContentUrl] = useState('')
@@ -26,23 +29,51 @@ export default function CreatorSetup() {
     setPlaceholderText(`e.g. "${randomExample}"`)
   }, [])
 
+  const handleConnect = async () => {
+    setError(null)
+    setConnecting(true)
+    try {
+      const address = await connectWallet()
+      setWallet(address)
+    } catch (err: any) {
+      setError(err.message || 'Could not connect wallet')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitting(true)
     setError(null)
+
+    const handleStr = normalizeHandle(handle)
+    if (handleStr.length < 3) {
+      setError('Handle must be at least 3 characters')
+      return
+    }
+    if (!wallet) {
+      setError('Connect your Nimiq wallet first')
+      return
+    }
+
+    setSubmitting(true)
     try {
-      const displayNameVal = displayName || handle
+      // Signature-bound creation: prove ownership of the wallet before saving.
+      const auth = await signProfileAuth({ action: 'create', handle: handleStr, walletAddress: wallet })
+
+      const displayNameVal = displayName || handleStr
       const res = await fetch('/api/profile/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          handle,
+          handle: handleStr,
           walletAddress: wallet,
           displayName: displayNameVal,
           bio,
           contentUrl,
           goal: { label: goalLabel, targetNIM: parseInt(goalTarget) || 1000 },
           achievement: achievement || undefined,
+          auth,
         }),
       })
       const data = await res.json()
@@ -65,8 +96,25 @@ export default function CreatorSetup() {
           <input value={handle} onChange={e => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} placeholder="yourname" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" required />
         </div>
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Nimiq Wallet Address (NQ...)</label>
-          <input value={wallet} onChange={e => setWallet(e.target.value)} placeholder="NQ..." className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white font-mono text-sm" required />
+          <label className="block text-xs text-slate-400 mb-1">Nimiq Wallet</label>
+          {wallet ? (
+            <div className="flex items-center justify-between gap-2 bg-slate-900 rounded-lg px-4 py-3">
+              <span className="font-mono text-sm text-emerald-400 truncate" title={wallet}>{wallet}</span>
+              <span className="text-emerald-400 text-lg shrink-0">✓</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleConnect}
+              disabled={connecting}
+              className="w-full bg-slate-900 hover:bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-60"
+            >
+              {connecting ? 'Connecting…' : 'Connect Nimiq Wallet'}
+            </button>
+          )}
+          <p className="text-[11px] text-slate-500 mt-1">
+            Your wallet signs to prove ownership — only it can edit this profile later.
+          </p>
         </div>
         <div>
           <label className="block text-xs text-slate-400 mb-1">
@@ -105,8 +153,8 @@ export default function CreatorSetup() {
           />
         </div>
         {error && <div className="text-red-400 text-sm">{error}</div>}
-        <button type="submit" disabled={submitting} className="w-full bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-bold py-3 rounded-full">
-          {submitting ? 'Creating...' : 'Create TipWall'}
+        <button type="submit" disabled={submitting || !wallet} className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-slate-900 font-bold py-3 rounded-full">
+          {submitting ? 'Sign in wallet…' : 'Create TipWall'}
         </button>
       </form>
     </div>

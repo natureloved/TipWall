@@ -69,6 +69,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/30 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
                  Send a Tip
                </button>
+               <a
+                 href={`/${handle}/edit`}
+                 className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+               >
+                 Owner? Edit this wall
+               </a>
             </div>
           </div>
 

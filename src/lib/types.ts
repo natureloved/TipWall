@@ -37,6 +37,12 @@ export interface CreatorProfile {
   bio: string
   contentUrl: string
   walletAddress: string
+  /**
+   * Hex-encoded Ed25519 public key of the wallet that owns this profile,
+   * captured at creation. Only a signature from this key (i.e. this wallet)
+   * is allowed to edit the profile afterwards.
+   */
+  ownerPublicKey?: string
   ogCache?: OGMetadata
   ogCachedAt?: number
   achievement?: string
@@ -46,6 +52,7 @@ export interface CreatorProfile {
   }
   milestones?: MilestoneEvent[]
   createdAt: number
+  updatedAt?: number
 }
 
 export interface Tip {

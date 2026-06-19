@@ -11,6 +11,8 @@
   "dependencies": {
     "@nimiq/hub-api": "^1.14.0",
     "@nimiq/mini-app-sdk": "^0.1.0",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
     "@vercel/kv": "^3.0.0",
     "canvas-confetti": "^1.9.4",
     "next": "16.2.9",
