@@ -2,20 +2,31 @@ import { useState } from 'react'
 import TipReasonPicker from './TipReasonPicker'
 import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
+import { savePendingTipIntent } from '@/lib/tip-intent'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
-export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, onTipSuccess }: {
+export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false }: {
   isOpen: boolean
   onClose: () => void
   creatorHandle: string
   creatorWalletAddress: string
   onTipSuccess: (tip: { senderAddress: string; amountNIM: number; message?: string; txHash: string; milestone?: number | null }) => void
+  /** null = unknown/checking, true = inside Nimiq Pay, false = outside. */
+  nimiqAvailable?: boolean | null
+  /** Called (instead of paying) when the user tries to tip outside Nimiq Pay. */
+  onNeedsInstall?: (amountNIM: number) => void
+  /** Prefill for resuming a preserved tip intent. */
+  initialAmount?: number
+  initialMessage?: string
+  /** Show a welcome banner when resuming after onboarding. */
+  welcome?: boolean
 }) {
-  const [selectedAmount, setSelectedAmount] = useState<number>(100)
-  const [customAmount, setCustomAmount] = useState('')
+  const presetInitial = initialAmount && PRESET_AMOUNTS.includes(initialAmount)
+  const [selectedAmount, setSelectedAmount] = useState<number>(presetInitial ? initialAmount! : initialAmount ? 0 : 100)
+  const [customAmount, setCustomAmount] = useState(initialAmount && !presetInitial ? String(initialAmount) : '')
   const [reason, setReason] = useState<TipReason | null>(null)
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(initialMessage || '')
   const [anonymous, setAnonymous] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +43,21 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
 
   const handleSendTip = async () => {
     if (!finalAmount || finalAmount < 1) return setError('Minimum tip is 1 NIM')
+
+    // Outside Nimiq Pay: a payment can't complete here. Preserve the intent and
+    // route the user into the onboarding flow instead of failing.
+    if (nimiqAvailable === false) {
+      savePendingTipIntent({
+        creatorHandle,
+        amountNIM: finalAmount,
+        message: message.trim() || undefined,
+        reason: reason || undefined,
+        createdAt: Date.now(),
+      })
+      onNeedsInstall?.(finalAmount)
+      return
+    }
+
     if (!reason) return setError('Please select a reason for your tip')
     setLoading(true)
     setError('')
@@ -104,6 +130,12 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </p>
         </div>
 
+        {welcome && (
+          <div className="mb-5 rounded-xl bg-emerald-400/10 border border-emerald-400/30 px-4 py-3 text-sm text-emerald-200">
+            👋 Welcome back! Your tip is ready to send.
+          </div>
+        )}
+
         <TipReasonPicker selected={reason} onChange={setReason} />
 
         <div className="mt-6">
@@ -166,10 +198,14 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
 
         <button
           onClick={handleSendTip}
-          disabled={loading || !finalAmount || !reason}
+          disabled={loading || !finalAmount || (nimiqAvailable !== false && !reason)}
           className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300 disabled:hover:shadow-lg transform hover:-translate-y-1 disabled:hover:-translate-y-0"
         >
-          {loading ? '⏳ Waiting for Nimiq Pay confirmation...' : `💰 Send ${finalAmount || '?'} NIM via Nimiq Pay`}
+          {loading
+            ? '⏳ Waiting for Nimiq Pay confirmation...'
+            : nimiqAvailable === false
+              ? `⚡ Continue in Nimiq Pay`
+              : `💰 Send ${finalAmount || '?'} NIM via Nimiq Pay`}
         </button>
       </div>
     </div>

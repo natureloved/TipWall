@@ -8,6 +8,9 @@ import SupportersWall from '@/components/SupportersWall'
 import TipFeed from '@/components/TipFeed'
 import FloatingTips from '@/components/FloatingTips'
 import AnimatedNumber from '@/components/AnimatedNumber'
+import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
+import { detectNimiqPay } from '@/lib/environment'
+import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: any }) {
   const [profile, setProfile] = useState(initialProfile)
@@ -18,6 +21,11 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [supporters, setSupporters] = useState<{ address: string; totalNIM: number; tipCount: number }[]>([])
   const [unlockedMilestones, setUnlockedMilestones] = useState<number[]>([])
   const [floatingTipTrigger, setFloatingTipTrigger] = useState(0)
+  // Onboarding / tip-recovery state
+  const [nimiqAvailable, setNimiqAvailable] = useState<boolean | null>(null)
+  const [showInstall, setShowInstall] = useState(false)
+  const [installAmount, setInstallAmount] = useState<number | undefined>(undefined)
+  const [resume, setResume] = useState<{ amount?: number; message?: string } | null>(null)
 
   const loadTips = useCallback(async () => {
     const res = await fetch(`/api/tips/${handle}`)
@@ -31,6 +39,23 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   }, [handle])
 
   useEffect(() => { loadTips() }, [loadTips])
+
+  // Detect whether we are inside Nimiq Pay, then resume any preserved tip
+  // intent for this creator (same-browser recovery after onboarding).
+  useEffect(() => {
+    let cancelled = false
+    detectNimiqPay().then((available) => {
+      if (cancelled) return
+      setNimiqAvailable(available)
+      const pending = loadPendingTipIntent()
+      if (pending && pending.creatorHandle === handle) {
+        setResume({ amount: pending.amountNIM, message: pending.message })
+        setShowTipModal(true)
+        clearPendingTipIntent()
+      }
+    })
+    return () => { cancelled = true }
+  }, [handle])
 
   return (
     <>
@@ -140,18 +165,37 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
       {showTipModal && (
         <TipModal
+          key={resume ? 'resume' : 'fresh'}
           isOpen={showTipModal}
-          onClose={() => setShowTipModal(false)}
+          onClose={() => { setShowTipModal(false); setResume(null) }}
           creatorHandle={handle}
           creatorWalletAddress={profile.walletAddress}
+          nimiqAvailable={nimiqAvailable}
+          initialAmount={resume?.amount}
+          initialMessage={resume?.message}
+          welcome={!!resume}
+          onNeedsInstall={(amount) => {
+            setInstallAmount(amount)
+            setShowTipModal(false)
+            setResume(null)
+            setShowInstall(true)
+          }}
           onTipSuccess={async (tip) => {
             const prev = totalNIM
             const next = totalNIM + (tip.amountNIM || 0)
             setMilestoneState({ prev, curr: next })
             setFloatingTipTrigger(t => t + 1)
             setShowTipModal(false)
+            setResume(null)
             await loadTips()
           }}
+        />
+      )}
+      {showInstall && (
+        <InstallNimiqPrompt
+          creatorHandle={handle}
+          amountNIM={installAmount}
+          onClose={() => setShowInstall(false)}
         />
       )}
       {milestoneState && (
