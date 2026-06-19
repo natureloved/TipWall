@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, setProfile } from '@/lib/kv'
+import { getProfile, setProfile, consumeAuthNonce } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
-import { normalizeAddress, normalizeHandle, type ProfileAuthProof } from '@/lib/profile-auth'
+import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
 
 export async function POST(req: NextRequest) {
@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
     const verdict = verifyProfileAuth(proof)
     if (!verdict.ok || verdict.signerAddress !== walletStr) {
       return NextResponse.json({ error: verdict.error || 'Invalid wallet signature' }, { status: 401 })
+    }
+    // One-time use: reject replays even within the freshness window.
+    const fresh = await consumeAuthNonce(proof.signature, PROFILE_AUTH_TTL_MS)
+    if (!fresh) {
+      return NextResponse.json({ error: 'This signature was already used, please sign again' }, { status: 401 })
     }
     // --------------------------------------------------------------------
 

@@ -3,6 +3,18 @@ import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent } from './ty
 
 const PREFIX = 'tipwall:'
 
+/**
+ * Atomically consume a one-time authorization nonce (the signature itself).
+ * Returns true if this signature has never been seen before (and reserves it
+ * for `ttlMs`), or false if it was already used — i.e. a replay attempt.
+ * Relies on Redis SET NX PX so the check-and-set is a single atomic op.
+ */
+export async function consumeAuthNonce(signature: string, ttlMs: number): Promise<boolean> {
+  const key = `${PREFIX}authnonce:${signature}`
+  const res = await kv.set(key, 1, { nx: true, px: ttlMs })
+  return res === 'OK'
+}
+
 export async function getProfile(handle: string): Promise<CreatorProfile | null> {
   const raw = await kv.get<CreatorProfile>(`${PREFIX}profile:${handle.toLowerCase()}`)
   return raw ?? null

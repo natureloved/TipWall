@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { getProfile, setProfile } from '@/lib/kv'
+import { getProfile, setProfile, consumeAuthNonce } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
-import { normalizeAddress, normalizeHandle, type ProfileAuthProof } from '@/lib/profile-auth'
+import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
 
 export async function GET(request: Request, { params }: { params: Promise<{ handle: string }> }) {
@@ -57,6 +57,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     // Defense in depth: if we stored the owner key, it must match too.
     if (existing.ownerPublicKey && existing.ownerPublicKey !== proof.publicKey) {
       return NextResponse.json({ error: 'Signer key does not match the profile owner' }, { status: 403 })
+    }
+    // One-time use: reject replays even within the freshness window.
+    const fresh = await consumeAuthNonce(proof.signature, PROFILE_AUTH_TTL_MS)
+    if (!fresh) {
+      return NextResponse.json({ error: 'This signature was already used, please sign again' }, { status: 401 })
     }
     // --------------------------------------------------------------------
 
