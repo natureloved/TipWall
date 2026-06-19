@@ -6,7 +6,7 @@ import { savePendingTipIntent } from '@/lib/tip-intent'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
-export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false }: {
+export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken }: {
   isOpen: boolean
   onClose: () => void
   creatorHandle: string
@@ -21,6 +21,8 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   initialMessage?: string
   /** Show a welcome banner when resuming after onboarding. */
   welcome?: boolean
+  /** When this tip fulfils a claim intent, its token (marks the claim claimed). */
+  claimToken?: string
 }) {
   const presetInitial = initialAmount && PRESET_AMOUNTS.includes(initialAmount)
   const [selectedAmount, setSelectedAmount] = useState<number>(presetInitial ? initialAmount! : initialAmount ? 0 : 100)
@@ -95,6 +97,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           amountNIM: finalAmount,
           txHash: result.txHash,
           anonymous,
+          claimToken,
         }),
       })
       const data = await res.json()

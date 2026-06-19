@@ -11,6 +11,7 @@ import AnimatedNumber from '@/components/AnimatedNumber'
 import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
 import { detectNimiqPay } from '@/lib/environment'
 import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
+import { track } from '@/lib/analytics'
 
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: any }) {
   const [profile, setProfile] = useState(initialProfile)
@@ -47,11 +48,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
     detectNimiqPay().then((available) => {
       if (cancelled) return
       setNimiqAvailable(available)
+      track(handle, 'TIP_WALL_VIEWED')
       const pending = loadPendingTipIntent()
       if (pending && pending.creatorHandle === handle) {
         setResume({ amount: pending.amountNIM, message: pending.message })
         setShowTipModal(true)
         clearPendingTipIntent()
+        track(handle, 'RETURNED_AFTER_INSTALL')
       }
     })
     return () => { cancelled = true }
@@ -87,7 +90,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                  </div>
                )}
                <button
-                 onClick={() => setShowTipModal(true)}
+                 onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
                  className="inline-block mt-4 px-5 py-2 text-sm rounded-xl font-semibold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl relative overflow-hidden group animate-slide-up"
                  style={{animationDelay: '0.3s'}}
                >
@@ -99,6 +102,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                  className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
                >
                  Owner? Edit this wall
+               </a>
+               <a
+                 href={`/${handle}/analytics`}
+                 className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+               >
+                 Analytics
                </a>
             </div>
           </div>
@@ -179,6 +188,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             setShowTipModal(false)
             setResume(null)
             setShowInstall(true)
+            track(handle, 'INSTALL_PROMPT_SHOWN')
           }}
           onTipSuccess={async (tip) => {
             const prev = totalNIM

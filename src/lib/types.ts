@@ -74,3 +74,24 @@ export interface Supporter {
   tipCount: number
   firstTipAt: number
 }
+
+/**
+ * A non-custodial claim intent. Bridges external traffic into Nimiq Pay: the
+ * tip details are reserved under a token so the user (or anyone they share the
+ * link with) can complete the tip from any device, inside Nimiq Pay. NO funds
+ * are ever held — this only preserves intent. A "pledge" is the same record
+ * with source 'pledge' (and optionally an email, deferred for v1).
+ */
+export interface ClaimIntent {
+  token: string
+  creatorHandle: string
+  amountNIM: number
+  message?: string
+  reason?: TipReason
+  email?: string
+  source: 'redirect' | 'pledge'
+  claimed: boolean
+  createdAt: number
+  claimedAt?: number
+  claimTxHash?: string
+}

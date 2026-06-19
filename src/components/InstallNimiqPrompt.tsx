@@ -20,24 +20,61 @@ export default function InstallNimiqPrompt({
   creatorHandle,
   amountNIM,
   onClose,
+  targetUrl,
 }: {
   creatorHandle: string
   amountNIM?: number
   onClose?: () => void
+  /** Override the URL the deep link / QR opens inside Nimiq Pay (defaults to the wall). */
+  targetUrl?: string
 }) {
   const [mobile, setMobile] = useState(false)
   const [deepLink, setDeepLink] = useState('')
   const [qrDataUrl, setQrDataUrl] = useState('')
+  const [pledging, setPledging] = useState(false)
+  const [pledgeUrl, setPledgeUrl] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  const createPledge = async () => {
+    if (!amountNIM) return
+    setPledging(true)
+    try {
+      const res = await fetch('/api/claim/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorHandle, amountNIM, source: 'pledge' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.claimUrl) {
+        const origin = typeof window !== 'undefined' ? window.location.origin : ''
+        setPledgeUrl(`${origin}${data.claimUrl}`)
+      }
+    } catch {
+      /* ignore — pledge is best-effort */
+    } finally {
+      setPledging(false)
+    }
+  }
+
+  const copyPledge = async () => {
+    try {
+      await navigator.clipboard.writeText(pledgeUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
 
   useEffect(() => {
-    const target = wallUrl(creatorHandle)
+    const target = targetUrl || wallUrl(creatorHandle)
     const link = buildNimiqPayDeepLink(target)
     setDeepLink(link)
     setMobile(isMobileDevice())
     QRCode.toDataURL(link, { width: 220, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(''))
-  }, [creatorHandle])
+  }, [creatorHandle, targetUrl])
 
   const benefits = [
     'Direct creator support',
@@ -109,6 +146,33 @@ export default function InstallNimiqPrompt({
             ▶ Google Play
           </a>
         </div>
+
+        {/* Support Later (pledge): reserve the tip as a shareable claim link */}
+        {amountNIM ? (
+          <div className="mb-5">
+            {pledgeUrl ? (
+              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3">
+                <p className="text-sm text-emerald-200 font-semibold mb-1">Your support has been reserved.</p>
+                <p className="text-[11px] text-gray-300 mb-2">No funds are held. Open this link in Nimiq Pay anytime, from any device, to finish.</p>
+                <div className="flex items-center gap-2">
+                  <input readOnly value={pledgeUrl} className="flex-1 bg-slate-900 rounded-lg px-3 py-2 text-xs text-gray-200 font-mono truncate" />
+                  <button type="button" onClick={copyPledge} className="shrink-0 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold transition-colors">
+                    {copied ? '✓' : 'Copy'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={createPledge}
+                disabled={pledging}
+                className="w-full py-2.5 rounded-xl border border-slate-600 text-slate-200 text-sm font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60"
+              >
+                {pledging ? 'Reserving…' : 'Support Later — get a claim link'}
+              </button>
+            )}
+          </div>
+        ) : null}
 
         {/* Benefits */}
         <ul className="space-y-2 mb-5">

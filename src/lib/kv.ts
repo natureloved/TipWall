@@ -1,5 +1,6 @@
 import { kv } from '@vercel/kv'
-import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent } from './types'
+import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent, ClaimIntent } from './types'
+import { FUNNEL_EVENTS, type FunnelEvent } from './events'
 
 const PREFIX = 'tipwall:'
 
@@ -13,6 +14,56 @@ export async function consumeAuthNonce(signature: string, ttlMs: number): Promis
   const key = `${PREFIX}authnonce:${signature}`
   const res = await kv.set(key, 1, { nx: true, px: ttlMs })
   return res === 'OK'
+}
+
+// --- Claim intents (Phase 2: cross-device tip recovery, non-custodial) -----
+
+export async function createClaim(claim: ClaimIntent): Promise<void> {
+  await kv.set(`${PREFIX}claim:${claim.token}`, claim)
+}
+
+export async function getClaim(token: string): Promise<ClaimIntent | null> {
+  return (await kv.get<ClaimIntent>(`${PREFIX}claim:${token}`)) ?? null
+}
+
+/** Mark a claim as fulfilled once an on-chain tip completes it. Idempotent. */
+export async function markClaimClaimed(token: string, txHash?: string): Promise<boolean> {
+  const claim = await getClaim(token)
+  if (!claim || claim.claimed) return false
+  claim.claimed = true
+  claim.claimedAt = Date.now()
+  if (txHash) claim.claimTxHash = txHash
+  await kv.set(`${PREFIX}claim:${claim.token}`, claim)
+  return true
+}
+
+// --- Conversion funnel counters (Phase 3) ----------------------------------
+
+/**
+ * Record a funnel event. Stores an all-time total plus a per-day count for time
+ * series. When `dedupKey` (an anonymous client id) is provided the event is
+ * counted at most once per key per day — used for view-type events so bots /
+ * refreshes don't inflate the funnel.
+ */
+export async function trackEvent(handle: string, event: FunnelEvent, dedupKey?: string): Promise<void> {
+  const h = handle.toLowerCase()
+  const day = new Date().toISOString().slice(0, 10)
+  if (dedupKey) {
+    const seen = await kv.set(`${PREFIX}statseen:${h}:${event}:${dedupKey}:${day}`, 1, { nx: true, px: 36 * 60 * 60 * 1000 })
+    if (seen !== 'OK') return
+  }
+  await kv.incr(`${PREFIX}stats:${h}:${event}:total`)
+  await kv.incr(`${PREFIX}stats:${h}:${event}:${day}`)
+}
+
+/** All-time totals for every funnel event. */
+export async function getStats(handle: string): Promise<Record<FunnelEvent, number>> {
+  const h = handle.toLowerCase()
+  const keys = FUNNEL_EVENTS.map((e) => `${PREFIX}stats:${h}:${e}:total`)
+  const values = await kv.mget<(number | null)[]>(...keys)
+  const out = {} as Record<FunnelEvent, number>
+  FUNNEL_EVENTS.forEach((e, i) => { out[e] = Number(values?.[i] ?? 0) })
+  return out
 }
 
 export async function getProfile(handle: string): Promise<CreatorProfile | null> {

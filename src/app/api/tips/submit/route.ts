@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, getTips, addTip, upsertSupporter, addMilestone } from '@/lib/kv'
+import { getProfile, getTips, addTip, upsertSupporter, addMilestone, markClaimClaimed, trackEvent } from '@/lib/kv'
 import { Tip, MilestoneEvent } from '@/lib/types'
 import { checkMilestone } from '@/lib/milestones'
 
@@ -96,6 +96,15 @@ export async function POST(req: NextRequest) {
     if (milestoneEvent) {
       const added = await addMilestone(handle, milestoneEvent)
       if (added) milestone = milestoneEvent
+    }
+
+    // Conversion funnel: a tip completed. If it fulfils a claim intent, mark it
+    // claimed and count it as a recovered supporter.
+    await trackEvent(handle, 'TIP_COMPLETED')
+    const claimToken = (body as any).claimToken
+    if (claimToken) {
+      const wasOpen = await markClaimClaimed(String(claimToken), body.txHash)
+      if (wasOpen) await trackEvent(handle, 'RETURNED_AFTER_INSTALL')
     }
 
     return NextResponse.json({ success: true, tip, milestone })
