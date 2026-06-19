@@ -1,0 +1,44 @@
+{
+  "name": "TipWall",
+  "short_name": "TipWall",
+  "description": "The wall of creators support. Tip the creator. Not the platform.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "related_applications": [
+    {
+      "platform": "nimiq",
+      "url": "https://pay.nimiq.com"
+    }
+  ],
+  "nimiq_mini_app": {
+    "name": "TipWall",
+    "version": "1.0.0",
+    "description": "Send NIM tips to your favorite creators with a beautiful tipping wall",
+    "entry": "/",
+    "providers": ["nimiq"],
+    "category": "payments",
+    "tags": ["tipping", "creators", "nimiq", "wallet"],
+    "screenshots": [],
+    "hero_media": [],
+    "features": ["sign", "listAccounts", "payment"]
+  }
+}
