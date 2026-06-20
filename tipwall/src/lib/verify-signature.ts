@@ -8,9 +8,9 @@
 // the user-friendly "NQ.." IBAN-style format. To bind a signature to a claimed
 // address we re-derive the address from the signer public key and compare.
 
-import { ed25519 } from '@noble/curves/ed25519'
-import { sha256 } from '@noble/hashes/sha256'
-import { blake2b } from '@noble/hashes/blake2b'
+import { ed25519 } from '@noble/curves/ed25519.js'
+import { sha256 } from '@noble/hashes/sha2.js'
+import { blake2b } from '@noble/hashes/blake2.js'
 import {
   NIMIQ_MSG_PREFIX,
   PROFILE_AUTH_TTL_MS,
