@@ -9,9 +9,9 @@ const DETECTED: { isNimiqPay: boolean; language: string } = { isNimiqPay: false,
 
 function detect() {
   if (typeof window !== 'undefined') {
-    const isNimiqPay = typeof (window as Record<string, unknown>).nimiq !== 'undefined'
+    const isNimiqPay = typeof (window as unknown as Record<string, unknown>).nimiq !== 'undefined'
     const lang =
-      (window as Record<string, unknown> & { nimiqPay?: { language?: string } }).nimiqPay?.language ??
+      (window as unknown as Record<string, unknown> & { nimiqPay?: { language?: string } }).nimiqPay?.language ??
       navigator.language.split('-')[0] ??
       'en'
     return { isNimiqPay, language: String(lang) }
