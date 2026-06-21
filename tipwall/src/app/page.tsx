@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { signMessage } from '@/lib/nimiq'
-import { useNimiqPay } from '@/hooks/useNimiqPay'
-import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
+import { connectWallet, signProfileAuth } from '@/lib/nimiq'
+import { normalizeHandle } from '@/lib/profile-auth'
 
 export default function CreatorSetup() {
   const [handle, setHandle] = useState('')
+  const [wallet, setWallet] = useState('')
+  const [connecting, setConnecting] = useState(false)
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [contentUrl, setContentUrl] = useState('')
@@ -15,8 +16,6 @@ export default function CreatorSetup() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [placeholderText, setPlaceholderText] = useState('')
-  const [showInstall, setShowInstall] = useState(false)
-  const { isNimiqPay } = useNimiqPay()
 
   const achievementExamples = [
     'Building an AI agent',
@@ -30,41 +29,51 @@ export default function CreatorSetup() {
     setPlaceholderText(`e.g. "${randomExample}"`)
   }, [])
 
+  const handleConnect = async () => {
+    setError(null)
+    setConnecting(true)
+    try {
+      const address = await connectWallet()
+      setWallet(address)
+    } catch (err: any) {
+      setError(err.message || 'Could not connect wallet')
+    } finally {
+      setConnecting(false)
+    }
+  }
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmitting(true)
     setError(null)
+
+    const handleStr = normalizeHandle(handle)
+    if (handleStr.length < 3) {
+      setError('Handle must be at least 3 characters')
+      return
+    }
+    if (!wallet) {
+      setError('Connect your Nimiq wallet first')
+      return
+    }
+
+    setSubmitting(true)
     try {
-      if (!isNimiqPay) {
-        setShowInstall(true)
-        setSubmitting(false)
-        return
-      }
+      // Signature-bound creation: prove ownership of the wallet before saving.
+      const auth = await signProfileAuth({ action: 'create', handle: handleStr, walletAddress: wallet })
 
-      const displayNameVal = displayName || handle
-
-      const chRes = await fetch('/api/auth/challenge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle, action: 'create' }),
-      })
-      const ch = await chRes.json()
-      if (!chRes.ok) throw new Error(ch.error || 'Could not start signing')
-
-      const { publicKey, signature, address } = await signMessage(ch.message)
-
+      const displayNameVal = displayName || handleStr
       const res = await fetch('/api/profile/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          handle,
-          walletAddress: address,
+          handle: handleStr,
+          walletAddress: wallet,
           displayName: displayNameVal,
           bio,
           contentUrl,
           goal: { label: goalLabel, targetNIM: parseInt(goalTarget) || 1000 },
           achievement: achievement || undefined,
-          signature: { publicKey, signature, nonce: ch.nonce },
+          auth,
         }),
       })
       const data = await res.json()
@@ -78,38 +87,38 @@ export default function CreatorSetup() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center p-4">
-      {showInstall && (
-        <InstallNimiqPrompt
-          url={typeof window !== 'undefined' ? window.location.origin : ''}
-          onDismiss={() => setShowInstall(false)}
-        />
-      )}
       <form onSubmit={submit} className="w-full max-w-md bg-slate-800 rounded-2xl p-6 space-y-4">
         <h1 className="text-2xl font-bold text-center">Create Your TipWall</h1>
-
-        {!isNimiqPay && (
-          <div className="p-3 bg-amber-400/10 border border-amber-400/30 rounded-xl text-sm text-amber-200 flex items-center gap-2">
-            <span>⚠️</span>
-            <span>Open in Nimiq Pay to create and manage your TipWall.</span>
-            <button
-              type="button"
-              onClick={() => setShowInstall(true)}
-              className="ml-auto text-xs bg-amber-400 text-slate-900 px-3 py-1 rounded-lg font-semibold"
-            >
-              Open →
-            </button>
-          </div>
-        )}
-
         <div>
           <label className="block text-xs text-slate-400 mb-1">
-            Handle <span className="text-slate-500">(your unique URL)</span>
+            Handle <span className="text-slate-500">(your unique URL: tipwall.vercel.app/yourname)</span>
           </label>
           <input value={handle} onChange={e => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} placeholder="yourname" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" required />
         </div>
         <div>
+          <label className="block text-xs text-slate-400 mb-1">Nimiq Wallet</label>
+          {wallet ? (
+            <div className="flex items-center justify-between gap-2 bg-slate-900 rounded-lg px-4 py-3">
+              <span className="font-mono text-sm text-emerald-400 truncate" title={wallet}>{wallet}</span>
+              <span className="text-emerald-400 text-lg shrink-0">✓</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleConnect}
+              disabled={connecting}
+              className="w-full bg-slate-900 hover:bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-60"
+            >
+              {connecting ? 'Connecting…' : 'Connect Nimiq Wallet'}
+            </button>
+          )}
+          <p className="text-[11px] text-slate-500 mt-1">
+            Your wallet signs to prove ownership — only it can edit this profile later.
+          </p>
+        </div>
+        <div>
           <label className="block text-xs text-slate-400 mb-1">
-            Display Name <span className="text-slate-500">(optional)</span>
+            Display Name <span className="text-slate-500">(optional, defaults to handle)</span>
           </label>
           <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your Name" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
         </div>
@@ -143,12 +152,9 @@ export default function CreatorSetup() {
             className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm"
           />
         </div>
-        <p className="text-xs text-slate-400">
-          Sign a message with your Nimiq wallet to prove ownership. The wallet you sign with becomes your tip payout address.
-        </p>
         {error && <div className="text-red-400 text-sm">{error}</div>}
-        <button type="submit" disabled={submitting} className="w-full bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-bold py-3 rounded-full disabled:opacity-60">
-          {submitting ? 'Waiting for signature…' : 'Sign & Create TipWall'}
+        <button type="submit" disabled={submitting || !wallet} className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-slate-900 font-bold py-3 rounded-full">
+          {submitting ? 'Sign in wallet…' : 'Create TipWall'}
         </button>
       </form>
     </div>

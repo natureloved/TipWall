@@ -1,80 +1,205 @@
 'use client'
-import { NIMIQ_PAY_IOS_URL, NIMIQ_PAY_ANDROID_URL } from '@/lib/nimiq-pay'
+import { useEffect, useState } from 'react'
+import QRCode from 'qrcode'
+import {
+  NIMIQ_PAY_IOS_URL,
+  NIMIQ_PAY_ANDROID_URL,
+  NIMIQ_PAY_LANDING_URL,
+  buildNimiqPayDeepLink,
+  isMobileDevice,
+  wallUrl,
+} from '@/lib/environment'
 
-const deepLink = (url: string) => `nimiqpay://miniapp?url=${encodeURIComponent(url)}`
+/**
+ * Onboarding screen shown when a visitor opens a TipWall outside Nimiq Pay.
+ * Goal: preserve their tipping intent and guide them into the Nimiq ecosystem.
+ * - Mobile: a one-tap "Open in Nimiq Pay" deep link + store links to install.
+ * - Desktop: a QR code that opens this wall directly inside Nimiq Pay.
+ */
+export default function InstallNimiqPrompt({
+  creatorHandle,
+  amountNIM,
+  onClose,
+  targetUrl,
+}: {
+  creatorHandle: string
+  amountNIM?: number
+  onClose?: () => void
+  /** Override the URL the deep link / QR opens inside Nimiq Pay (defaults to the wall). */
+  targetUrl?: string
+}) {
+  const [mobile, setMobile] = useState(false)
+  const [deepLink, setDeepLink] = useState('')
+  const [qrDataUrl, setQrDataUrl] = useState('')
+  const [pledging, setPledging] = useState(false)
+  const [pledgeUrl, setPledgeUrl] = useState('')
+  const [copied, setCopied] = useState(false)
 
-export default function InstallNimiqPrompt({ url, onDismiss }: { url: string; onDismiss?: () => void }) {
-  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent)
-  const isAndroid = typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)
-  const isMobile = isIOS || isAndroid
-  const qrLink = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(deepLink(url))}`
+  const createPledge = async () => {
+    if (!amountNIM) return
+    setPledging(true)
+    try {
+      const res = await fetch('/api/claim/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creatorHandle, amountNIM, source: 'pledge' }),
+      })
+      const data = await res.json()
+      if (res.ok && data.claimUrl) {
+        const origin = typeof window !== 'undefined' ? window.location.origin : ''
+        setPledgeUrl(`${origin}${data.claimUrl}`)
+      }
+    } catch {
+      /* ignore — pledge is best-effort */
+    } finally {
+      setPledging(false)
+    }
+  }
+
+  const copyPledge = async () => {
+    try {
+      await navigator.clipboard.writeText(pledgeUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      /* ignore */
+    }
+  }
+
+  useEffect(() => {
+    const target = targetUrl || wallUrl(creatorHandle)
+    const link = buildNimiqPayDeepLink(target)
+    setDeepLink(link)
+    setMobile(isMobileDevice())
+    QRCode.toDataURL(link, { width: 220, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
+      .then(setQrDataUrl)
+      .catch(() => setQrDataUrl(''))
+  }, [creatorHandle, targetUrl])
+
+  const benefits = [
+    'Direct creator support',
+    'Instant NIM transfers',
+    'No platform fees',
+    'Secure self-custody wallet',
+  ]
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm p-4">
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border-2 border-amber-400/20">
-        <div className="text-center space-y-5">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+      <div
+        className="w-full sm:max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl border-t-2 sm:border-2 border-amber-400/20 animate-slide-up"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-6 sm:hidden" />
+
+        <div className="text-center mb-5">
+          <div className="text-4xl mb-2">⚡</div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
-            Open in Nimiq Pay
+            Support @{creatorHandle}
           </h2>
-          <p className="text-gray-300 text-sm leading-relaxed">
-            TipWall runs inside the Nimiq Pay app to give you secure access to your wallet for tipping and profile creation.
+          <p className="text-sm text-gray-300 mt-2">
+            {amountNIM
+              ? `Your ${amountNIM} NIM tip is saved — you're one minute away from sending it.`
+              : "You're one minute away from supporting this creator."}
           </p>
+          <p className="text-xs text-gray-400 mt-1">
+            To send NIM tips, open this wall in Nimiq Pay.
+          </p>
+        </div>
 
-          {isMobile ? (
-            <div className="space-y-4">
-              <button
-                onClick={() => { window.location.href = deepLink(url) }}
-                className="w-full py-4 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all text-base"
-              >
-                ⚡ Open in Nimiq Pay
-              </button>
-              <StoreFallback isIOS={isIOS} />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-400">Scan this QR code with your phone:</p>
-              <div className="flex justify-center">
-                <img
-                  src={qrLink}
-                  alt="QR code to open TipWall in Nimiq Pay"
-                  className="rounded-2xl border-2 border-amber-400/20"
-                />
+        {/* Primary CTA: mobile deep link, desktop QR */}
+        {mobile ? (
+          <a
+            href={deepLink}
+            className="block w-full text-center py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300 mb-3"
+          >
+            ⚡ Open in Nimiq Pay
+          </a>
+        ) : (
+          <div className="flex flex-col items-center gap-3 mb-4">
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="Scan to open in Nimiq Pay" className="rounded-xl bg-white p-2 max-w-full h-auto" width={220} height={220} />
+            ) : (
+              <div className="w-[220px] h-[220px] rounded-xl bg-slate-700/40 animate-pulse" />
+            )}
+            <p className="text-xs text-gray-300 text-center">
+              Scan with your phone to open this wall inside Nimiq Pay
+            </p>
+          </div>
+        )}
+
+        {/* Install links */}
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          <a
+            href={NIMIQ_PAY_IOS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-center py-2.5 rounded-xl border-2 border-amber-400/20 bg-slate-800/50 text-amber-300 text-sm font-semibold hover:border-amber-400/40 hover:bg-slate-800 transition-all"
+          >
+             App Store
+          </a>
+          <a
+            href={NIMIQ_PAY_ANDROID_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-center py-2.5 rounded-xl border-2 border-amber-400/20 bg-slate-800/50 text-amber-300 text-sm font-semibold hover:border-amber-400/40 hover:bg-slate-800 transition-all"
+          >
+            ▶ Google Play
+          </a>
+        </div>
+
+        {/* Support Later (pledge): reserve the tip as a shareable claim link */}
+        {amountNIM ? (
+          <div className="mb-5">
+            {pledgeUrl ? (
+              <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3">
+                <p className="text-sm text-emerald-200 font-semibold mb-1">Your support has been reserved.</p>
+                <p className="text-[11px] text-gray-300 mb-2">No funds are held. Open this link in Nimiq Pay anytime, from any device, to finish.</p>
+                <div className="flex items-center gap-2">
+                  <input readOnly value={pledgeUrl} className="flex-1 bg-slate-900 rounded-lg px-3 py-2 text-xs text-gray-200 font-mono truncate" />
+                  <button type="button" onClick={copyPledge} className="shrink-0 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold transition-colors">
+                    {copied ? '✓' : 'Copy'}
+                  </button>
+                </div>
               </div>
-              <a
-                href={deepLink(url)}
-                className="text-xs text-amber-300 break-all hover:underline"
+            ) : (
+              <button
+                type="button"
+                onClick={createPledge}
+                disabled={pledging}
+                className="w-full py-2.5 rounded-xl border border-slate-600 text-slate-200 text-sm font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60"
               >
-                {deepLink(url)}
-              </a>
-            </div>
-          )}
+                {pledging ? 'Reserving…' : 'Support Later — get a claim link'}
+              </button>
+            )}
+          </div>
+        ) : null}
 
-          {onDismiss && (
-            <button
-              onClick={onDismiss}
-              className="text-xs text-gray-500 hover:text-gray-300 transition-colors pt-2"
-            >
-              Continue as guest (view only)
+        {/* Benefits */}
+        <ul className="space-y-2 mb-5">
+          {benefits.map((b) => (
+            <li key={b} className="flex items-center gap-2 text-sm text-gray-200">
+              <span className="text-emerald-400">✓</span>
+              {b}
+            </li>
+          ))}
+        </ul>
+
+        <div className="flex items-center justify-between gap-3">
+          <a
+            href={NIMIQ_PAY_LANDING_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+          >
+            Learn more
+          </a>
+          {onClose && (
+            <button onClick={onClose} className="text-xs text-slate-400 hover:text-white transition-colors">
+              Maybe later
             </button>
           )}
         </div>
       </div>
-    </div>
-  )
-}
-
-function StoreFallback({ isIOS }: { isIOS: boolean }) {
-  return (
-    <div className="space-y-2 pt-3 border-t border-gray-700">
-      <p className="text-xs text-gray-400">Don&apos;t have Nimiq Pay yet?</p>
-      <a
-        href={isIOS ? NIMIQ_PAY_IOS_URL : NIMIQ_PAY_ANDROID_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block w-full py-3 bg-slate-700 text-white font-semibold rounded-xl text-center text-sm hover:bg-slate-600 transition-colors"
-      >
-        {isIOS ? '📱 Download on App Store' : '📱 Get it on Google Play'}
-      </a>
     </div>
   )
 }

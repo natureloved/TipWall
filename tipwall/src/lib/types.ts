@@ -38,9 +38,9 @@ export interface CreatorProfile {
   contentUrl: string
   walletAddress: string
   /**
-   * Hex-encoded Ed25519 public key of the wallet that owns this profile, bound
-   * at creation via a signature. Edits must be signed by this same key. Profiles
-   * created before signature-binding may not have it (legacy, not editable).
+   * Hex-encoded Ed25519 public key of the wallet that owns this profile,
+   * captured at creation. Only a signature from this key (i.e. this wallet)
+   * is allowed to edit the profile afterwards.
    */
   ownerPublicKey?: string
   ogCache?: OGMetadata
@@ -52,13 +52,7 @@ export interface CreatorProfile {
   }
   milestones?: MilestoneEvent[]
   createdAt: number
-}
-
-/** Proof that the caller controls a Nimiq wallet, produced by `provider.sign()`. */
-export interface WalletSignature {
-  publicKey: string // hex
-  signature: string // hex
-  nonce: string
+  updatedAt?: number
 }
 
 export interface Tip {
@@ -79,4 +73,25 @@ export interface Supporter {
   totalNIM: number
   tipCount: number
   firstTipAt: number
+}
+
+/**
+ * A non-custodial claim intent. Bridges external traffic into Nimiq Pay: the
+ * tip details are reserved under a token so the user (or anyone they share the
+ * link with) can complete the tip from any device, inside Nimiq Pay. NO funds
+ * are ever held — this only preserves intent. A "pledge" is the same record
+ * with source 'pledge' (and optionally an email, deferred for v1).
+ */
+export interface ClaimIntent {
+  token: string
+  creatorHandle: string
+  amountNIM: number
+  message?: string
+  reason?: TipReason
+  email?: string
+  source: 'redirect' | 'pledge'
+  claimed: boolean
+  createdAt: number
+  claimedAt?: number
+  claimTxHash?: string
 }

@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "TipWall — Creator Tipping Wall",
-  description: "The wall of creators support. Tip the creator. Not the platform.",
+  description: "A living community tipping wall for creators on Nimiq",
   manifest: "/manifest.json",
 };
 
