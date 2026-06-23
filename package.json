@@ -1,7 +1,0 @@
-{
-  "name": "tipwall-root",
-  "private": true,
-  "scripts": {
-    "vercel-build": "cd tipwall && npm run build"
-  }
-}
