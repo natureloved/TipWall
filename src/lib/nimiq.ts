@@ -6,12 +6,21 @@ import {
   type ProfileAuthProof,
 } from './profile-auth'
 
+let nimiqInstance: ReturnType<typeof init> | null = null
 let nimiqCache: { senderAddress: string | null; deviceId: string | null } | null = null
+
+// Export a cached singleton - critical for Mini App context detection
+export function getNimiq() {
+  if (!nimiqInstance) {
+    nimiqInstance = init()
+  }
+  return nimiqInstance
+}
 
 export async function initNimiq() {
   if (nimiqCache) return nimiqCache
   try {
-    const nimiq = await init()
+    const nimiq = await getNimiq()
     const accounts = await nimiq.listAccounts()
     const senderAddress = Array.isArray(accounts) ? accounts[0] : null
     let deviceId: string | null = null
@@ -30,7 +39,7 @@ export async function initNimiq() {
 export async function getSenderAddress(): Promise<string | null> {
   if (nimiqCache?.senderAddress) return nimiqCache.senderAddress
   try {
-    const nimiq = await init()
+    const nimiq = await getNimiq()
     const accounts = await nimiq.listAccounts()
     return Array.isArray(accounts) ? accounts[0] : null
   } catch {
@@ -50,7 +59,7 @@ function isErrorResponse(v: unknown): v is { error: { message?: string } } {
 export async function connectWallet(): Promise<string> {
   let nimiq
   try {
-    nimiq = await init()
+    nimiq = await getNimiq()
   } catch {
     throw new Error('Open this app inside Nimiq Pay to connect your wallet.')
   }
@@ -75,7 +84,7 @@ export async function signProfileAuth(params: {
   handle: string
   walletAddress: string
 }): Promise<ProfileAuthProof> {
-  const nimiq = await init()
+  const nimiq = await getNimiq()
   const walletAddress = normalizeAddress(params.walletAddress)
   const issuedAt = Date.now()
   const message = buildProfileAuthMessage({
@@ -111,6 +120,8 @@ export async function sendNimTip(params: {
 }): Promise<{ txHash: string | null; error?: string }> {
   const { creatorWalletAddress, amountNim, tipMessage, appName = 'TipWall', appUrl } = params
   try {
+    // Ensure SDK bridge is initialized first - critical for in-app checkout
+    await getNimiq()
     const HubApi = (await import('@nimiq/hub-api')).default
     const hubApi = new HubApi('https://hub.nimiq.com')
     const signedTx = await hubApi.checkout({

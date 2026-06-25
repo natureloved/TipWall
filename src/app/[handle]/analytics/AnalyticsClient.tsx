@@ -37,8 +37,9 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to load analytics')
       setData(json)
-    } catch (err: any) {
-      setError(err.message || 'Could not load analytics')
+    } catch (err) {
+      const error = err as Error
+      setError(error.message || 'Could not load analytics')
     } finally {
       setLoading(false)
     }

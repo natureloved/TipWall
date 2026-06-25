@@ -12,6 +12,7 @@ import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
 import { detectNimiqPay } from '@/lib/environment'
 import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 import { track } from '@/lib/analytics'
+import { getNimiq } from '@/lib/nimiq'
 
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: any }) {
   const [profile, setProfile] = useState(initialProfile)
@@ -22,11 +23,11 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [supporters, setSupporters] = useState<{ address: string; totalNIM: number; tipCount: number }[]>([])
   const [unlockedMilestones, setUnlockedMilestones] = useState<number[]>([])
   const [floatingTipTrigger, setFloatingTipTrigger] = useState(0)
-  // Onboarding / tip-recovery state
   const [nimiqAvailable, setNimiqAvailable] = useState<boolean | null>(null)
   const [showInstall, setShowInstall] = useState(false)
   const [installAmount, setInstallAmount] = useState<number | undefined>(undefined)
   const [resume, setResume] = useState<{ amount?: number; message?: string } | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
 
   const loadTips = useCallback(async () => {
     const res = await fetch(`/api/tips/${handle}`)
@@ -40,6 +41,18 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   }, [handle])
 
   useEffect(() => { loadTips() }, [loadTips])
+
+  // Check if connected wallet is the owner for dashboard link
+  useEffect(() => {
+    let cancelled = false
+    getNimiq().then((nimiq) => nimiq.listAccounts().then((accounts) => {
+      const address = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] : null
+      if (!cancelled && address === profile.walletAddress) {
+        setIsOwner(true)
+      }
+    })).catch(() => {})
+    return () => { cancelled = true }
+  }, [profile.walletAddress])
 
   // Detect whether we are inside Nimiq Pay, then resume any preserved tip
   // intent for this creator (same-browser recovery after onboarding).
@@ -103,13 +116,21 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                >
                  Owner? Edit this wall
                </a>
-               <a
-                 href={`/${handle}/analytics`}
-                 className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
-               >
-                 Analytics
-               </a>
-            </div>
+<a
+                  href={`/${handle}/analytics`}
+                  className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+                >
+                  Analytics
+                </a>
+                {isOwner && (
+                  <a
+                    href={`/${handle}/dashboard`}
+                    className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+                  >
+                    Dashboard
+                  </a>
+                )}
+              </div>
           </div>
 
 {/* Stats Grid */}

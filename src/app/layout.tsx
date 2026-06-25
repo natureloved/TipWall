@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import ThemeToggle from "@/components/ThemeToggle";
+import { NimiqProvider } from "@/components/NimiqProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -39,8 +40,10 @@ export default function RootLayout({
       data-theme="dark"
     >
       <body className="min-h-full flex flex-col">
-        <ThemeToggle />
-        {children}
+        <NimiqProvider>
+          <ThemeToggle />
+          {children}
+        </NimiqProvider>
       </body>
     </html>
   );

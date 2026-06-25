@@ -110,8 +110,9 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         milestone: data.milestone?.threshold ?? data.milestoneReached ?? null,
       })
       onClose()
-    } catch (e: any) {
-      setError(e.message || 'Something went wrong. Please try again.')
+    } catch (e) {
+      const error = e as Error
+      setError(error.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
     }

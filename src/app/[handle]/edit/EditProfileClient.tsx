@@ -28,8 +28,9 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
       if (normalizeAddress(address) !== normalizeAddress(profile.walletAddress)) {
         setError('This wallet does not own @' + handle + '. Connect the wallet used to create it.')
       }
-    } catch (err: any) {
-      setError(err.message || 'Could not connect wallet')
+    } catch (err) {
+      const error = err as Error
+      setError(error.message || 'Could not connect wallet')
     } finally {
       setConnecting(false)
     }
@@ -63,8 +64,9 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
       if (!res.ok) throw new Error(data.error)
       setSaved(true)
       setTimeout(() => { window.location.href = `/${handle}` }, 800)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      const error = err as Error
+      setError(error.message)
     } finally {
       setSubmitting(false)
     }

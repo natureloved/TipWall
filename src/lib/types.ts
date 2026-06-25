@@ -95,3 +95,15 @@ export interface ClaimIntent {
   claimedAt?: number
   claimTxHash?: string
 }
+
+export type DashboardData = {
+  profile: CreatorProfile
+  tips: Tip[]
+  supporters: Supporter[]
+  totalNIM: number
+  totalTips: number
+  milestonesUnlocked: MilestoneEvent[]
+  nextMilestone: number | null
+  tipsLast7Days: { date: string; nim: number; count: number }[]
+  topReason: TipReason | null
+}
