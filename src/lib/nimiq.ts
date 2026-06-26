@@ -1,4 +1,5 @@
 import { init, requestDeviceIdentifier } from '@nimiq/mini-app-sdk'
+import type { ErrorResponse } from '@nimiq/mini-app-sdk'
 import {
   buildProfileAuthMessage,
   normalizeAddress,
@@ -48,7 +49,7 @@ export async function getSenderAddress(): Promise<string | null> {
 }
 
 /** Helper to read either { error } responses or plain values from the SDK. */
-function isErrorResponse(v: unknown): v is { error: { message?: string } } {
+function isErrorResponse(v: unknown): v is ErrorResponse {
   return typeof v === 'object' && v !== null && 'error' in v
 }
 
@@ -118,21 +119,22 @@ export async function sendNimTip(params: {
   appName?: string
   appUrl: string
 }): Promise<{ txHash: string | null; error?: string }> {
-  const { creatorWalletAddress, amountNim, tipMessage, appName = 'TipWall', appUrl } = params
+  const { creatorWalletAddress, amountNim, tipMessage } = params
   try {
-    // Ensure SDK bridge is initialized first - critical for in-app checkout
-    await getNimiq()
-    const HubApi = (await import('@nimiq/hub-api')).default
-    const hubApi = new HubApi('https://hub.nimiq.com')
-    const signedTx = await hubApi.checkout({
-      appName,
-      recipient: creatorWalletAddress,
-      value: Math.round(amountNim * 100000),
-      extraData: tipMessage || undefined,
-      shopLogoUrl: `${appUrl}/logo.png`,
-    })
-    return { txHash: signedTx.hash || null }
-  } catch (err: any) {
-    return { txHash: null, error: err?.message || 'Payment failed' }
+    const nimiq = await getNimiq()
+    const sender = await getSenderAddress()
+    if (!sender) {
+      return { txHash: null, error: 'No Nimiq account available' }
+    }
+    const value = Math.round(amountNim * 100000)
+    const result = tipMessage
+      ? await nimiq.sendBasicTransactionWithData({ recipient: creatorWalletAddress, value, data: tipMessage })
+      : await nimiq.sendBasicTransaction({ recipient: creatorWalletAddress, value })
+    if (isErrorResponse(result)) {
+      return { txHash: null, error: result.error?.message || 'Transaction failed' }
+    }
+    return { txHash: result as string }
+  } catch (err) {
+    return { txHash: null, error: err instanceof Error ? err.message : 'Payment failed' }
   }
 }
