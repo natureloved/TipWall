@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getProfile, getTips, addTip, upsertSupporter, addMilestone, markClaimClaimed, trackEvent } from '@/lib/kv'
 import { Tip, MilestoneEvent } from '@/lib/types'
 import { checkMilestone } from '@/lib/milestones'
+import { normalizeAddress } from '@/lib/profile-auth'
 
 const RATE_LIMIT_WINDOW = 60000
 const MAX_TIPS_PER_WINDOW = 5
@@ -60,7 +61,7 @@ async function verifyTx(txHash: string, recipient: string, amountLuna: number): 
         }
         return false
       }
-      return tx.toAddress === recipient && value >= amountLuna - 1000 && value <= amountLuna + 1000
+      return normalizeAddress(tx.toAddress) === normalizeAddress(recipient) && value >= amountLuna - 1000 && value <= amountLuna + 1000
     } catch {
       if (attempt < 3) {
         await new Promise(r => setTimeout(r, (attempt + 1) * 1000))

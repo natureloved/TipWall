@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { type ClaimIntent, type CreatorProfile } from '@/lib/types'
 import TipModal from '@/components/TipModal'
 import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
@@ -14,13 +14,17 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
   const [nimiqAvailable, setNimiqAvailable] = useState<boolean | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [done, setDone] = useState(claim.claimed)
+  const openedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
     detectNimiqPay().then((available) => {
       if (cancelled) return
       setNimiqAvailable(available)
-      if (available && !claim.claimed) setShowModal(true)
+      if (available && !claim.claimed && !openedRef.current) {
+        openedRef.current = true
+        setShowModal(true)
+      }
     })
     return () => { cancelled = true }
   }, [claim.claimed])
