@@ -33,14 +33,43 @@ function checkRateLimitSync(req: NextRequest): boolean {
 }
 
 async function verifyTx(txHash: string, recipient: string, amountLuna: number): Promise<boolean> {
-  try {
-    const resp = await fetch(`https://api.nimiq.com/transactions/${txHash}`)
-    const data = await resp.json()
-    const tx = data.result || data
-    return !!tx && tx.toAddress === recipient && Number(tx.value) >= amountLuna - 1000 && Number(tx.value) <= amountLuna + 1000
-  } catch {
-    return false
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const resp = await fetch(`https://api.nimiq.com/transactions/${txHash}`)
+      if (!resp.ok) {
+        if (attempt < 3 && (resp.status === 429 || resp.status === 503)) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
+          continue
+        }
+        return false
+      }
+      const data = await resp.json()
+      const tx = data.result || data
+      if (!tx || !tx.toAddress || !tx.value) {
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
+          continue
+        }
+        return false
+      }
+      const value = Number(tx.value)
+      if (Number.isNaN(value)) {
+        if (attempt < 3) {
+          await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
+          continue
+        }
+        return false
+      }
+      return tx.toAddress === recipient && value >= amountLuna - 1000 && value <= amountLuna + 1000
+    } catch {
+      if (attempt < 3) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
+        continue
+      }
+      return false
+    }
   }
+  return false
 }
 
 export async function POST(req: NextRequest) {

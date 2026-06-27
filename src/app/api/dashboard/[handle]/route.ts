@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { kv } from '@vercel/kv'
-import { Tip, MILESTONES, Supporter } from '@/lib/types'
+import { MILESTONES, Supporter } from '@/lib/types'
+import { getProfile, getTips } from '@/lib/kv'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
   const requesterAddress = req.headers.get('x-wallet-address')
 
-  const profileRaw = await kv.get(`tipwall:profile:${handle.toLowerCase()}`)
-  if (!profileRaw) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  const profile = JSON.parse(profileRaw as string)
+  const profile = await getProfile(handle)
+  if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   if (!requesterAddress || requesterAddress !== profile.walletAddress) {
     return NextResponse.json({ error: 'Unauthorized — wallet does not match creator' }, { status: 403 })
   }
 
-  const tipsRaw = await kv.get(`tipwall:tips:${handle.toLowerCase()}`)
-  const tips: Tip[] = tipsRaw ? JSON.parse(tipsRaw as string) : []
+  const tips = await getTips(handle)
 
   const totalNIM = tips.reduce((sum, t) => sum + t.amountNIM, 0)
 
