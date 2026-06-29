@@ -7,6 +7,7 @@ import DashboardSupporters from '@/components/DashboardSupporters'
 import DashboardEditProfile from '@/components/DashboardEditProfile'
 import DashboardMilestones from '@/components/DashboardMilestones'
 import { getNimiq } from '@/lib/nimiq'
+import { normalizeAddress } from '@/lib/profile-auth'
 
 export default function DashboardPage() {
   const { handle } = useParams<{ handle: string }>()
@@ -22,8 +23,9 @@ export default function DashboardPage() {
         const nimiq = await getNimiq()
         const accounts = await nimiq.listAccounts()
         // accounts is either string[] or { error: ... } - extract address safely
-        const address = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] : null
-        if (!address) throw new Error('No Nimiq wallet connected')
+        const rawAddress = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] : null
+        if (!rawAddress) throw new Error('No Nimiq wallet connected')
+        const address = normalizeAddress(rawAddress)
         setWalletAddress(address)
 
         const res = await fetch(`/api/dashboard/${handle}`, {

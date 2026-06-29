@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MILESTONES, Supporter } from '@/lib/types'
-import { getProfile, getTips } from '@/lib/kv'
+import { getProfile, getTips, getSupporters } from '@/lib/kv'
+import { normalizeAddress } from '@/lib/profile-auth'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
@@ -9,11 +10,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
   const profile = await getProfile(handle)
   if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (!requesterAddress || requesterAddress !== profile.walletAddress) {
+  if (!requesterAddress || normalizeAddress(requesterAddress) !== normalizeAddress(profile.walletAddress)) {
     return NextResponse.json({ error: 'Unauthorized — wallet does not match creator' }, { status: 403 })
   }
 
   const tips = await getTips(handle)
+  const supporters = await getSupporters(handle)
 
   const totalNIM = tips.reduce((sum, t) => sum + t.amountNIM, 0)
 

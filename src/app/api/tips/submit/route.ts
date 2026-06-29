@@ -34,42 +34,46 @@ function checkRateLimitSync(req: NextRequest): boolean {
 }
 
 async function verifyTx(txHash: string, recipient: string, amountLuna: number): Promise<boolean> {
-  for (let attempt = 0; attempt < 4; attempt++) {
-    try {
-      const resp = await fetch(`https://api.nimiq.com/transactions/${txHash}`)
-      if (!resp.ok) {
-        if (attempt < 3 && (resp.status === 429 || resp.status === 503)) {
-          await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
-          continue
+  const recipientNorm = normalizeAddress(recipient)
+
+  const endpoints = [
+    `https://api.nimiq.com/transaction/${txHash}`,
+    `https://api.nimiq.com/transactions/${txHash}`,
+    `https://nimiq.watch/api/tx/${txHash}`,
+    `https://explorer.nimiq.com/api/v1/transactions/${txHash}`,
+  ]
+
+  const addrFields = ['toAddress', 'to', 'recipientAddress', 'recipient'] as const
+  const valueFields = ['value', 'amount', 'luna', 'lunaValue'] as const
+
+  for (let attempt = 0; attempt < 6; attempt++) {
+    for (const endpoint of endpoints) {
+      try {
+        const resp = await fetch(endpoint, { headers: { 'User-Agent': 'TipWall/1.0' } })
+        if (!resp.ok) continue
+        const data = await resp.json()
+
+        const tx = data.transaction || data.result || data.data || data
+        if (!tx || typeof tx !== 'object') continue
+
+        const toAddrRaw = addrFields.map(f => (tx as Record<string, unknown>)[f]).find(Boolean) as string | undefined
+        const rawValue = valueFields.map(f => (tx as Record<string, unknown>)[f]).find(v => v != null)
+
+        if (!toAddrRaw || rawValue == null) continue
+        const value = Number(rawValue)
+        if (!Number.isFinite(value)) continue
+
+        if (normalizeAddress(toAddrRaw) === recipientNorm && value >= amountLuna - 1000 && value <= amountLuna + 1000) {
+          return true
         }
-        return false
-      }
-      const data = await resp.json()
-      const tx = data.result || data
-      if (!tx || !tx.toAddress || !tx.value) {
-        if (attempt < 3) {
-          await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
-          continue
-        }
-        return false
-      }
-      const value = Number(tx.value)
-      if (Number.isNaN(value)) {
-        if (attempt < 3) {
-          await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
-          continue
-        }
-        return false
-      }
-      return normalizeAddress(tx.toAddress) === normalizeAddress(recipient) && value >= amountLuna - 1000 && value <= amountLuna + 1000
-    } catch {
-      if (attempt < 3) {
-        await new Promise(r => setTimeout(r, (attempt + 1) * 1000))
-        continue
-      }
-      return false
+      } catch { }
+    }
+
+    if (attempt < 5) {
+      await new Promise(r => setTimeout(r, Math.min(2000, 500 * (attempt + 1))))
     }
   }
+
   return false
 }
 

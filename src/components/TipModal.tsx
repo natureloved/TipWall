@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import TipReasonPicker from './TipReasonPicker'
 import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
@@ -32,6 +32,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   const [anonymous, setAnonymous] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const sendingRef = useRef(false)
 
   const finalAmount = customAmount ? Number(customAmount) : selectedAmount
 
@@ -44,26 +45,32 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   }
 
   const handleSendTip = async () => {
+    if (sendingRef.current) return
     if (!finalAmount || finalAmount < 1) return setError('Minimum tip is 1 NIM')
+    sendingRef.current = true
 
-    // Outside Nimiq Pay: a payment can't complete here. Preserve the intent and
-    // route the user into the onboarding flow instead of failing.
-    if (nimiqAvailable === false) {
-      savePendingTipIntent({
-        creatorHandle,
-        amountNIM: finalAmount,
-        message: message.trim() || undefined,
-        reason: reason || undefined,
-        createdAt: Date.now(),
-      })
-      onNeedsInstall?.(finalAmount)
-      return
-    }
+    const reset = () => { sendingRef.current = false }
 
-    if (!reason) return setError('Please select a reason for your tip')
-    setLoading(true)
-    setError('')
     try {
+      if (!reason) { setError('Please select a reason for your tip'); reset(); return }
+
+      // Outside Nimiq Pay: a payment can't complete here. Preserve the intent and
+      // route the user into the onboarding flow instead of failing.
+      if (nimiqAvailable === false) {
+        savePendingTipIntent({
+          creatorHandle,
+          amountNIM: finalAmount,
+          message: message.trim() || undefined,
+          reason: reason || undefined,
+          createdAt: Date.now(),
+        })
+        onNeedsInstall?.(finalAmount)
+        reset()
+        return
+      }
+
+      setLoading(true)
+      setError('')
       const appUrl = typeof window !== 'undefined' ? window.location.origin : ''
       const result = await sendNimTip({
         creatorWalletAddress,
@@ -72,17 +79,19 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         appUrl,
       })
       if (result.error) {
+        setLoading(false)
         if (result.error.toLowerCase().includes('cancel') || result.error.toLowerCase().includes('decline')) {
           setError('Transaction cancelled.')
         } else {
           setError(result.error)
         }
-        setLoading(false)
+        reset()
         return
       }
       if (!result.txHash) {
         setError('Payment failed')
         setLoading(false)
+        reset()
         return
       }
       const senderAddress = await getSenderAddress() || ''
@@ -115,6 +124,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
       setError(error.message || 'Something went wrong. Please try again.')
     } finally {
       setLoading(false)
+      reset()
     }
   }
 
