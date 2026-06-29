@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MILESTONES, Supporter } from '@/lib/types'
+import { MILESTONES } from '@/lib/types'
 import { getProfile, getTips, getSupporters } from '@/lib/kv'
 import { normalizeAddress } from '@/lib/profile-auth'
 
@@ -18,23 +18,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
   const supporters = await getSupporters(handle)
 
   const totalNIM = tips.reduce((sum, t) => sum + t.amountNIM, 0)
-
-  const supporterMap = new Map<string, Supporter>()
-  for (const tip of tips) {
-    const existing = supporterMap.get(tip.senderAddress)
-    if (existing) {
-      existing.totalNIM += tip.amountNIM
-      existing.tipCount += 1
-    } else {
-      supporterMap.set(tip.senderAddress, {
-        address: tip.senderAddress,
-        totalNIM: tip.amountNIM,
-        tipCount: 1,
-        firstTipAt: tip.timestamp,
-      })
-    }
-  }
-  const supporters = Array.from(supporterMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
 
   const nextMilestone = MILESTONES.find(m => m > totalNIM) ?? null
 
