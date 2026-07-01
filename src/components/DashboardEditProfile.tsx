@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { CreatorProfile } from '@/lib/types'
+import { signProfileAuth } from '@/lib/nimiq'
 
 interface Props {
   profile: CreatorProfile
@@ -15,24 +16,33 @@ export default function DashboardEditProfile({ profile, walletAddress }: Props) 
   const [goalTarget, setGoalTarget] = useState(profile.goal?.targetNIM?.toString() || '')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSave() {
     setSaving(true)
     setSaved(false)
+    setError(null)
     try {
-      const res = await fetch('/api/profile/update', {
-        method: 'POST',
+      // Signature-bound edit: prove wallet ownership for this change, same as
+      // the public edit page. The server verifies the signature — the wallet
+      // address alone is not sufficient authorization.
+      const auth = await signProfileAuth({ action: 'update', handle: profile.handle, walletAddress })
+      const res = await fetch(`/api/profile/${profile.handle}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          handle: profile.handle,
-          walletAddress,
           bio,
           contentUrl,
-          achievement,
+          achievement: achievement || undefined,
           goal: goalLabel && goalTarget ? { label: goalLabel, targetNIM: Number(goalTarget) } : undefined,
+          auth,
         }),
       })
-      if (res.ok) setSaved(true)
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to save changes')
+      setSaved(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save changes')
     } finally {
       setSaving(false)
     }
@@ -85,8 +95,9 @@ export default function DashboardEditProfile({ profile, walletAddress }: Props) 
         disabled={saving}
         className="w-full py-3 bg-[#F6B221] text-[#412402] font-medium rounded-lg text-sm disabled:opacity-50"
       >
-        {saving ? 'Saving...' : saved ? '✓ Saved' : 'Save changes'}
+        {saving ? 'Sign in wallet…' : saved ? '✓ Saved' : 'Save changes'}
       </button>
+      {error && <p className="text-red-500 text-xs mt-2">{error}</p>}
     </div>
   )
 }

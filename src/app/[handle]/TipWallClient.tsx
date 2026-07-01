@@ -76,7 +76,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   return (
     <>
       <FloatingTips trigger={floatingTipTrigger} />
-      <div className="min-h-screen relative">
+      <div className="tw-wall min-h-screen relative">
         {/* Animated background gradient */}
         <div className="fixed inset-0 z-0" />
         

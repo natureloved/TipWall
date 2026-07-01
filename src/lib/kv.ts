@@ -5,6 +5,29 @@ import { FUNNEL_EVENTS, type FunnelEvent } from './events'
 const PREFIX = 'tipwall:'
 
 /**
+ * Reject hosts that resolve inside the deployment's own network so a
+ * user-supplied URL can't be used for SSRF (cloud metadata, loopback, RFC1918).
+ * String-based (won't stop DNS rebinding) but blocks the obvious vectors.
+ */
+function isPrivateHost(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/\.$/, '')
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.internal') || h.endsWith('.local')) return true
+  // IPv6 loopback / link-local / unique-local
+  if (h === '::1' || h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) return true
+  // Cloud metadata endpoint
+  if (h === '169.254.169.254') return true
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])]
+    if (a === 10 || a === 127 || a === 0) return true
+    if (a === 192 && b === 168) return true
+    if (a === 169 && b === 254) return true
+    if (a === 172 && b >= 16 && b <= 31) return true
+  }
+  return false
+}
+
+/**
  * Atomically consume a one-time authorization nonce (the signature itself).
  * Returns true if this signature has never been seen before (and reserves it
  * for `ttlMs`), or false if it was already used — i.e. a replay attempt.
@@ -132,12 +155,17 @@ export async function getTotalNim(handle: string): Promise<number> {
 
 export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
   try {
-    // Validate URL format
+    // Validate URL format + block SSRF: only public http(s) targets. The URL is
+    // user-controlled (profile contentUrl), so refuse internal/loopback/metadata
+    // hosts to stop the server being used to probe its own network.
+    let parsed: URL
     try {
-      new URL(url)
+      parsed = new URL(url)
     } catch {
       return null
     }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    if (isPrivateHost(parsed.hostname)) return null
     
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 5000)

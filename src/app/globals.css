@@ -105,3 +105,56 @@ html[data-theme="light"] body {
 .animate-shimmer {
   animation: shimmer 2s infinite;
 }
+
+/* ------------------------------------------------------------------ *
+ * Light-mode restyle for the public tip wall (.tw-wall).
+ * Dark mode is the base look; these rules only apply under
+ * <html data-theme="light">. Scoped so the dashboard/edit pages
+ * (which are intentionally their own always-light designs) are untouched.
+ * ------------------------------------------------------------------ */
+
+/* Warm, airy page wash behind the wall. */
+html[data-theme="light"] .tw-wall {
+  --tw-hero-from: #fffdf8;
+  --tw-hero-to: #fdf4e3;
+}
+
+/* Hero: swap the dark slate gradient for a soft ivory/amber wash and a
+   gentle warm glow instead of the heavy dark shadow. */
+html[data-theme="light"] .tw-wall .animate-glow {
+  background: linear-gradient(135deg, #fffdf8 0%, #fef6e6 55%, #fdeccd 100%);
+  border: 1px solid rgba(246, 178, 33, 0.28);
+  animation: none;
+  box-shadow: 0 10px 40px -12px rgba(246, 178, 33, 0.35), 0 4px 14px -6px rgba(15, 23, 42, 0.08);
+}
+
+/* Hero heading: the amber→yellow gradient text washes out on a light hero,
+   so render it as a solid warm brown-amber for contrast. */
+html[data-theme="light"] .tw-wall .animate-glow h1 {
+  background: none;
+  -webkit-text-fill-color: initial;
+  color: #7a4d05;
+}
+
+/* Hero body text (bio) becomes dark for readability on the light hero. */
+html[data-theme="light"] .tw-wall .animate-glow p {
+  color: #5b4a2f;
+}
+
+/* The decorative animated orbs read as muddy smudges on light — hide them. */
+html[data-theme="light"] .tw-wall .animate-glow .animate-float {
+  opacity: 0.35;
+}
+
+/* Owner/utility links in the hero need darker ink on the light background. */
+html[data-theme="light"] .tw-wall .animate-glow a {
+  color: #8a6d3b;
+}
+
+/* Cards: tint the flat white to a soft ivory so they lift off the page,
+   with a warmer border and a softer shadow. Targets the shared card recipe
+   (rounded-2xl/3xl + bg-white) used by stats, goal, milestones, feed, etc. */
+html[data-theme="light"] .tw-wall .bg-white {
+  background-color: #fffdf9;
+  border-color: rgba(246, 178, 33, 0.22);
+}
