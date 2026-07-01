@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, getTips, getSupporters } from '@/lib/kv'
+import { NextResponse } from 'next/server'
+import { getProfile, reverifyPendingTips, getSupporters, verifiedTotal } from '@/lib/kv'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
@@ -7,8 +7,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ han
   if (!profile) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
   }
-  const tips = await getTips(handle)
+  // Re-check any pending tips (indexer may have caught up) before reading.
+  const tips = await reverifyPendingTips(handle, profile.walletAddress)
   const supporters = await getSupporters(handle)
-  const totalNIM = tips.reduce((sum, t) => sum + (t.amountNIM || 0), 0)
+  const totalNIM = verifiedTotal(tips)
   return NextResponse.json({ tips, supporters, totalNIM })
 }

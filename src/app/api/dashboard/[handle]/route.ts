@@ -1,23 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MILESTONES } from '@/lib/types'
-import { getProfile, getTips, getSupporters } from '@/lib/kv'
-import { normalizeAddress } from '@/lib/profile-auth'
+import { getProfile, reverifyPendingTips, getSupporters, verifiedTotal } from '@/lib/kv'
+import { normalizeAddress, type ProfileAuthProof } from '@/lib/profile-auth'
+import { verifyProfileAuth } from '@/lib/verify-signature'
+
+/** Decode the base64 JSON `view` proof carried in the x-tipwall-auth header. */
+function readAuthProof(req: NextRequest): ProfileAuthProof | null {
+  const raw = req.headers.get('x-tipwall-auth')
+  if (!raw) return null
+  try {
+    return JSON.parse(Buffer.from(raw, 'base64').toString('utf8')) as ProfileAuthProof
+  } catch {
+    return null
+  }
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
-  const requesterAddress = req.headers.get('x-wallet-address')
 
   const profile = await getProfile(handle)
   if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  if (!requesterAddress || normalizeAddress(requesterAddress) !== normalizeAddress(profile.walletAddress)) {
+  // Authorization: require a fresh, signed `view` proof from the owner wallet.
+  // The wallet address alone is public, so a header claim is not trusted — the
+  // signature is verified and must derive to the creator's wallet.
+  const proof = readAuthProof(req)
+  if (!proof || proof.action !== 'view') {
+    return NextResponse.json({ error: 'Wallet signature required' }, { status: 401 })
+  }
+  const verdict = verifyProfileAuth(proof)
+  if (!verdict.ok) {
+    return NextResponse.json({ error: verdict.error || 'Invalid wallet signature' }, { status: 401 })
+  }
+  if (verdict.signerAddress !== normalizeAddress(profile.walletAddress)) {
     return NextResponse.json({ error: 'Unauthorized — wallet does not match creator' }, { status: 403 })
   }
 
-  const tips = await getTips(handle)
+  // Re-check pending tips, then report money metrics from verified tips only.
+  const allTips = await reverifyPendingTips(handle, profile.walletAddress)
   const supporters = await getSupporters(handle)
+  const tips = allTips.filter(t => t.verified)
 
-  const totalNIM = tips.reduce((sum, t) => sum + t.amountNIM, 0)
+  const totalNIM = verifiedTotal(allTips)
 
   const nextMilestone = MILESTONES.find(m => m > totalNIM) ?? null
 
@@ -42,7 +66,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
 
   return NextResponse.json({
     profile,
-    tips,
+    tips: allTips,
     supporters,
     totalNIM,
     totalTips: tips.length,

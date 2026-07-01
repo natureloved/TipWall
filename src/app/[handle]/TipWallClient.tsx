@@ -32,9 +32,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const loadTips = useCallback(async () => {
     const res = await fetch(`/api/tips/${handle}`)
     if (!res.ok) return
-    const data = (await res.json()) as { tips: Tip[]; supporters: (typeof supporters)[0][] }
+    const data = (await res.json()) as { tips: Tip[]; supporters: (typeof supporters)[0][]; totalNIM: number }
     setTips(data.tips)
-    const newTotal = data.tips.reduce((s, t) => s + (t.amountNIM || 0), 0)
+    // Use the server's verified-only total (pending/unverified tips don't count).
+    const newTotal = data.totalNIM ?? data.tips.reduce((s, t) => s + (t.verified ? t.amountNIM || 0 : 0), 0)
     setTotalNIM(newTotal)
     setSupporters(data.supporters)
     setUnlockedMilestones([100, 500, 1000, 5000, 10000].filter(m => newTotal >= m))

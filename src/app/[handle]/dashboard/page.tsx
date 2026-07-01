@@ -6,7 +6,7 @@ import DashboardStats from '@/components/DashboardStats'
 import DashboardSupporters from '@/components/DashboardSupporters'
 import DashboardEditProfile from '@/components/DashboardEditProfile'
 import DashboardMilestones from '@/components/DashboardMilestones'
-import { getNimiq } from '@/lib/nimiq'
+import { getNimiq, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 
 export default function DashboardPage() {
@@ -28,11 +28,16 @@ export default function DashboardPage() {
         const address = normalizeAddress(rawAddress)
         setWalletAddress(address)
 
+        // Prove ownership with a signed `view` authorization (the wallet address
+        // by itself is public, so the server won't trust an unsigned header).
+        const proof = await signProfileAuth({ action: 'view', handle, walletAddress: address })
+        const authHeader = btoa(JSON.stringify(proof))
+
         const res = await fetch(`/api/dashboard/${handle}`, {
-          headers: { 'x-wallet-address': address },
+          headers: { 'x-tipwall-auth': authHeader },
         })
 
-        if (res.status === 403) {
+        if (res.status === 401 || res.status === 403) {
           router.replace(`/${handle}`)
           return
         }
