@@ -33,48 +33,87 @@ function checkRateLimitSync(req: NextRequest): boolean {
   return true
 }
 
-async function verifyTx(txHash: string, recipient: string, amountLuna: number): Promise<boolean> {
+// Three-state so the caller can tell "not this creator's tx" (reject) apart
+// from "no indexer confirmed it in time" (accept as pending):
+//   'verified'    – found on-chain, recipient + amount match
+//   'mismatch'    – found on-chain, but recipient/amount do NOT match (forgery/error)
+//   'unavailable' – RPC/explorer lag or downtime; couldn't confirm either way
+type VerifyResult = 'verified' | 'mismatch' | 'unavailable'
+
+async function verifyTx(txHash: string, recipient: string, amountLuna: number): Promise<VerifyResult> {
   const recipientNorm = normalizeAddress(recipient)
 
-  const endpoints = [
-    `https://api.nimiq.com/transaction/${txHash}`,
-    `https://api.nimiq.com/transactions/${txHash}`,
-    `https://nimiq.watch/api/tx/${txHash}`,
-    `https://explorer.nimiq.com/api/v1/transactions/${txHash}`,
-  ]
-
-  const addrFields = ['toAddress', 'to', 'recipientAddress', 'recipient'] as const
+  // Sources name these fields differently, so probe several.
+  const addrFields = ['toAddress', 'to', 'to_address', 'recipientAddress', 'recipient'] as const
   const valueFields = ['value', 'amount', 'luna', 'lunaValue'] as const
 
+  // A response may wrap the tx at various depths (raw, JSON-RPC `result` /
+  // `result.data`, explorer envelope). Collect every plausible tx object.
+  const candidatesFrom = (data: unknown): Record<string, unknown>[] => {
+    const out: Record<string, unknown>[] = []
+    const push = (v: unknown) => { if (v && typeof v === 'object') out.push(v as Record<string, unknown>) }
+    const d = data as Record<string, unknown> | null
+    push(d)
+    if (d) {
+      push(d.transaction); push(d.result); push(d.data)
+      const r = d.result as Record<string, unknown> | undefined
+      if (r) { push(r.data); push(r.transaction) }
+    }
+    return out
+  }
+
+  const inspect = (tx: Record<string, unknown>): 'match' | 'mismatch' | 'unknown' => {
+    const toAddrRaw = addrFields.map(f => tx[f]).find(Boolean) as string | undefined
+    const rawValue = valueFields.map(f => tx[f]).find(v => v != null)
+    if (!toAddrRaw || rawValue == null) return 'unknown'
+    const value = Number(rawValue)
+    if (!Number.isFinite(value)) return 'unknown'
+    const recipientMatch = normalizeAddress(toAddrRaw) === recipientNorm
+    const amountMatch = value >= amountLuna - 1000 && value <= amountLuna + 1000
+    return recipientMatch && amountMatch ? 'match' : 'mismatch'
+  }
+
+  const rpcUrl = process.env.NIMIQ_RPC_URL
+
   for (let attempt = 0; attempt < 6; attempt++) {
-    for (const endpoint of endpoints) {
+    const responses: unknown[] = []
+
+    // 1. Nimiq PoS node — JSON-RPC `getTransactionByHash` (POST), not a REST GET.
+    if (rpcUrl) {
       try {
-        const resp = await fetch(endpoint, { headers: { 'User-Agent': 'TipWall/1.0' } })
-        if (!resp.ok) continue
-        const data = await resp.json()
-
-        const tx = data.transaction || data.result || data.data || data
-        if (!tx || typeof tx !== 'object') continue
-
-        const toAddrRaw = addrFields.map(f => (tx as Record<string, unknown>)[f]).find(Boolean) as string | undefined
-        const rawValue = valueFields.map(f => (tx as Record<string, unknown>)[f]).find(v => v != null)
-
-        if (!toAddrRaw || rawValue == null) continue
-        const value = Number(rawValue)
-        if (!Number.isFinite(value)) continue
-
-        if (normalizeAddress(toAddrRaw) === recipientNorm && value >= amountLuna - 1000 && value <= amountLuna + 1000) {
-          return true
-        }
+        const resp = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: 'getTransactionByHash', params: [txHash], id: 1 }),
+        })
+        if (resp.ok) responses.push(await resp.json())
       } catch { }
     }
 
+    // 2. nimiq.watch explorer REST fallback.
+    try {
+      const resp = await fetch(`https://v2.nimiqwatch.com/api/v1/transaction/${txHash}`, {
+        headers: { 'User-Agent': 'TipWall/1.0' },
+      })
+      if (resp.ok) responses.push(await resp.json())
+    } catch { }
+
+    for (const data of responses) {
+      for (const tx of candidatesFrom(data)) {
+        const result = inspect(tx)
+        if (result === 'match') return 'verified'
+        // A resolved-but-wrong tx is definitive: this hash isn't a tip to us.
+        if (result === 'mismatch') return 'mismatch'
+      }
+    }
+
+    // Not indexed yet — back off and retry (new txs take a few seconds to appear).
     if (attempt < 5) {
       await new Promise(r => setTimeout(r, Math.min(2000, 500 * (attempt + 1))))
     }
   }
 
-  return false
+  return 'unavailable'
 }
 
 export async function POST(req: NextRequest) {
@@ -100,11 +139,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'tip already recorded for this transaction' }, { status: 409 })
     }
 
-    // Only accept tips we can verify on-chain, so totals/walls can't be forged.
-    const verified = await verifyTx(body.txHash, profile.walletAddress, body.amountNIM * 100000)
-    if (!verified) {
-      return NextResponse.json({ error: 'transaction could not be verified on-chain' }, { status: 402 })
+    // Best-effort on-chain verification.
+    const verifyResult = await verifyTx(body.txHash, profile.walletAddress, body.amountNIM * 100000)
+
+    // Found on-chain but going to the wrong recipient / wrong amount: this hash
+    // does not fund a tip to this creator. Reject it as a forgery or mistake.
+    if (verifyResult === 'mismatch') {
+      return NextResponse.json({ error: 'transaction does not match this tip' }, { status: 402 })
     }
+
+    // 'verified' → confirmed on-chain. 'unavailable' → indexer lag/downtime, so
+    // record it as unverified ("Pending") rather than dropping it: the sender's
+    // wallet already executed the transaction, so a real tip is never lost.
+    const verified = verifyResult === 'verified'
 
     const previousTotal = existing.reduce((sum, t) => sum + (t.amountNIM || 0), 0)
     const newTotal = previousTotal + body.amountNIM
@@ -141,7 +188,7 @@ export async function POST(req: NextRequest) {
       if (wasOpen) await trackEvent(handle, 'RETURNED_AFTER_INSTALL')
     }
 
-    return NextResponse.json({ success: true, tip, milestone })
+    return NextResponse.json({ success: true, tip, milestone, pending: !verified })
   } catch (err: any) {
     console.error('Tip submission error:', err)
     return NextResponse.json({ error: err.message || 'Failed to submit tip' }, { status: 500 })
