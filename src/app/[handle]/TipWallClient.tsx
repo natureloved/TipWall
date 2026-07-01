@@ -82,7 +82,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         
         <div className="relative z-10 max-w-3xl mx-auto px-4 py-8 space-y-6">
           {/* Hero Section */}
-          <div className="animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-12 text-white overflow-hidden relative">
+          <div className="animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-12 text-white overflow-hidden relative">
             {/* Animated background orbs */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial from-amber-400/20 to-transparent rounded-full animate-float blur-3xl" />
             <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-radial from-purple-400/10 to-transparent rounded-full animate-float" style={{animationDelay: '2s', animationDirection: 'reverse'}} />
@@ -97,39 +97,43 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 </p>
               )}
 {profile.achievement && (
-                 <div className="animate-pulse-custom inline-flex items-center gap-3 bg-amber-400/15 border-2 border-amber-400/40 rounded-xl px-4 py-2 text-sm font-semibold text-amber-300 cursor-pointer hover:bg-amber-400/25 hover:scale-105 transition-all" style={{animationDelay: '0.2s'}}>
-                   <span>🏆</span>
+                 <div className="animate-pulse-custom flex w-fit max-w-full items-center gap-3 bg-amber-400/15 border-2 border-amber-400/40 rounded-xl px-4 py-2 text-sm font-semibold text-amber-300 cursor-pointer hover:bg-amber-400/25 hover:scale-105 transition-all" style={{animationDelay: '0.2s'}}>
+                   <span className="shrink-0">🏆</span>
                    <span>{profile.achievement}</span>
                  </div>
                )}
-               <button
-                 onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
-                 className="inline-block mt-4 px-5 py-2 text-sm rounded-xl font-semibold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl relative overflow-hidden group animate-slide-up"
-                 style={{animationDelay: '0.3s'}}
-               >
-                 <span className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/30 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
-                 Send a Tip
-               </button>
-               <a
-                 href={`/${handle}/edit`}
-                 className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
-               >
-                 Owner? Edit this wall
-               </a>
-<a
-                  href={`/${handle}/analytics`}
-                  className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
-                >
-                  Analytics
-                </a>
-                {isOwner && (
-                  <a
-                    href={`/${handle}/dashboard`}
-                    className="inline-block mt-4 ml-3 text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
-                  >
-                    Dashboard
-                  </a>
-                )}
+               <div className="pt-4">
+                 <button
+                   onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
+                   className="inline-block px-5 py-2.5 text-sm rounded-xl font-semibold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl relative overflow-hidden group animate-slide-up"
+                   style={{animationDelay: '0.3s'}}
+                 >
+                   <span className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/30 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
+                   Send a Tip
+                 </button>
+               </div>
+               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
+                 <a
+                   href={`/${handle}/edit`}
+                   className="hover:text-amber-300 underline underline-offset-4 transition-colors"
+                 >
+                   Owner? Edit this wall
+                 </a>
+                 <a
+                   href={`/${handle}/analytics`}
+                   className="hover:text-amber-300 underline underline-offset-4 transition-colors"
+                 >
+                   Analytics
+                 </a>
+                 {isOwner && (
+                   <a
+                     href={`/${handle}/dashboard`}
+                     className="hover:text-amber-300 underline underline-offset-4 transition-colors"
+                   >
+                     Dashboard
+                   </a>
+                 )}
+               </div>
               </div>
           </div>
 
