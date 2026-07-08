@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { setProfileNX, addProfileToWalletIndex, consumeAuthNonce } from '@/lib/kv'
+import { setProfileNX, addProfileToWalletIndex, consumeAuthNonce, touchActivity } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     await addProfileToWalletIndex(profile)
+    await touchActivity(profile.handle) // surface new walls on /explore
 
     return NextResponse.json({ success: true, handle: profile.handle })
   } catch (err) {

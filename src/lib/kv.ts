@@ -204,6 +204,31 @@ export function sanitizeTips(tips: Tip[]): Tip[] {
   return tips.map(t => (t.anonymous ? { ...t, senderAddress: '' } : t))
 }
 
+// --- Discovery: recently-active walls ---------------------------------------
+// A sorted set scored by last-activity time feeds the /explore page. Best
+// effort on purpose: discovery must never break profile creation or tipping.
+
+const ACTIVITY_KEY = `${PREFIX}active`
+
+/** Bump a wall to the top of the recently-active index. */
+export async function touchActivity(handle: string): Promise<void> {
+  try {
+    await kv.zadd(ACTIVITY_KEY, { score: Date.now(), member: handle.toLowerCase() })
+  } catch {
+    // Discovery index is non-critical.
+  }
+}
+
+/** Most recently active wall handles, newest first. */
+export async function getActiveHandles(limit = 24): Promise<string[]> {
+  try {
+    const res = await kv.zrange<string[]>(ACTIVITY_KEY, 0, limit - 1, { rev: true })
+    return res || []
+  } catch {
+    return []
+  }
+}
+
 export async function getTips(handle: string): Promise<Tip[]> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
   return (await kv.lrange<Tip>(key, 0, -1)) || []

@@ -11,7 +11,9 @@ The wall of creators support. Tip the creator. Not the platform. Built for the [
 - **Milestone celebrations** — gamified goal tracking with confetti, driven by lifetime verified totals
 - **Live tip feed & supporters wall** — real-time updates on your wall
 - **Tip recovery** — visitors without Nimiq Pay get a deep link / QR / shareable claim link that preserves their tip intent (non-custodial; no funds held)
-- **Creator dashboard & funnel analytics** — owner-gated stats, 7-day charts, conversion tracking (anonymous, no PII)
+- **Creator dashboard & funnel analytics** — owner-gated stats, 7-day charts, conversion tracking (anonymous, no PII), and share nudges when a wall goes quiet
+- **Share Kit** — post-creation share flow with pre-written posts (X / Telegram / WhatsApp), QR code + downloadable poster, live GitHub README badge, and blog/link-in-bio embeds
+- **Growth loops** — supporters get a share prompt after tipping, milestones offer one-tap shares, and `/explore` lists recently active walls
 - **Social share cards** — dynamic OG images per creator wall
 - **10-language UI** (en, es, de, fr, it, pt, ru, zh, ja, ko), auto-detected from the browser
 - **Responsive, accessible design** — mobile-first, dark/light theme, pinch-zoom friendly
@@ -66,9 +68,11 @@ src/
 │   ├── page.tsx                  # Creator setup form (signature-bound)
 │   ├── layout.tsx                # Root layout with theme support
 │   ├── sitemap.ts                # /sitemap.xml incl. creator walls
+│   ├── explore/                  # Recently active walls (discovery)
 │   ├── [handle]/
 │   │   ├── page.tsx              # Public tipping wall
 │   │   ├── opengraph-image.tsx   # Dynamic OG share card
+│   │   ├── share/                # Share Kit (link, QR, badge, embeds)
 │   │   ├── dashboard/            # Owner dashboard (signed view auth)
 │   │   ├── analytics/            # Owner funnel analytics
 │   │   └── edit/                 # Owner profile editing
@@ -81,6 +85,7 @@ src/
 │       ├── profile/wallet        # Signed lookup: wallet -> profile
 │       ├── claim/create|[token]  # Non-custodial claim intents
 │       ├── stats/track|[handle]  # Anonymous funnel counters
+│       ├── badge/[handle]        # Live SVG badge for READMEs
 │       └── og                    # OG metadata for a profile's content link
 ├── components/                   # TipModal, TipFeed, SupportersWall, ...
 └── lib/

@@ -9,6 +9,7 @@ export const FUNNEL_EVENTS = [
   'CLAIM_LINK_CREATED',
   'RETURNED_AFTER_INSTALL',
   'TIP_COMPLETED',
+  'WALL_SHARED',
 ] as const
 
 export type FunnelEvent = (typeof FUNNEL_EVENTS)[number]

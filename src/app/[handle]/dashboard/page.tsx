@@ -6,6 +6,7 @@ import DashboardStats from '@/components/DashboardStats'
 import DashboardSupporters from '@/components/DashboardSupporters'
 import DashboardEditProfile from '@/components/DashboardEditProfile'
 import DashboardMilestones from '@/components/DashboardMilestones'
+import DashboardShareNudge from '@/components/DashboardShareNudge'
 import { getNimiq, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 
@@ -70,10 +71,14 @@ export default function DashboardPage() {
           <p className="text-[#F6B221] font-medium">Your Dashboard</p>
           <p className="text-[#AFA9EC] text-xs">@{data.profile.handle}</p>
         </div>
-        <a href={`/${handle}`} className="text-xs text-[#AFA9EC] underline">View public wall</a>
+        <div className="flex items-center gap-3">
+          <a href={`/${handle}/share`} className="text-xs text-[#F6B221] underline">Share Kit</a>
+          <a href={`/${handle}`} className="text-xs text-[#AFA9EC] underline">View public wall</a>
+        </div>
       </div>
 
       <div className="p-4 space-y-5">
+        <DashboardShareNudge data={data} />
         <DashboardStats data={data} />
         <DashboardMilestones data={data} />
         <DashboardSupporters supporters={data.supporters} />

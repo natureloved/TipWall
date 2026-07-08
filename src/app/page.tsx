@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import Link from 'next/link'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle } from '@/lib/profile-auth'
 
@@ -87,7 +88,9 @@ export default function CreatorSetup() {
         }
         throw new Error(data.error)
       }
-      window.location.href = `/${data.handle}`
+      // Land on the Share Kit, not the empty wall: sharing intent peaks in the
+      // seconds after creation, and a wall nobody sees never earns a tip.
+      window.location.href = `/${data.handle}/share?new=1`
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create profile')
       setSubmitting(false)
@@ -165,6 +168,11 @@ export default function CreatorSetup() {
         <button type="submit" disabled={submitting || !wallet} className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-slate-900 font-bold py-3 rounded-full">
           {submitting ? 'Sign in wallet…' : 'Create TipWall'}
         </button>
+        <p className="text-center text-xs text-slate-500">
+          <Link href="/explore" className="underline underline-offset-4 hover:text-amber-300 transition-colors">
+            Explore creator walls →
+          </Link>
+        </p>
       </form>
     </div>
   )

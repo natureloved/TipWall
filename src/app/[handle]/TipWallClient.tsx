@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import { MILESTONES, type CreatorProfile, type Tip, type MilestoneEvent, type Supporter } from '@/lib/types'
 import ContentPreviewCard from '@/components/ContentPreviewCard'
 import TipModal from '@/components/TipModal'
@@ -9,6 +10,7 @@ import TipFeed from '@/components/TipFeed'
 import FloatingTips from '@/components/FloatingTips'
 import AnimatedNumber from '@/components/AnimatedNumber'
 import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
+import SharePrompt from '@/components/SharePrompt'
 import { detectNimiqPay } from '@/lib/environment'
 import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 import { track } from '@/lib/analytics'
@@ -29,6 +31,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [installAmount, setInstallAmount] = useState<number | undefined>(undefined)
   const [resume, setResume] = useState<{ amount?: number; message?: string } | null>(null)
   const [isOwner, setIsOwner] = useState(false)
+  const [sharePrompt, setSharePrompt] = useState<{ amount?: number } | null>(null)
   const t = useTranslations()
 
   const loadTips = useCallback(() => {
@@ -135,6 +138,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 >
                   Analytics
                 </a>
+                <a
+                  href={`/${handle}/share`}
+                  className="hover:text-amber-300 underline underline-offset-4 transition-colors"
+                >
+                  Share kit
+                </a>
                 {isOwner && (
                   <a
                     href={`/${handle}/dashboard`}
@@ -211,6 +220,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
           {/* Share Button */}
           <ShareButton handle={handle} />
+
+          {/* Viral footer: every wall is a doorway into the rest */}
+          <p className="text-center text-xs text-slate-400 pb-4">
+            Powered by <Link href="/" className="underline underline-offset-4 hover:text-amber-300 transition-colors">TipWall</Link>
+            {' · '}
+            <Link href="/explore" className="underline underline-offset-4 hover:text-amber-300 transition-colors">Explore walls</Link>
+          </p>
         </div>
       </div>
 
@@ -239,6 +255,9 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             setFloatingTipTrigger(t => t + 1)
             setShowTipModal(false)
             setResume(null)
+            // Invite the supporter to announce their tip — supporters sharing
+            // is the wall's most credible distribution channel.
+            setSharePrompt({ amount: tip.amountNIM })
             await loadTips()
           }}
         />
@@ -255,6 +274,14 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           key={milestoneState.curr}
           previousTotal={milestoneState.prev}
           newTotal={milestoneState.curr}
+          handle={handle}
+        />
+      )}
+      {sharePrompt && (
+        <SharePrompt
+          handle={handle}
+          amountNIM={sharePrompt.amount}
+          onClose={() => setSharePrompt(null)}
         />
       )}
     </>

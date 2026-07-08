@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   getProfile, getTips, addTip, addMilestone, markClaimClaimed, getClaim,
   trackEvent, checkRateLimit, markTxSeen, getVerifiedTotalNim, addVerifiedNim,
+  touchActivity,
 } from '@/lib/kv'
 import { Tip, MilestoneEvent, TipReason } from '@/lib/types'
 import { checkMilestone } from '@/lib/milestones'
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
     }
 
     await addTip(handle, tip)
+    await touchActivity(handle) // keep /explore's recently-active ordering fresh
 
     // Milestones fire off the lifetime verified counter, so a pending (or
     // fabricated) tip can't trigger a celebration until it confirms on-chain.

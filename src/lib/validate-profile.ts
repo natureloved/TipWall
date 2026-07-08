@@ -19,6 +19,7 @@ const RESERVED_HANDLES = new Set([
   'static', 'assets', 'public', 'images', 'fonts',
   '_next', 'next', 'vercel', 'www', 'app', 'about', 'terms', 'privacy',
   'support', 'help', 'new', 'create', 'official', 'tipwall', 'nimiq',
+  'share', 'explore', 'badge',
 ])
 
 export function isReservedHandle(handle: string): boolean {

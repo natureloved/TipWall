@@ -50,6 +50,7 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
 
   const funnel: { label: string; value: number }[] = s
     ? [
+        { label: 'Wall shares', value: s.WALL_SHARED ?? 0 },
         { label: 'Wall visits', value: s.TIP_WALL_VIEWED },
         { label: 'Tip attempts', value: s.TIP_BUTTON_CLICKED },
         { label: 'Install prompt views', value: s.INSTALL_PROMPT_SHOWN },
