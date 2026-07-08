@@ -51,7 +51,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ han
         lostSupporters: lost,
       },
     })
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message || 'Failed to load analytics' }, { status: 500 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to load analytics'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

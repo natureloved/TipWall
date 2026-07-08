@@ -23,8 +23,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  // Pinch-zoom stays enabled (WCAG 1.4.4) — never lock maximumScale/userScalable.
   // Match the browser chrome to the active theme instead of forcing dark.
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0f172a" },

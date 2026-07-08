@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { MILESTONES } from '@/lib/types'
-import { getProfile, reverifyPendingTips, getSupporters, verifiedTotal } from '@/lib/kv'
+import { getProfile, reverifyPendingTips, getSupporters, getVerifiedTotalNim, getMilestones, sanitizeTips } from '@/lib/kv'
 import { normalizeAddress, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
 
@@ -41,7 +41,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
   const supporters = await getSupporters(handle)
   const tips = allTips.filter(t => t.verified)
 
-  const totalNIM = verifiedTotal(allTips)
+  // Lifetime verified total (the tip list is trimmed to 200, so summing it
+  // would silently shrink a popular wall's total).
+  const totalNIM = await getVerifiedTotalNim(handle)
 
   const nextMilestone = MILESTONES.find(m => m > totalNIM) ?? null
 
@@ -66,11 +68,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
 
   return NextResponse.json({
     profile,
-    tips: allTips,
+    // Anonymous tippers stay anonymous even to the creator.
+    tips: sanitizeTips(allTips),
     supporters,
     totalNIM,
     totalTips: tips.length,
-    milestonesUnlocked: profile.milestones || [],
+    // Milestones live under their own KV key, not on the profile object.
+    milestonesUnlocked: await getMilestones(handle),
     nextMilestone,
     tipsLast7Days,
     topReason,

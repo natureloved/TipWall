@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, setProfile, consumeAuthNonce } from '@/lib/kv'
+import { setProfileNX, addProfileToWalletIndex, consumeAuthNonce } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
+import { validateHandle, validateContentUrl, clampProfileFields, CONTENT_URL_MAX } from '@/lib/validate-profile'
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,12 +20,18 @@ export async function POST(req: NextRequest) {
     } = body as Record<string, unknown>
 
     const handleStr = normalizeHandle(String(handle || ''))
-    if (!handleStr || handleStr.length < 3) {
-      return NextResponse.json({ error: 'Invalid handle' }, { status: 400 })
+    const handleError = validateHandle(handleStr)
+    if (handleError) {
+      return NextResponse.json({ error: handleError }, { status: 400 })
     }
     const walletStr = normalizeAddress(String(walletAddress || ''))
     if (!walletStr.startsWith('NQ')) {
       return NextResponse.json({ error: 'Invalid Nimiq wallet address' }, { status: 400 })
+    }
+    const contentUrlStr = String(contentUrl || '').slice(0, CONTENT_URL_MAX)
+    const urlError = validateContentUrl(contentUrlStr)
+    if (urlError) {
+      return NextResponse.json({ error: urlError }, { status: 400 })
     }
 
     // --- Signature-bound authorization ----------------------------------
@@ -54,32 +61,33 @@ export async function POST(req: NextRequest) {
     }
     // --------------------------------------------------------------------
 
-    const exists = await getProfile(handleStr)
-    if (exists) {
-      return NextResponse.json({ error: 'Handle already taken' }, { status: 409 })
-    }
-
     const now = Date.now()
+    const clamped = clampProfileFields({ displayName, bio, achievement, goal })
     const profile: CreatorProfile = {
       handle: handleStr,
-      displayName: displayName ? String(displayName) : handleStr,
-      bio: String(bio),
-      contentUrl: String(contentUrl),
+      displayName: clamped.displayName || handleStr,
+      bio: clamped.bio || '',
+      contentUrl: contentUrlStr,
       walletAddress: walletStr,
       ownerPublicKey: proof.publicKey,
-      goal: goal && typeof goal === 'object' ? { label: String((goal as any).label || 'Goal'), targetNIM: Number((goal as any).targetNIM || 1000) } : undefined,
-      achievement: achievement ? String(achievement) : undefined,
+      goal: clamped.goal,
+      achievement: clamped.achievement,
       milestones: [],
       createdAt: now,
       updatedAt: now,
     }
 
-    await setProfile(profile)
+    const created = await setProfileNX(profile)
+    if (!created) {
+      return NextResponse.json({ error: 'Handle already taken' }, { status: 409 })
+    }
+
+    await addProfileToWalletIndex(profile)
+
     return NextResponse.json({ success: true, handle: profile.handle })
-  } catch (err: any) {
-    const errorMsg = err.message || 'Failed to create profile'
-    const errorDetails = err.toString?.()
-    console.error('Profile creation error:', { msg: errorMsg, details: errorDetails, cause: err.cause })
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to create profile'
+    console.error('Profile creation error:', err)
 
     // Check if it's a KV connection error
     if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('unauthorized') || errorMsg.includes('401') || errorMsg.includes('403')) {

@@ -1,4 +1,8 @@
+'use client'
+import { useTranslations } from '@/lib/i18n'
+
 export default function SupportersWall({ supporters }: { supporters: { address: string; totalNIM: number; tipCount: number }[] }) {
+  const t = useTranslations()
   const colors = [
     { bg: 'from-blue-400 to-blue-600', hex: '#4C6EF5' },
     { bg: 'from-purple-400 to-purple-600', hex: '#9C6EF5' },
@@ -11,7 +15,7 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
   return (
     <div className="rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '1s'}}>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Supporters ({supporters.length})</p>
+        <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{t('supporters')} ({supporters.length})</p>
       </div>
 
       {!supporters.length && (
@@ -49,7 +53,7 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
         <div className="rounded-xl p-4 flex items-start gap-3 bg-gradient-to-br from-amber-50 to-amber-100 hover:from-amber-100 hover:to-amber-150 transition-all cursor-pointer">
           <span className="text-3xl animate-bounce-custom">🏆</span>
           <div>
-            <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">Top Supporter</p>
+            <p className="text-xs font-bold text-amber-900 uppercase tracking-wide">{t('topSupporter')}</p>
             <p className="text-sm font-semibold text-amber-950 mt-1">
               {supporters[0].address.slice(0, 6)}…{supporters[0].address.slice(-4)}
             </p>

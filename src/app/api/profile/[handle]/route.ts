@@ -3,6 +3,7 @@ import { getProfile, setProfile, consumeAuthNonce } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
+import { validateContentUrl, clampProfileFields, CONTENT_URL_MAX } from '@/lib/validate-profile'
 
 export async function GET(request: Request, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
@@ -65,29 +66,32 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     }
     // --------------------------------------------------------------------
 
+    const newContentUrl = contentUrl !== undefined ? String(contentUrl).slice(0, CONTENT_URL_MAX) : undefined
+    if (newContentUrl !== undefined) {
+      const urlError = validateContentUrl(newContentUrl)
+      if (urlError) return NextResponse.json({ error: urlError }, { status: 400 })
+    }
+
+    const clamped = clampProfileFields({ displayName, bio, achievement, goal })
     const updated: CreatorProfile = {
       ...existing,
       // Backfill owner key for legacy profiles created before this field existed.
       ownerPublicKey: existing.ownerPublicKey || proof.publicKey,
-      displayName: displayName !== undefined ? String(displayName) || existing.handle : existing.displayName,
-      bio: bio !== undefined ? String(bio) : existing.bio,
-      contentUrl: contentUrl !== undefined ? String(contentUrl) : existing.contentUrl,
-      achievement: achievement !== undefined ? (achievement ? String(achievement) : undefined) : existing.achievement,
-      goal: goal !== undefined
-        ? (goal && typeof goal === 'object'
-            ? { label: String((goal as any).label || 'Goal'), targetNIM: Number((goal as any).targetNIM || 1000) }
-            : undefined)
-        : existing.goal,
+      displayName: displayName !== undefined ? clamped.displayName || existing.handle : existing.displayName,
+      bio: bio !== undefined ? clamped.bio ?? existing.bio : existing.bio,
+      contentUrl: newContentUrl !== undefined ? newContentUrl : existing.contentUrl,
+      achievement: achievement !== undefined ? clamped.achievement : existing.achievement,
+      goal: goal !== undefined ? clamped.goal : existing.goal,
       // Invalidate any cached OG metadata if the content URL changed.
-      ogCache: contentUrl !== undefined && String(contentUrl) !== existing.contentUrl ? undefined : existing.ogCache,
-      ogCachedAt: contentUrl !== undefined && String(contentUrl) !== existing.contentUrl ? undefined : existing.ogCachedAt,
+      ogCache: newContentUrl !== undefined && newContentUrl !== existing.contentUrl ? undefined : existing.ogCache,
+      ogCachedAt: newContentUrl !== undefined && newContentUrl !== existing.contentUrl ? undefined : existing.ogCachedAt,
       updatedAt: Date.now(),
     }
 
     await setProfile(updated)
     return NextResponse.json({ success: true, handle: updated.handle })
-  } catch (err: any) {
-    const errorMsg = err?.message || 'Failed to update profile'
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to update profile'
     console.error('Profile update error:', errorMsg)
     if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('unauthorized') || errorMsg.includes('401') || errorMsg.includes('403')) {
       return NextResponse.json(

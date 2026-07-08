@@ -1,7 +1,9 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle } from '@/lib/profile-auth'
+
+const PLACEHOLDER_TEXT = 'e.g. "Building an AI agent"'
 
 export default function CreatorSetup() {
   const [handle, setHandle] = useState('')
@@ -15,28 +17,17 @@ export default function CreatorSetup() {
   const [achievement, setAchievement] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [placeholderText, setPlaceholderText] = useState('')
-
-  const achievementExamples = [
-    'Building an AI agent',
-    'Writing a Bitcoin guide',
-    'Funding my next hackathon',
-    'Open sourcing my CLI tool',
-  ]
-
-  useEffect(() => {
-    const randomExample = achievementExamples[Math.floor(Math.random() * achievementExamples.length)]
-    setPlaceholderText(`e.g. "${randomExample}"`)
-  }, [])
 
   const handleConnect = async () => {
+    // Connecting only lists accounts — no signature yet. The wallet is asked to
+    // sign exactly once, on submit, so users don't face two prompts in a row.
     setError(null)
     setConnecting(true)
     try {
       const address = await connectWallet()
       setWallet(address)
-    } catch (err: any) {
-      setError(err.message || 'Could not connect wallet')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not connect wallet')
     } finally {
       setConnecting(false)
     }
@@ -58,7 +49,6 @@ export default function CreatorSetup() {
 
     setSubmitting(true)
     try {
-      // Signature-bound creation: prove ownership of the wallet before saving.
       const auth = await signProfileAuth({ action: 'create', handle: handleStr, walletAddress: wallet })
 
       const displayNameVal = displayName || handleStr
@@ -77,10 +67,29 @@ export default function CreatorSetup() {
         }),
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
+      if (!res.ok) {
+        if (res.status === 409 && data.error === 'Handle already taken') {
+          setError('Handle already taken — checking if you already have a TipWall...')
+          try {
+            const viewAuth = await signProfileAuth({ action: 'view', handle: '', walletAddress: wallet })
+            const viewAuthHeader = btoa(JSON.stringify(viewAuth))
+            const walletRes = await fetch(`/api/profile/wallet?address=${wallet}`, {
+              headers: { 'x-tipwall-auth': viewAuthHeader },
+            })
+            if (walletRes.ok) {
+              const walletData = await walletRes.json()
+              window.location.href = `/${walletData.handle}`
+              return
+            }
+          } catch {
+            // fall through to show the original error
+          }
+        }
+        throw new Error(data.error)
+      }
       window.location.href = `/${data.handle}`
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create profile')
       setSubmitting(false)
     }
   }
@@ -147,7 +156,7 @@ export default function CreatorSetup() {
           <input
             value={achievement}
             onChange={e => setAchievement(e.target.value)}
-            placeholder={placeholderText}
+            placeholder={PLACEHOLDER_TEXT}
             maxLength={80}
             className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm"
           />

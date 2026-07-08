@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import TipReasonPicker from './TipReasonPicker'
 import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
 import { savePendingTipIntent } from '@/lib/tip-intent'
+import { useTranslations } from '@/lib/i18n'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
@@ -33,6 +34,15 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const sendingRef = useRef(false)
+  const t = useTranslations()
+
+  // Close on Escape while the modal is open (keyboard accessibility).
+  useEffect(() => {
+    if (!isOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [isOpen, onClose])
 
   const finalAmount = customAmount ? Number(customAmount) : selectedAmount
 
@@ -132,7 +142,13 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50 backdrop-blur-sm animate-slide-up" onClick={onClose}>
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto shadow-2xl border-t-2 border-amber-400/20 animate-slide-up" onClick={e => e.stopPropagation()}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Tip @${creatorHandle}`}
+        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto shadow-2xl border-t-2 border-amber-400/20 animate-slide-up"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-6" />
 
         <div className="mb-6">
@@ -153,7 +169,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         <TipReasonPicker selected={reason} onChange={setReason} />
 
         <div className="mt-6">
-          <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mb-3">Choose an amount</p>
+          <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mb-3">{t('tipAmount')}</p>
           <div className="grid grid-cols-2 gap-3 mb-4">
             {PRESET_AMOUNTS.map(amt => (
               <button
@@ -181,7 +197,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
             setCustomAmount(e.target.value)
             setSelectedAmount(0)
           }}
-          placeholder="Custom amount in NIM..."
+          placeholder={t('customAmount')}
           className="w-full border-2 border-amber-400/20 hover:border-amber-400/40 rounded-xl p-3 text-sm mb-4 bg-slate-800/50 text-white placeholder-gray-400 focus:outline-none focus:border-amber-400/60 transition-colors"
         />
 
@@ -189,7 +205,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           value={message}
           onChange={e => setMessage(e.target.value)}
           maxLength={64}
-          placeholder="Add a message (optional)"
+          placeholder={t('sendMessage')}
           rows={2}
           className="w-full border-2 border-amber-400/20 hover:border-amber-400/40 rounded-xl p-3 text-sm mb-4 bg-slate-800/50 text-white placeholder-gray-400 focus:outline-none focus:border-amber-400/60 transition-colors resize-none"
         />
@@ -201,7 +217,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
             onChange={e => setAnonymous(e.target.checked)}
             className="w-4 h-4 rounded border-2 border-amber-400/40 accent-amber-400 cursor-pointer"
           />
-          Send anonymously
+          {t('anonymous')}
         </label>
 
         {error && (
@@ -216,10 +232,10 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300 disabled:hover:shadow-lg transform hover:-translate-y-1 disabled:hover:-translate-y-0"
         >
           {loading
-            ? '⏳ Waiting for Nimiq Pay confirmation...'
+            ? t('waiting')
             : nimiqAvailable === false
               ? `⚡ Continue in Nimiq Pay`
-              : `💰 Send ${finalAmount || '?'} NIM via Nimiq Pay`}
+              : `💰 ${finalAmount || '?'} NIM — ${t('confirmTip')}`}
         </button>
       </div>
     </div>

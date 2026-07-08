@@ -2,6 +2,8 @@ import { kv } from '@vercel/kv'
 import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent, ClaimIntent } from './types'
 import { FUNNEL_EVENTS, type FunnelEvent } from './events'
 import { verifyTx } from './verify-tx'
+import { normalizeAddress } from './profile-auth'
+import { checkMilestone } from './milestones'
 
 const PREFIX = 'tipwall:'
 
@@ -17,11 +19,11 @@ const OG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
  */
 export async function checkRateLimit(id: string, limit: number, windowMs: number): Promise<boolean> {
   const key = `${PREFIX}ratelimit:${id}`
+  // Create the window atomically with its TTL (SET NX PX), so a failure between
+  // INCR and EXPIRE can never leave a counter that lives — and blocks — forever.
+  const created = await kv.set(key, 1, { nx: true, px: windowMs })
+  if (created === 'OK') return 1 <= limit
   const count = await kv.incr(key)
-  if (count === 1) {
-    // First hit in a new window — arm the expiry (seconds granularity).
-    await kv.expire(key, Math.ceil(windowMs / 1000))
-  }
   return count <= limit
 }
 
@@ -119,12 +121,87 @@ export async function setProfile(profile: CreatorProfile): Promise<void> {
   await kv.set(`${PREFIX}profile:${profile.handle.toLowerCase()}`, profile)
 }
 
+export async function setProfileNX(profile: CreatorProfile): Promise<boolean> {
+  const key = `${PREFIX}profile:${profile.handle.toLowerCase()}`
+  const res = await kv.set(key, profile, { nx: true })
+  return res === 'OK'
+}
+
+const WALLET_INDEX_PREFIX = `${PREFIX}wallet:`
+
+export async function addProfileToWalletIndex(profile: CreatorProfile): Promise<void> {
+  const key = `${WALLET_INDEX_PREFIX}${normalizeAddress(profile.walletAddress)}`
+  const existing = (await kv.get<string[]>(key)) || []
+  if (!existing.includes(profile.handle.toLowerCase())) {
+    existing.push(profile.handle.toLowerCase())
+    await kv.set(key, existing)
+  }
+}
+
+export async function getProfileByWallet(walletAddress: string): Promise<CreatorProfile | null> {
+  const key = `${WALLET_INDEX_PREFIX}${normalizeAddress(walletAddress)}`
+  const handles = (await kv.get<string[]>(key)) || []
+  for (const h of handles) {
+    const p = await getProfile(h)
+    if (p) return p
+  }
+  return null
+}
+
 export async function addTip(handle: string, tip: Tip): Promise<void> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
   // Use an atomic list push instead of read-modify-write so concurrent tips
   // to the same creator can't clobber each other (lost-update race).
   await kv.lpush(key, tip)
   await kv.ltrim(key, 0, 199)
+}
+
+// --- Lifetime aggregates ----------------------------------------------------
+// The tip list is trimmed to the most recent 200 entries, so anything that must
+// be correct for the lifetime of a wall (totals, milestones, replay protection)
+// lives in persistent aggregates instead of being recomputed from the list.
+
+const LUNA_PER_NIM = 100000
+
+/**
+ * Atomically record a txHash for a creator. Returns true the first time a hash
+ * is seen and false on any repeat — lifetime replay protection that, unlike the
+ * tip list, never forgets old hashes.
+ */
+export async function markTxSeen(handle: string, txHash: string): Promise<boolean> {
+  const added = await kv.sadd(`${PREFIX}txseen:${handle.toLowerCase()}`, txHash)
+  return added === 1
+}
+
+/**
+ * Lifetime verified total in NIM, stored as an integer luna counter. Seeds the
+ * counter from the (possibly trimmed) tip list the first time a legacy wall is
+ * read, so pre-existing walls keep their totals.
+ */
+export async function getVerifiedTotalNim(handle: string): Promise<number> {
+  const key = `${PREFIX}vtotal:${handle.toLowerCase()}`
+  const raw = await kv.get<number>(key)
+  if (raw != null) return Number(raw) / LUNA_PER_NIM
+  const legacy = Math.round(verifiedTotal(await getTips(handle)) * LUNA_PER_NIM)
+  // NX so two concurrent seeders can't double-write; re-read to converge.
+  await kv.set(key, legacy, { nx: true })
+  return Number((await kv.get<number>(key)) ?? legacy) / LUNA_PER_NIM
+}
+
+/** Add a verified tip amount to the lifetime counter; returns the new total NIM. */
+export async function addVerifiedNim(handle: string, amountNIM: number): Promise<number> {
+  const key = `${PREFIX}vtotal:${handle.toLowerCase()}`
+  const luna = await kv.incrby(key, Math.round(amountNIM * LUNA_PER_NIM))
+  return luna / LUNA_PER_NIM
+}
+
+/**
+ * Strip identifying data from anonymous tips before they leave the server.
+ * The sender address is stored (needed for verification) but must never be
+ * exposed through any API response when the tipper chose to stay anonymous.
+ */
+export function sanitizeTips(tips: Tip[]): Tip[] {
+  return tips.map(t => (t.anonymous ? { ...t, senderAddress: '' } : t))
 }
 
 export async function getTips(handle: string): Promise<Tip[]> {
@@ -164,7 +241,19 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
 
   await kv.del(key)
   // getTips returns newest-first (lpush order); rpush in that same order preserves it.
+  // Known (tiny) race: a tip lpush'd between the del and the rpush would be lost;
+  // the window is one round-trip and reverify only runs when something changed.
   if (rebuilt.length) await kv.rpush(key, ...rebuilt)
+
+  // Tips that just confirmed on-chain now count toward the lifetime total, and
+  // may push the wall over a milestone the submit-time check couldn't award.
+  for (const t of current) {
+    if (updates.get(t.id) !== 'verify') continue
+    const prevTotal = await getVerifiedTotalNim(handle)
+    const newTotal = await addVerifiedNim(handle, t.amountNIM)
+    const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress)
+    if (event) await addMilestone(handle, event)
+  }
   return rebuilt
 }
 
@@ -175,9 +264,11 @@ export function verifiedTotal(tips: Tip[]): number {
 }
 
 export async function getSupporters(handle: string): Promise<Supporter[]> {
-  // Derive supporters from verified tips only, so pending/forged tips don't
-  // appear on the wall or the top-supporter card until they confirm.
-  const tips = (await getTips(handle)).filter(t => t.verified)
+  // Derive supporters from verified, NON-anonymous tips only: pending/forged
+  // tips don't appear until they confirm, and an anonymous tipper's address
+  // must never surface on the supporters wall or the top-supporter card.
+  // (Derived from the most recent 200 tips — a "recent supporters" view.)
+  const tips = (await getTips(handle)).filter(t => t.verified && !t.anonymous)
   const supportersMap = new Map<string, Supporter>()
 
   tips.forEach(tip => {
@@ -210,11 +301,6 @@ export async function addMilestone(handle: string, event: MilestoneEvent): Promi
   const updated = [...existing, event].sort((a, b) => a.threshold - b.threshold)
   await kv.set(`${PREFIX}milestones:${handle.toLowerCase()}`, updated)
   return true
-}
-
-export async function getTotalNim(handle: string): Promise<number> {
-  const tips = await getTips(handle)
-  return tips.reduce((sum, t) => sum + t.amountNIM, 0)
 }
 
 export async function getOgMetadata(url: string): Promise<OGMetadata | null> {

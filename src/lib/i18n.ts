@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { initNimiq } from '@/lib/nimiq'
+'use client'
+import { useSyncExternalStore } from 'react'
 
 export type Locale = 'en' | 'es' | 'de' | 'fr' | 'it' | 'pt' | 'ru' | 'zh' | 'ja' | 'ko'
 
@@ -226,24 +226,24 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
   },
 }
 
-export function useLocale() {
-  const [locale, setLocale] = useState<Locale>('en')
+function detectLocale(): Locale {
+  if (typeof navigator === 'undefined') return 'en'
+  const browserLang = navigator.language.split('-')[0] as Locale
+  return TRANSLATIONS[browserLang] ? browserLang : 'en'
+}
 
-  useEffect(() => {
-    const detectLocale = () => {
-      if (typeof navigator === 'undefined') return 'en'
-      const browserLang = navigator.language.split('-')[0] as Locale
-      return TRANSLATIONS[browserLang] ? browserLang : 'en'
-    }
-    setLocale(detectLocale())
-  }, [])
+// Browser locale never changes within a session, so subscribing is a no-op;
+// useSyncExternalStore still gives us a hydration-safe server snapshot ('en')
+// that React reconciles with the real client locale after mount.
+const emptySubscribe = () => () => {}
 
-  return locale
+export function useLocale(): Locale {
+  return useSyncExternalStore(emptySubscribe, detectLocale, () => 'en')
 }
 
 export function useTranslations() {
   const locale = useLocale()
-  
+
   return function t(key: string): string {
     return TRANSLATIONS[locale]?.[key] || TRANSLATIONS.en[key] || key
   }

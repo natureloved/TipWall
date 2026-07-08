@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 export default function AnimatedNumber({
   value,
@@ -9,9 +9,12 @@ export default function AnimatedNumber({
   prefix?: string
 }) {
   const [display, setDisplay] = useState(value)
+  // Where the last animation left off — the start point of the next one.
+  // A ref (not `display` in deps) so the effect only re-runs on target change.
+  const startRef = useRef(value)
 
   useEffect(() => {
-    const start = display
+    const start = startRef.current
     const diff = value - start
     const duration = 800
     const t0 = performance.now()
@@ -21,6 +24,7 @@ export default function AnimatedNumber({
       const eased = 1 - Math.pow(1 - p, 3) // easeOutCubic
       setDisplay(start + diff * eased)
       if (p < 1) requestAnimationFrame(tick)
+      else startRef.current = value
     }
 
     if (diff !== 0) {

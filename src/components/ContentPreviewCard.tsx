@@ -2,20 +2,21 @@
 import { useEffect, useState } from 'react'
 import { OGMetadata } from '@/lib/types'
 
-export default function ContentPreviewCard({ url }: { url: string }) {
+export default function ContentPreviewCard({ url, handle }: { url: string; handle: string }) {
   const [meta, setMeta] = useState<OGMetadata | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`/api/og?url=${encodeURIComponent(url)}`)
-        const json = await res.json()
+        // The server resolves the URL from the profile itself (anti-SSRF).
+        const res = await fetch(`/api/og?handle=${encodeURIComponent(handle)}`)
+        const json = res.ok ? await res.json() : null
         setMeta(json)
       } catch {}
       setLoading(false)
     })()
-  }, [url])
+  }, [handle])
 
   if (loading) return (
     <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-amber-400/10 animate-pulse" style={{animationDelay: '0.75s'}}>
@@ -48,6 +49,10 @@ export default function ContentPreviewCard({ url }: { url: string }) {
     >
       {meta.image && (
         <div className="relative w-full h-44 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-50">
+          {/* Plain <img>: the preview image is an arbitrary external URL, and
+              routing it through the Next image optimizer would let anyone use
+              our deployment to proxy/resize any image on the internet. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={meta.image}
             alt={meta.title || ''}

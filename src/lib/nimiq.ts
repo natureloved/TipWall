@@ -31,7 +31,7 @@ export async function initNimiq() {
     } catch { }
     nimiqCache = { senderAddress, deviceId }
     return nimiqCache
-  } catch (err) {
+  } catch {
     nimiqCache = { senderAddress: null, deviceId: null }
     return nimiqCache
   }

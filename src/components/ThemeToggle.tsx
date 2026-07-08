@@ -2,18 +2,22 @@
 import { useEffect, useState } from 'react'
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
-  const [mounted, setMounted] = useState(false)
+  // null = not mounted yet (server render / pre-hydration): render nothing so
+  // the button can't flash the wrong icon before the theme is known.
+  const [theme, setTheme] = useState<'dark' | 'light' | null>(null)
 
   useEffect(() => {
-    setMounted(true)
     // The pre-paint script in layout.tsx has already applied the correct theme to
     // <html data-theme>; read it back so our button matches (no second guess).
-    const current =
-      (document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null) ||
-      (localStorage.getItem('theme') as 'dark' | 'light' | null) ||
-      'dark'
-    setTheme(current)
+    // Deferred to a frame so the state update never lands mid-commit.
+    const raf = requestAnimationFrame(() => {
+      const current =
+        (document.documentElement.getAttribute('data-theme') as 'dark' | 'light' | null) ||
+        (localStorage.getItem('theme') as 'dark' | 'light' | null) ||
+        'dark'
+      setTheme(current)
+    })
+    return () => cancelAnimationFrame(raf)
   }, [])
 
   const toggleTheme = () => {
@@ -23,7 +27,7 @@ export default function ThemeToggle() {
     document.documentElement.setAttribute('data-theme', newTheme)
   }
 
-  if (!mounted) return null
+  if (!theme) return null
 
   const isDark = theme === 'dark'
 

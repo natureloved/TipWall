@@ -14,10 +14,13 @@ export default function FloatingTips({ trigger }: { trigger: number }) {
       left: Math.random() * 100,
       duration: 2 + Math.random() * 2,
     }))
-    setParticles((p) => [...p, ...newOnes])
-    setTimeout(() => {
+    // Spawn on the next frame (not synchronously in the effect body) so the
+    // burst can't cascade a render mid-commit.
+    const raf = requestAnimationFrame(() => setParticles((p) => [...p, ...newOnes]))
+    const timer = setTimeout(() => {
       setParticles((p) => p.filter((x) => !newOnes.includes(x)))
     }, 4500)
+    return () => { cancelAnimationFrame(raf); clearTimeout(timer) }
   }, [trigger])
 
   return (

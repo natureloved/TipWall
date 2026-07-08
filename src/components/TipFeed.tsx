@@ -1,14 +1,16 @@
 'use client'
 import { Tip, TIP_REASON_LABELS, TipReason } from '@/lib/types'
+import { useTranslations } from '@/lib/i18n'
 
 export default function TipFeed({ tips }: { tips: Tip[] }) {
+  const t = useTranslations()
   return (
     <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '1.1s'}} suppressHydrationWarning>
-      <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">Live Feed</h2>
+      <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">{t('liveFeed')}</h2>
       {!tips.length && (
         <div className="text-center py-12 text-gray-400 animate-pulse">
           <p className="text-lg">✨</p>
-          <p className="text-sm font-semibold mt-2">No tips yet. Be the first!</p>
+          <p className="text-sm font-semibold mt-2">{t('noTipsYet')}</p>
         </div>
       )}
       <div className="space-y-3 divide-y divide-gray-100">

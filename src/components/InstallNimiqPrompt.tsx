@@ -28,8 +28,10 @@ export default function InstallNimiqPrompt({
   /** Override the URL the deep link / QR opens inside Nimiq Pay (defaults to the wall). */
   targetUrl?: string
 }) {
-  const [mobile, setMobile] = useState(false)
-  const [deepLink, setDeepLink] = useState('')
+  // This prompt only mounts client-side (after environment detection), so the
+  // device check and deep link can be derived once at mount — no effect needed.
+  const [mobile] = useState(() => isMobileDevice())
+  const [deepLink] = useState(() => buildNimiqPayDeepLink(targetUrl || wallUrl(creatorHandle)))
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [pledging, setPledging] = useState(false)
   const [pledgeUrl, setPledgeUrl] = useState('')
@@ -67,14 +69,18 @@ export default function InstallNimiqPrompt({
   }
 
   useEffect(() => {
-    const target = targetUrl || wallUrl(creatorHandle)
-    const link = buildNimiqPayDeepLink(target)
-    setDeepLink(link)
-    setMobile(isMobileDevice())
-    QRCode.toDataURL(link, { width: 220, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
+    QRCode.toDataURL(deepLink, { width: 220, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(''))
-  }, [creatorHandle, targetUrl])
+  }, [deepLink])
+
+  // Close on Escape (keyboard accessibility).
+  useEffect(() => {
+    if (!onClose) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const benefits = [
     'Direct creator support',
@@ -86,6 +92,9 @@ export default function InstallNimiqPrompt({
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Support @${creatorHandle} in Nimiq Pay`}
         className="w-full sm:max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl border-t-2 sm:border-2 border-amber-400/20 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
@@ -117,6 +126,7 @@ export default function InstallNimiqPrompt({
         ) : (
           <div className="flex flex-col items-center gap-3 mb-4">
             {qrDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- data: URL QR code; nothing to optimize
               <img src={qrDataUrl} alt="Scan to open in Nimiq Pay" className="rounded-xl bg-white p-2 max-w-full h-auto" width={220} height={220} />
             ) : (
               <div className="w-[220px] h-[220px] rounded-xl bg-slate-700/40 animate-pulse" />
