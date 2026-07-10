@@ -17,6 +17,18 @@ export const metadata: Metadata = {
   title: "TipWall — Creator Tipping Wall",
   description: "A living community tipping wall for creators on Nimiq",
   manifest: "/manifest.json",
+  // TipWall logo as the site icon everywhere: browser tabs (ico/png),
+  // iOS home screen (apple-touch-icon), Android/PWA (manifest icons below
+  // plus the 192px png for legacy pickups).
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
