@@ -16,7 +16,8 @@ The wall of creators support. Tip the creator. Not the platform. Built for the [
 - **Growth loops** — supporters get a share prompt after tipping, milestones offer one-tap shares, and `/explore` lists recently active walls
 - **Social share cards** — dynamic OG images per creator wall
 - **10-language UI** (en, es, de, fr, it, pt, ru, zh, ja, ko), auto-detected from the browser
-- **Responsive, accessible design** — mobile-first, dark/light theme, pinch-zoom friendly
+- **Responsive, accessible design** — mobile-first, pinch-zoom friendly
+- **Full ownership, including exit** — creators can permanently delete their wall (signature-gated); deleted handles are tombstoned so nobody can re-register them and impersonate the previous owner
 
 ## Quick Start
 
@@ -100,7 +101,7 @@ src/
 
 ## Security model
 
-- **Profile ownership**: create/edit/dashboard access requires a fresh (5-min TTL), single-use Ed25519 signature from the owner wallet; the signer address is re-derived from the public key server-side.
+- **Profile ownership**: create/edit/delete/dashboard access requires a fresh (5-min TTL), single-use Ed25519 signature from the owner wallet; the signer address is re-derived from the public key server-side. Deletion erases all wall data and permanently tombstones the handle.
 - **Tips**: recorded only with an on-chain txHash; verified against recipient + amount. txHash replay is blocked by a persistent per-creator set. Totals/milestones only count verified tips.
 - **Anonymous tips**: sender address is stripped from all API responses and excluded from the supporters wall.
 - **Abuse controls**: KV-backed per-IP rate limits on tips, claims, tracking, and OG fetches; OG fetching is restricted to profile content URLs (SSRF-guarded); reserved handles and field length caps on profiles.

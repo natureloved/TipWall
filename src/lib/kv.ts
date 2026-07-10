@@ -229,6 +229,63 @@ export async function getActiveHandles(limit = 24): Promise<string[]> {
   }
 }
 
+// --- Wall deletion -----------------------------------------------------------
+
+const TOMBSTONE_PREFIX = `${PREFIX}tombstone:`
+
+/**
+ * A deleted wall's handle stays burned so nobody can re-register it and
+ * impersonate the previous owner to an audience that still holds old links
+ * (READMEs, bios, videos). One tiny permanent record per deleted wall.
+ */
+export async function isHandleTombstoned(handle: string): Promise<boolean> {
+  return (await kv.get(`${TOMBSTONE_PREFIX}${handle.toLowerCase()}`)) != null
+}
+
+/**
+ * Erase every record a wall owns: profile, tips, replay set, lifetime total,
+ * milestones, funnel counters, wallet-index entry, and its /explore listing.
+ * The tombstone is written FIRST so the handle is already burned even if a
+ * later sweep step fails mid-way (a retry then finishes the cleanup).
+ */
+export async function deleteProfileData(profile: CreatorProfile): Promise<void> {
+  const h = profile.handle.toLowerCase()
+
+  await kv.set(`${TOMBSTONE_PREFIX}${h}`, { deletedAt: Date.now() })
+
+  // Wallet index: drop this handle, keep any others owned by the same wallet.
+  const walletKey = `${WALLET_INDEX_PREFIX}${normalizeAddress(profile.walletAddress)}`
+  const handles = (await kv.get<string[]>(walletKey)) || []
+  const remaining = handles.filter(x => x !== h)
+  if (remaining.length) {
+    await kv.set(walletKey, remaining)
+  } else {
+    await kv.del(walletKey)
+  }
+
+  try {
+    await kv.zrem(ACTIVITY_KEY, h)
+  } catch {
+    // Discovery index is non-critical.
+  }
+
+  await kv.del(
+    `${PREFIX}profile:${h}`,
+    `${PREFIX}tips:${h}`,
+    `${PREFIX}txseen:${h}`,
+    `${PREFIX}vtotal:${h}`,
+    `${PREFIX}milestones:${h}`,
+  )
+
+  // Funnel counters: all-time totals plus every per-day key.
+  try {
+    const statKeys = await kv.keys(`${PREFIX}stats:${h}:*`)
+    if (statKeys.length) await kv.del(...statKeys)
+  } catch {
+    // Best effort — orphaned counters carry no PII and reference nothing.
+  }
+}
+
 export async function getTips(handle: string): Promise<Tip[]> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
   return (await kv.lrange<Tip>(key, 0, -1)) || []

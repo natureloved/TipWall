@@ -16,6 +16,8 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   const isOwner = !!wallet && normalizeAddress(wallet) === normalizeAddress(profile.walletAddress)
 
@@ -69,6 +71,29 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
       setError(error.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!isOwner || deleteConfirm !== handle || deleting) return
+    setError(null)
+    setDeleting(true)
+    try {
+      // Deletion is irreversible, so it gets its own explicit `delete`
+      // signature — a stale create/update/view proof can never be repurposed.
+      const auth = await signProfileAuth({ action: 'delete', handle, walletAddress: wallet })
+      const res = await fetch(`/api/profile/${handle}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete wall')
+      window.location.href = '/'
+    } catch (err) {
+      const error = err as Error
+      setError(error.message || 'Failed to delete wall')
+      setDeleting(false)
     }
   }
 
@@ -133,6 +158,33 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
         <button type="submit" disabled={submitting || !isOwner} className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-slate-900 font-bold py-3 rounded-full">
           {submitting ? 'Sign in wallet…' : 'Save Changes'}
         </button>
+
+        {/* Danger zone: permanent wall deletion (owner wallet only) */}
+        {isOwner && (
+          <div className="mt-2 rounded-xl border border-red-500/40 bg-red-950/30 p-4 space-y-3">
+            <p className="text-sm font-bold text-red-300">Danger zone</p>
+            <p className="text-xs text-red-200/80">
+              Deleting your wall permanently removes your profile, tip history, milestones, and
+              analytics. The handle <strong>@{handle}</strong> can never be registered again
+              (by you or anyone else). This cannot be undone.
+            </p>
+            <input
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              placeholder={`Type "${handle}" to confirm`}
+              className="w-full bg-slate-900 border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm"
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleteConfirm !== handle || deleting}
+              className="w-full py-3 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
+            >
+              {deleting ? 'Sign in wallet…' : 'Delete this wall forever'}
+            </button>
+          </div>
+        )}
       </form>
     </div>
   )

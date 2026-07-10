@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getProfile, setProfile, consumeAuthNonce } from '@/lib/kv'
+import { getProfile, setProfile, consumeAuthNonce, deleteProfileData } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
@@ -99,6 +99,58 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
         { status: 503 }
       )
     }
+    return NextResponse.json({ error: errorMsg }, { status: 500 })
+  }
+}
+
+/**
+ * Permanently delete a wall and every record it owns. Requires a fresh,
+ * single-use `delete` signature from the owner wallet — the same binding as
+ * edit, but for an irreversible action. The handle is tombstoned so it can
+ * never be re-registered by someone else (link-hijack / impersonation guard).
+ */
+export async function DELETE(request: Request, { params }: { params: Promise<{ handle: string }> }) {
+  try {
+    const { handle } = await params
+    const handleStr = normalizeHandle(handle)
+
+    const existing = await getProfile(handleStr)
+    if (!existing) {
+      return NextResponse.json({ error: 'not found' }, { status: 404 })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const proof = (body as Record<string, unknown>).auth as ProfileAuthProof | undefined
+    if (!proof) {
+      return NextResponse.json({ error: 'Missing wallet signature' }, { status: 401 })
+    }
+    if (proof.action !== 'delete') {
+      return NextResponse.json({ error: 'Invalid authorization action' }, { status: 400 })
+    }
+    if (normalizeHandle(String(proof.handle || '')) !== handleStr) {
+      return NextResponse.json({ error: 'Signature handle mismatch' }, { status: 400 })
+    }
+
+    const verdict = verifyProfileAuth(proof)
+    if (!verdict.ok) {
+      return NextResponse.json({ error: verdict.error || 'Invalid wallet signature' }, { status: 401 })
+    }
+    if (verdict.signerAddress !== normalizeAddress(existing.walletAddress)) {
+      return NextResponse.json({ error: 'Only the owner wallet can delete this wall' }, { status: 403 })
+    }
+    if (existing.ownerPublicKey && existing.ownerPublicKey !== proof.publicKey) {
+      return NextResponse.json({ error: 'Signer key does not match the profile owner' }, { status: 403 })
+    }
+    const fresh = await consumeAuthNonce(proof.signature, PROFILE_AUTH_TTL_MS)
+    if (!fresh) {
+      return NextResponse.json({ error: 'This signature was already used, please sign again' }, { status: 401 })
+    }
+
+    await deleteProfileData(existing)
+    return NextResponse.json({ success: true })
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : 'Failed to delete profile'
+    console.error('Profile delete error:', errorMsg)
     return NextResponse.json({ error: errorMsg }, { status: 500 })
   }
 }

@@ -3,7 +3,7 @@
 // that the message the wallet signs is byte-for-byte the message the server
 // verifies. Keep it free of any browser- or node-specific imports.
 
-export type ProfileAuthAction = 'create' | 'update' | 'view'
+export type ProfileAuthAction = 'create' | 'update' | 'view' | 'delete'
 
 /** The 23-byte prefix the Nimiq Keyguard prepends before hashing/signing. */
 export const NIMIQ_MSG_PREFIX = '\x16Nimiq Signed Message:\n'

@@ -5,25 +5,6 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Theme variables */
-html[data-theme="dark"] {
-  --bg-primary: linear-gradient(-45deg, #0f1419, #1a1f2e, #16213e, #0f3460);
-  --bg-secondary: #1a202c;
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --card-bg: #ffffff;
-  --card-border: rgba(246, 178, 33, 0.1);
-}
-
-html[data-theme="light"] {
-  --bg-primary: linear-gradient(-45deg, #ffffff, #f8fafc, #f1f5f9, #e2e8f0);
-  --bg-secondary: #f8fafc;
-  --text-primary: #1a202c;
-  --text-secondary: #475569;
-  --card-bg: #ffffff;
-  --card-border: rgba(246, 178, 33, 0.15);
-}
-
 @keyframes gradientShift {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -66,19 +47,12 @@ html[data-theme="light"] {
   50% { transform: translateY(-10px); }
 }
 
-html[data-theme="dark"] body {
+/* Single dark theme by design — matches the in-app Nimiq Pay look. */
+body {
   background: linear-gradient(-45deg, #0f1419, #1a1f2e, #16213e, #0f3460);
   background-size: 400% 400%;
   animation: gradientShift 15s ease infinite;
   color: #f1f5f9;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
-}
-
-html[data-theme="light"] body {
-  background: linear-gradient(-45deg, #ffffff, #f8fafc, #f1f5f9, #e2e8f0);
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
-  color: #1a202c;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
@@ -104,57 +78,4 @@ html[data-theme="light"] body {
 
 .animate-shimmer {
   animation: shimmer 2s infinite;
-}
-
-/* ------------------------------------------------------------------ *
- * Light-mode restyle for the public tip wall (.tw-wall).
- * Dark mode is the base look; these rules only apply under
- * <html data-theme="light">. Scoped so the dashboard/edit pages
- * (which are intentionally their own always-light designs) are untouched.
- * ------------------------------------------------------------------ */
-
-/* Warm, airy page wash behind the wall. */
-html[data-theme="light"] .tw-wall {
-  --tw-hero-from: #fffdf8;
-  --tw-hero-to: #fdf4e3;
-}
-
-/* Hero: swap the dark slate gradient for a soft ivory/amber wash and a
-   gentle warm glow instead of the heavy dark shadow. */
-html[data-theme="light"] .tw-wall .animate-glow {
-  background: linear-gradient(135deg, #fffdf8 0%, #fef6e6 55%, #fdeccd 100%);
-  border: 1px solid rgba(246, 178, 33, 0.28);
-  animation: none;
-  box-shadow: 0 10px 40px -12px rgba(246, 178, 33, 0.35), 0 4px 14px -6px rgba(15, 23, 42, 0.08);
-}
-
-/* Hero heading: the amber→yellow gradient text washes out on a light hero,
-   so render it as a solid warm brown-amber for contrast. */
-html[data-theme="light"] .tw-wall .animate-glow h1 {
-  background: none;
-  -webkit-text-fill-color: initial;
-  color: #7a4d05;
-}
-
-/* Hero body text (bio) becomes dark for readability on the light hero. */
-html[data-theme="light"] .tw-wall .animate-glow p {
-  color: #5b4a2f;
-}
-
-/* The decorative animated orbs read as muddy smudges on light — hide them. */
-html[data-theme="light"] .tw-wall .animate-glow .animate-float {
-  opacity: 0.35;
-}
-
-/* Owner/utility links in the hero need darker ink on the light background. */
-html[data-theme="light"] .tw-wall .animate-glow a {
-  color: #8a6d3b;
-}
-
-/* Cards: tint the flat white to a soft ivory so they lift off the page,
-   with a warmer border and a softer shadow. Targets the shared card recipe
-   (rounded-2xl/3xl + bg-white) used by stats, goal, milestones, feed, etc. */
-html[data-theme="light"] .tw-wall .bg-white {
-  background-color: #fffdf9;
-  border-color: rgba(246, 178, 33, 0.22);
 }

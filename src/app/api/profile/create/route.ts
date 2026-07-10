@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { setProfileNX, addProfileToWalletIndex, consumeAuthNonce, touchActivity } from '@/lib/kv'
+import { setProfileNX, addProfileToWalletIndex, consumeAuthNonce, touchActivity, isHandleTombstoned } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
@@ -23,6 +23,11 @@ export async function POST(req: NextRequest) {
     const handleError = validateHandle(handleStr)
     if (handleError) {
       return NextResponse.json({ error: handleError }, { status: 400 })
+    }
+    // A deleted wall's handle stays burned — otherwise anyone could re-register
+    // it and impersonate the previous owner to their existing audience.
+    if (await isHandleTombstoned(handleStr)) {
+      return NextResponse.json({ error: 'This handle belonged to a deleted wall and cannot be reused' }, { status: 409 })
     }
     const walletStr = normalizeAddress(String(walletAddress || ''))
     if (!walletStr.startsWith('NQ')) {
