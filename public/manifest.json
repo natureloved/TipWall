@@ -33,6 +33,7 @@
     "name": "TipWall",
     "version": "1.0.0",
     "description": "Send NIM tips to your favorite creators with a beautiful tipping wall",
+    "icon": "/android-chrome-512x512.png",
     "entry": "/",
     "providers": ["nimiq"],
     "category": "payments",

@@ -17,6 +17,21 @@ export const metadata: Metadata = {
   title: "TipWall — Creator Tipping Wall",
   description: "A living community tipping wall for creators on Nimiq",
   manifest: "/manifest.json",
+  // Site-wide social/app-browser preview image (creator walls override this
+  // with their own dynamic OG card). Some in-app browsers use og:image as the
+  // app tile when no better icon is picked up.
+  openGraph: {
+    title: "TipWall — Creator Tipping Wall",
+    description: "A living community tipping wall for creators on Nimiq",
+    siteName: "TipWall",
+    images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512 }],
+  },
+  twitter: {
+    card: "summary",
+    title: "TipWall — Creator Tipping Wall",
+    description: "A living community tipping wall for creators on Nimiq",
+    images: ["/android-chrome-512x512.png"],
+  },
   // TipWall logo as the site icon everywhere: browser tabs (ico/png),
   // iOS home screen (apple-touch-icon), Android/PWA (manifest icons below
   // plus the 192px png for legacy pickups).
