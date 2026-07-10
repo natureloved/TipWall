@@ -14,6 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Resolve every icon/og URL to an absolute one — naive metadata scrapers
+  // (in-app browsers, link unfurlers) don't always resolve relative paths.
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://tipwall.vercel.app"),
   title: "TipWall — Creator Tipping Wall",
   description: "A living community tipping wall for creators on Nimiq",
   manifest: "/manifest.json",

@@ -11,13 +11,13 @@
   "dir": "ltr",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "https://tipwall.vercel.app/android-chrome-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "https://tipwall.vercel.app/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -33,7 +33,7 @@
     "name": "TipWall",
     "version": "1.0.0",
     "description": "Send NIM tips to your favorite creators with a beautiful tipping wall",
-    "icon": "/android-chrome-512x512.png",
+    "icon": "https://tipwall.vercel.app/android-chrome-512x512.png",
     "entry": "/",
     "providers": ["nimiq"],
     "category": "payments",
