@@ -9,7 +9,8 @@ const PROFILE_PREFIX = 'tipwall:profile:'
 const MAX_ENTRIES = 500
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tipwall.vercel.app'
+  // Trim any trailing slash so `${baseUrl}/${handle}` can't produce `//handle`.
+  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://tipwall.vercel.app').replace(/\/+$/, '')
   const entries: MetadataRoute.Sitemap = [
     { url: baseUrl, lastModified: new Date(), changeFrequency: 'weekly', priority: 1 },
     { url: `${baseUrl}/explore`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
