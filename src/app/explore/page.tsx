@@ -19,13 +19,16 @@ type ExploreWall = {
 async function loadWalls(): Promise<ExploreWall[]> {
   let handles = await getActiveHandles(MAX_WALLS)
 
-  // Legacy fallback: walls created before the activity index existed.
-  if (handles.length === 0) {
+  if (handles.length < MAX_WALLS) {
     try {
       const keys = await kv.keys(`${PROFILE_PREFIX}*`)
-      handles = keys.slice(0, MAX_WALLS).map(k => k.slice(PROFILE_PREFIX.length))
+      const allHandles = keys.map(k => k.slice(PROFILE_PREFIX.length))
+      const seen = new Set(handles)
+      const legacy = allHandles.filter(h => !seen.has(h))
+      const needed = MAX_WALLS - handles.length
+      handles = [...handles, ...legacy.slice(0, needed)]
     } catch {
-      return []
+      // Best effort — if KV keys() fails, just use the active set.
     }
   }
 

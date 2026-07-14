@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getProfile, setProfile, consumeAuthNonce, deleteProfileData } from '@/lib/kv'
+import { getProfile, setProfile, consumeAuthNonce, deleteProfileData, touchActivity } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
@@ -89,6 +89,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     }
 
     await setProfile(updated)
+    await touchActivity(handleStr)
     return NextResponse.json({ success: true, handle: updated.handle })
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to update profile'
