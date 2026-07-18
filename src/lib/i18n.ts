@@ -31,6 +31,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'Every tip is verified on-chain',
     introPoint3: 'Send anonymously if you like',
     introGotIt: 'Got it',
+    exploreWalls: 'Explore creator walls',
   },
   es: {
     sendTip: 'Enviar una propina',
@@ -59,6 +60,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'Cada propina se verifica en la blockchain',
     introPoint3: 'Envía anónimamente si lo prefieres',
     introGotIt: 'Entendido',
+    exploreWalls: 'Explorar muros de creadores',
   },
   de: {
     sendTip: 'Tip senden',
@@ -87,6 +89,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'Jedes Trinkgeld wird on-chain verifiziert',
     introPoint3: 'Schick es anonym, wenn du magst',
     introGotIt: 'Verstanden',
+    exploreWalls: 'Creator-Wände entdecken',
   },
   fr: {
     sendTip: 'Envoyer un pourbois',
@@ -115,6 +118,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'Chaque pourboire est vérifié on-chain',
     introPoint3: 'Envoyez-le anonymement si vous voulez',
     introGotIt: 'Compris',
+    exploreWalls: 'Explorer les murs de créateurs',
   },
   it: {
     sendTip: 'Invia una mancia',
@@ -143,6 +147,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'Ogni mancia è verificata on-chain',
     introPoint3: 'Inviala in anonimo se vuoi',
     introGotIt: 'Ho capito',
+    exploreWalls: 'Esplora i murales dei creator',
   },
   pt: {
     sendTip: 'Enviar uma gorjeta',
@@ -171,6 +176,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'Cada gorjeta é verificada on-chain',
     introPoint3: 'Envie anonimamente se quiser',
     introGotIt: 'Entendi',
+    exploreWalls: 'Explorar muros de criadores',
   },
   ru: {
     sendTip: 'Отправить чаевые',
@@ -199,6 +205,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'Каждая чаевая проверяется в блокчейне',
     introPoint3: 'Отправляйте анонимно, если хотите',
     introGotIt: 'Понятно',
+    exploreWalls: 'Смотреть стены создателей',
   },
   zh: {
     sendTip: '发送小费',
@@ -227,6 +234,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: '每一笔打赏都经过链上验证',
     introPoint3: '如果你愿意，可以匿名发送',
     introGotIt: '明白了',
+    exploreWalls: '探索创作者墙',
   },
   ja: {
     sendTip: 'チップを送る',
@@ -255,6 +263,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: 'すべての投げ銭はオンチェーンで検証',
     introPoint3: '必要なら匿名で送信できます',
     introGotIt: 'わかった',
+    exploreWalls: 'クリエイターの壁を見る',
   },
   ko: {
     sendTip: '팁 보내기',
@@ -283,6 +292,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     introPoint2: '모든 팁은 온체인에서 검증됩니다',
     introPoint3: '원한다면 익명으로 보낼 수 있어요',
     introGotIt: '알겠습니다',
+    exploreWalls: '크리에이터 벽 둘러보기',
   },
 }
 

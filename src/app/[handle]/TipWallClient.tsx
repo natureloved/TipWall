@@ -126,6 +126,15 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                   {t('sendTip')}
                 </button>
               </div>
+              <div className="pt-3">
+                <Link
+                  href="/explore"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/15 transition-all duration-300 animate-slide-up"
+                  style={{animationDelay: '0.35s'}}
+                >
+                  🧭 {t('exploreWalls')}
+                </Link>
+              </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
                 <a
                   href={`/${handle}/edit`}

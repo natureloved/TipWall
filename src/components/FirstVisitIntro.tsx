@@ -4,21 +4,30 @@ import { useTranslations } from '@/lib/i18n'
 
 const SEEN_KEY = 'tipwall:intro-seen'
 
-function hasSeenIntro(): boolean {
-  try { return !!localStorage.getItem(SEEN_KEY) } catch { return true }
-}
-
 /**
  * Short educative modal shown the first time a visitor lands on a TipWall.
  * Gated by localStorage so it appears exactly once per browser and never
  * blocks returning users or the tipping flow.
  */
 export default function FirstVisitIntro({ onClose }: { onClose: () => void }) {
-  // Lazy init reads localStorage once; on the server `hasSeenIntro` safely
-  // returns true (no localStorage), so the server never renders the modal and
-  // there's no hydration mismatch — the client decides after mount.
-  const [show, setShow] = useState(hasSeenIntro)
+  // Start hidden, then decide after mount. Reading localStorage during the
+  // initial render (SSR + hydration) would cause a mismatch and break the
+  // button, so we gate with `mounted` and only touch storage client-side.
+  const [mounted, setMounted] = useState(false)
+  const [show, setShow] = useState(false)
   const t = useTranslations()
+
+  useEffect(() => {
+    // Read localStorage only after mount to avoid SSR/hydration mismatch;
+    // the double render is intentional and cheap (modal shows once).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+    try {
+      if (!localStorage.getItem(SEEN_KEY)) setShow(true)
+    } catch {
+      /* storage blocked — skip intro */
+    }
+  }, [])
 
   const dismiss = useCallback(() => {
     try { localStorage.setItem(SEEN_KEY, '1') } catch { /* ignore */ }
@@ -34,7 +43,7 @@ export default function FirstVisitIntro({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [show, dismiss])
 
-  if (!show) return null
+  if (!mounted || !show) return null
 
   const points = [t('introPoint1'), t('introPoint2'), t('introPoint3')]
 
