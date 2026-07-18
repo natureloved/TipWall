@@ -11,6 +11,7 @@ import FloatingTips from '@/components/FloatingTips'
 import AnimatedNumber from '@/components/AnimatedNumber'
 import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
 import SharePrompt from '@/components/SharePrompt'
+import FirstVisitIntro from '@/components/FirstVisitIntro'
 import { detectNimiqPay } from '@/lib/environment'
 import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 import { track } from '@/lib/analytics'
@@ -284,6 +285,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           onClose={() => setSharePrompt(null)}
         />
       )}
+      <FirstVisitIntro onClose={() => {}} />
     </>
   )
 }
