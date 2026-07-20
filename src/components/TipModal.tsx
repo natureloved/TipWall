@@ -25,9 +25,9 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   /** When this tip fulfils a claim intent, its token (marks the claim claimed). */
   claimToken?: string
 }) {
-  const presetInitial = initialAmount && PRESET_AMOUNTS.includes(initialAmount)
-  const [selectedAmount, setSelectedAmount] = useState<number>(presetInitial ? initialAmount! : initialAmount ? 0 : 100)
-  const [customAmount, setCustomAmount] = useState(initialAmount && !presetInitial ? String(initialAmount) : '')
+  // Single source of truth for the amount: one editable field prefilled with a
+  // sensible default. Presets fill it; the user can also type any value freely.
+  const [amount, setAmount] = useState<string>(initialAmount ? String(initialAmount) : '100')
   const [reason, setReason] = useState<TipReason | null>(null)
   const [message, setMessage] = useState(initialMessage || '')
   const [anonymous, setAnonymous] = useState(false)
@@ -44,7 +44,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, onClose])
 
-  const finalAmount = customAmount ? Number(customAmount) : selectedAmount
+  const finalAmount = Number(amount)
 
   const buildExtraData = () => {
     const parts = [
@@ -170,36 +170,38 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
 
         <div className="mt-6">
           <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mb-3">{t('tipAmount')}</p>
-          <div className="grid grid-cols-2 gap-3 mb-4">
+
+          {/* Prominent, editable amount field — the focal point of the modal.
+              Prefilled with a default; presets below fill it; users can type any value. */}
+          <div className="mb-4 rounded-2xl bg-amber-400/10 border-2 border-amber-400/40 focus-within:border-amber-400 px-4 py-3 flex items-center gap-3 transition-colors">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              aria-label={t('tipAmount')}
+              className="flex-1 min-w-0 bg-transparent text-3xl font-bold text-white placeholder-gray-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-lg font-semibold text-amber-300 shrink-0">NIM</span>
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 mb-4">
             {PRESET_AMOUNTS.map(amt => (
               <button
                 key={amt}
-                onClick={() => {
-                  setSelectedAmount(amt)
-                  setCustomAmount('')
-                }}
-                className={`py-3 rounded-xl text-sm font-semibold transition-all duration-200 border-2 ${
-                  selectedAmount === amt && !customAmount
+                onClick={() => setAmount(String(amt))}
+                className={`py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border-2 ${
+                  Number(amount) === amt
                     ? 'border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-slate-900 shadow-lg hover:shadow-xl'
                     : 'border-amber-400/20 bg-slate-800/50 text-amber-300 hover:border-amber-400/40 hover:bg-slate-800'
                 }`}
               >
-                {amt} NIM
+                {amt}
               </button>
             ))}
           </div>
         </div>
-
-        <input
-          type="number"
-          value={customAmount}
-          onChange={e => {
-            setCustomAmount(e.target.value)
-            setSelectedAmount(0)
-          }}
-          placeholder={t('customAmount')}
-          className="w-full border-2 border-amber-400/20 hover:border-amber-400/40 rounded-xl p-3 text-sm mb-4 bg-slate-800/50 text-white placeholder-gray-400 focus:outline-none focus:border-amber-400/60 transition-colors"
-        />
 
         <textarea
           value={message}
