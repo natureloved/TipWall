@@ -295,7 +295,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           onClose={() => setSharePrompt(null)}
         />
       )}
-      <FirstVisitIntro onClose={() => {}} />
+      <FirstVisitIntro
+        onClose={() => {}}
+        onStart={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
+      />
     </>
   )
 }

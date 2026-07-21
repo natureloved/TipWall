@@ -9,20 +9,15 @@ const SEEN_KEY = 'tipwall:intro-seen'
  * Gated by localStorage so it appears exactly once per browser and never
  * blocks returning users or the tipping flow.
  */
-export default function FirstVisitIntro({ onClose }: { onClose: () => void }) {
-  // Start hidden, then decide after mount. Reading localStorage during the
-  // initial render (SSR + hydration) would cause a mismatch and break the
-  // button, so we gate with `mounted` and only touch storage client-side.
-  const [mounted, setMounted] = useState(false)
+export default function FirstVisitIntro({ onClose, onStart }: { onClose: () => void; onStart?: () => void }) {
+  // `show` starts false on both server and client, so there's no hydration
+  // mismatch. localStorage is only read after mount inside the effect.
   const [show, setShow] = useState(false)
   const t = useTranslations()
 
   useEffect(() => {
-    // Read localStorage only after mount to avoid SSR/hydration mismatch;
-    // the double render is intentional and cheap (modal shows once).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMounted(true)
     try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!localStorage.getItem(SEEN_KEY)) setShow(true)
     } catch {
       /* storage blocked — skip intro */
@@ -35,6 +30,11 @@ export default function FirstVisitIntro({ onClose }: { onClose: () => void }) {
     onClose()
   }, [onClose])
 
+  const startTipping = useCallback(() => {
+    dismiss()
+    onStart?.()
+  }, [dismiss, onStart])
+
   // Close on Escape (keyboard accessibility).
   useEffect(() => {
     if (!show) return
@@ -43,7 +43,7 @@ export default function FirstVisitIntro({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [show, dismiss])
 
-  if (!mounted || !show) return null
+  if (!show) return null
 
   const points = [t('introPoint1'), t('introPoint2'), t('introPoint3')]
 
@@ -75,12 +75,29 @@ export default function FirstVisitIntro({ onClose }: { onClose: () => void }) {
           ))}
         </ul>
 
-        <button
-          onClick={dismiss}
-          className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
-        >
-          {t('introGotIt')}
-        </button>
+        {onStart ? (
+          <div className="space-y-2">
+            <button
+              onClick={startTipping}
+              className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
+            >
+              💸 {t('sendTip')}
+            </button>
+            <button
+              onClick={dismiss}
+              className="w-full py-2.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
+            >
+              {t('introGotIt')}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={dismiss}
+            className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
+          >
+            {t('introGotIt')}
+          </button>
+        )}
       </div>
     </div>
   )
