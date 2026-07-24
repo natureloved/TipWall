@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { kv } from '@vercel/kv'
 import { getActiveHandles, getProfile, getVerifiedTotalNim } from '@/lib/kv'
 import type { CreatorProfile } from '@/lib/types'
+import MissionLink from '@/components/MissionLink'
 
 // Recently-active creator walls. In-ecosystem discovery is a supporting
 // channel (creators' own audiences are the real one), but it gives new walls
@@ -54,6 +55,9 @@ export default async function ExplorePage() {
           <p className="text-sm text-slate-400 mt-2">
             Recently active creator walls. Tip the creator. Not the platform.
           </p>
+          <div className="mt-3">
+            <MissionLink />
+          </div>
         </div>
 
         {walls.length === 0 ? (
