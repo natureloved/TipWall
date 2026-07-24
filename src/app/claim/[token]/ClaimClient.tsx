@@ -90,8 +90,10 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
       {nimiqAvailable === false && (
         <InstallNimiqPrompt
           creatorHandle={claim.creatorHandle}
+          creatorWalletAddress={profile.walletAddress}
           amountNIM={claim.amountNIM}
           targetUrl={claimAbsoluteUrl || wallUrl(claim.creatorHandle)}
+          onTipSuccess={() => { setDone(true) }}
         />
       )}
     </>

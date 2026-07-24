@@ -9,20 +9,23 @@ const SEEN_KEY = 'tipwall:intro-seen'
  * Gated by localStorage so it appears exactly once per browser and never
  * blocks returning users or the tipping flow.
  */
-export default function FirstVisitIntro({ onClose, onStart }: { onClose: () => void; onStart?: () => void }) {
+export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }: { onClose: () => void; onStart?: () => void; forceOpen?: boolean }) {
   // `show` starts false on both server and client, so there's no hydration
   // mismatch. localStorage is only read after mount inside the effect.
   const [show, setShow] = useState(false)
   const t = useTranslations()
 
   useEffect(() => {
+    // When opened on demand (e.g. a "What is TipWall?" link), always show and
+    // skip the once-per-browser gate.
+    if (forceOpen) { setShow(true); return }
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!localStorage.getItem(SEEN_KEY)) setShow(true)
     } catch {
       /* storage blocked — skip intro */
     }
-  }, [])
+  }, [forceOpen])
 
   const dismiss = useCallback(() => {
     try { localStorage.setItem(SEEN_KEY, '1') } catch { /* ignore */ }
@@ -64,6 +67,12 @@ export default function FirstVisitIntro({ onClose, onStart }: { onClose: () => v
             {t('introTitle')}
           </h2>
           <p className="text-sm text-gray-300 mt-2">{t('introBody')}</p>
+        </div>
+
+        {/* Mission — the "why" behind TipWall, front and centre */}
+        <div className="mb-5 rounded-xl bg-amber-400/10 border border-amber-400/25 px-4 py-3">
+          <p className="text-[11px] font-bold text-amber-300 uppercase tracking-widest mb-1.5">Our mission</p>
+          <p className="text-sm text-gray-200 leading-relaxed">{t('introMission')}</p>
         </div>
 
         <ul className="space-y-2 mb-6">

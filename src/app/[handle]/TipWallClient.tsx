@@ -33,6 +33,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [resume, setResume] = useState<{ amount?: number; message?: string } | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [sharePrompt, setSharePrompt] = useState<{ amount?: number } | null>(null)
+  const [showMission, setShowMission] = useState(false)
   const t = useTranslations()
 
   const loadTips = useCallback(() => {
@@ -125,6 +126,15 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                   <span className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/30 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
                   <span className="text-xl">💸</span>
                   {t('sendTip')}
+                </button>
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowMission(true)}
+                  className="text-sm text-amber-300/90 hover:text-amber-200 underline underline-offset-4 transition-colors animate-slide-up"
+                  style={{animationDelay: '0.32s'}}
+                >
+                  {t('whatIsTipWall')}
                 </button>
               </div>
               <div className="pt-3">
@@ -276,8 +286,18 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
       {showInstall && (
         <InstallNimiqPrompt
           creatorHandle={handle}
+          creatorWalletAddress={profile.walletAddress}
           amountNIM={installAmount}
           onClose={() => setShowInstall(false)}
+          onTipSuccess={async (tip) => {
+            setShowInstall(false)
+            const prev = totalNIM
+            const next = totalNIM + (tip.amountNIM || 0)
+            setMilestoneState({ prev, curr: next })
+            setFloatingTipTrigger(t => t + 1)
+            setSharePrompt({ amount: tip.amountNIM })
+            await loadTips()
+          }}
         />
       )}
       {milestoneState && (
@@ -299,6 +319,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         onClose={() => {}}
         onStart={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
       />
+      {showMission && (
+        <FirstVisitIntro
+          forceOpen
+          onClose={() => setShowMission(false)}
+          onStart={() => { setShowMission(false); track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
+        />
+      )}
     </>
   )
 }
