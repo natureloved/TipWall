@@ -1,71 +1,124 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile } from '@/lib/kv'
-import { normalizeHandle } from '@/lib/profile-auth'
+import { normalizeHandle, normalizeAddress } from '@/lib/profile-auth'
 import { messageHasNonce } from '@/lib/pay-request'
 
 /**
- * Poll nimiqwatch for an incoming transaction to a creator's wallet that
- * carries a specific attribution nonce in its extra_data / message field.
- * Called repeatedly by the scan-to-pay QR flow until the payment is found.
+ * Poll for an incoming transaction to a creator's wallet, sent AFTER the QR was
+ * shown, for the expected amount. Used by the scan-to-pay flow.
  *
- * GET /api/tips/detect?handle=<handle>&nonce=<nonce>&amountNIM=<n>
+ * Matching strategy (resilient): recipient + amount + freshness are REQUIRED.
+ * The attribution nonce is only a preferred tiebreaker — Nimiq Pay's scanner
+ * may or may not carry the message field into on-chain extra_data, so we must
+ * not depend on it, or detection would never succeed.
  *
- * Returns { found: false } while waiting, or
- *         { found: true, txHash, senderAddress, amountNIM } when matched.
+ * Primary source: Nimiq PoS RPC (getTransactionsByAddress). Fallback: nimiqwatch.
+ *
+ * GET /api/tips/detect?handle=&nonce=&amountNIM=&since=<epochMs>
+ * Returns { found:false } or { found:true, txHash, senderAddress, amountNIM }.
  */
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const handle = normalizeHandle(searchParams.get('handle') || '')
   const nonce = (searchParams.get('nonce') || '').trim()
   const amountNIM = Number(searchParams.get('amountNIM'))
+  // Only consider txs at/after this time (ms). Guards against matching an old
+  // identical-amount tip. Default: 15 min ago, to tolerate clock skew.
+  const since = Number(searchParams.get('since')) || Date.now() - 15 * 60_000
 
-  if (!handle || !nonce || !amountNIM) {
+  if (!handle || !amountNIM) {
     return NextResponse.json({ error: 'missing params' }, { status: 400 })
   }
 
   const profile = await getProfile(handle)
   if (!profile) return NextResponse.json({ error: 'creator not found' }, { status: 404 })
 
-  const address = profile.walletAddress.replace(/ /g, '')
+  const recipientNorm = normalizeAddress(profile.walletAddress)
   const amountLuna = Math.round(amountNIM * 100_000)
+  const rpcUrl = process.env.NIMIQ_RPC_URL
 
-  try {
-    // nimiqwatch REST: last 25 incoming txs for this address
-    const resp = await fetch(
-      `https://v2.nimiqwatch.com/api/v1/account/${encodeURIComponent(address)}/transactions?limit=25`,
-      { headers: { 'User-Agent': 'TipWall/1.0' }, next: { revalidate: 0 } },
-    )
-    if (!resp.ok) return NextResponse.json({ found: false })
+  const txs: Record<string, unknown>[] = []
 
-    const data = await resp.json()
-    const txs: unknown[] = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.transactions)
-        ? data.transactions
-        : Array.isArray(data?.data)
-          ? data.data
-          : []
-
-    for (const raw of txs) {
-      const tx = raw as Record<string, unknown>
-      const value = Number(tx.value ?? tx.amount ?? tx.luna ?? 0)
-      const msg: string = String(tx.data ?? tx.message ?? tx.extraData ?? tx.extra_data ?? '')
-      const sender: string = String(tx.fromAddress ?? tx.from ?? tx.from_address ?? tx.senderAddress ?? '')
-
-      // Amount must be within 1000 luna (fee tolerance) and nonce must match
-      if (Math.abs(value - amountLuna) > 1000) continue
-      if (!messageHasNonce(msg, nonce)) continue
-
-      return NextResponse.json({
-        found: true,
-        txHash: String(tx.hash ?? tx.transactionHash ?? tx.id ?? ''),
-        senderAddress: sender,
-        amountNIM,
+  // 1. Nimiq RPC — getTransactionsByAddress
+  if (rpcUrl) {
+    try {
+      const resp = await fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', method: 'getTransactionsByAddress', params: [recipientNorm, 25], id: 1,
+        }),
+        next: { revalidate: 0 },
       })
-    }
-  } catch {
-    // Explorer down — caller will retry
+      if (resp.ok) {
+        const json = await resp.json()
+        const result = json?.result?.data ?? json?.result ?? []
+        if (Array.isArray(result)) txs.push(...result)
+      }
+    } catch { /* fall through */ }
   }
 
-  return NextResponse.json({ found: false })
+  // 2. nimiqwatch explorer fallback
+  if (txs.length === 0) {
+    try {
+      const addrStripped = recipientNorm.replace(/ /g, '')
+      const resp = await fetch(
+        `https://v2.nimiqwatch.com/api/v1/address-transactions/${encodeURIComponent(addrStripped)}/1`,
+        { headers: { 'User-Agent': 'TipWall/1.0' }, next: { revalidate: 0 } },
+      )
+      if (resp.ok) {
+        const json = await resp.json()
+        const list = Array.isArray(json) ? json
+          : Array.isArray(json?.transactions) ? json.transactions
+          : Array.isArray(json?.data) ? json.data : []
+        txs.push(...list)
+      }
+    } catch { /* explorer down */ }
+  }
+
+  // Read a tx timestamp in ms across the various shapes (RPC secs, explorer ms/iso)
+  const txTimeMs = (tx: Record<string, unknown>): number => {
+    const raw = tx.timestamp ?? tx.time ?? tx.date ?? tx.blockTime ?? 0
+    if (typeof raw === 'number') return raw < 1e12 ? raw * 1000 : raw // secs → ms
+    const parsed = Date.parse(String(raw))
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  const decodeMsg = (raw: unknown): string => {
+    if (typeof raw !== 'string' || !raw) return ''
+    if (/^[0-9a-fA-F]+$/.test(raw) && raw.length % 2 === 0) {
+      try { return Buffer.from(raw, 'hex').toString('utf8') } catch { return raw }
+    }
+    return raw
+  }
+
+  // Gather all candidates that match recipient + amount + freshness.
+  const candidates = txs
+    .map((tx) => {
+      const to = normalizeAddress(String(tx.toAddress ?? tx.to ?? tx.to_address ?? tx.recipient ?? tx.recipientAddress ?? ''))
+      const value = Number(tx.value ?? tx.amount ?? tx.luna ?? 0)
+      const msg = decodeMsg(tx.data ?? tx.message ?? tx.extraData ?? tx.extra_data)
+      const sender = String(tx.fromAddress ?? tx.from ?? tx.from_address ?? tx.senderAddress ?? tx.sender ?? '')
+      const hash = String(tx.hash ?? tx.transactionHash ?? tx.id ?? '')
+      return { to, value, msg, sender, hash, time: txTimeMs(tx) }
+    })
+    .filter((c) =>
+      c.hash &&
+      c.to === recipientNorm &&
+      Math.abs(c.value - amountLuna) <= 1000 &&
+      (c.time === 0 || c.time >= since - 60_000), // allow 1 min skew
+    )
+
+  if (candidates.length === 0) return NextResponse.json({ found: false })
+
+  // Prefer a nonce match if the message survived; else take the most recent.
+  const nonceMatch = nonce ? candidates.find((c) => messageHasNonce(c.msg, nonce)) : undefined
+  const best = nonceMatch || candidates.sort((a, b) => b.time - a.time)[0]
+
+  return NextResponse.json({
+    found: true,
+    txHash: best.hash,
+    senderAddress: best.sender,
+    amountNIM,
+  })
 }

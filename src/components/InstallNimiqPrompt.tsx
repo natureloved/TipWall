@@ -64,6 +64,9 @@ export default function InstallNimiqPrompt({
   useEffect(() => {
     if (tab !== 'pay' || !canPay) return
     const nonce = nonceRef.current
+    // Only match payments made after the QR was shown (guards against matching a
+    // pre-existing identical-amount tip to this creator).
+    const since = Date.now()
     const message = composePayMessage(undefined, nonce)
     const uri = buildNimiqPaymentLink({ address: creatorWalletAddress!, amountNIM: amountNIM!, message })
     QRCode.toDataURL(uri, { width: 240, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
@@ -73,7 +76,7 @@ export default function InstallNimiqPrompt({
     pollRef.current = setInterval(async () => {
       try {
         const res = await fetch(
-          `/api/tips/detect?handle=${encodeURIComponent(creatorHandle)}&nonce=${nonce}&amountNIM=${amountNIM}`,
+          `/api/tips/detect?handle=${encodeURIComponent(creatorHandle)}&nonce=${nonce}&amountNIM=${amountNIM}&since=${since}`,
         )
         const data = await res.json()
         if (!data.found) return
