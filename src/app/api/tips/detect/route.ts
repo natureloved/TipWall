@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     try {
       const addrStripped = recipientNorm.replace(/ /g, '')
       const resp = await fetch(
-        `https://v2.nimiqwatch.com/api/v1/address-transactions/${encodeURIComponent(addrStripped)}/1`,
+        `https://v2.nimiqwatch.com/api/v1/account-transactions/${encodeURIComponent(addrStripped)}/1`,
         { headers: { 'User-Agent': 'TipWall/1.0' }, next: { revalidate: 0 } },
       )
       if (resp.ok) {
@@ -95,10 +95,10 @@ export async function GET(req: NextRequest) {
   // Gather all candidates that match recipient + amount + freshness.
   const candidates = txs
     .map((tx) => {
-      const to = normalizeAddress(String(tx.toAddress ?? tx.to ?? tx.to_address ?? tx.recipient ?? tx.recipientAddress ?? ''))
+      const to = normalizeAddress(String(tx.receiver_address ?? tx.toAddress ?? tx.to ?? tx.to_address ?? tx.recipient ?? tx.recipientAddress ?? ''))
       const value = Number(tx.value ?? tx.amount ?? tx.luna ?? 0)
       const msg = decodeMsg(tx.data ?? tx.message ?? tx.extraData ?? tx.extra_data)
-      const sender = String(tx.fromAddress ?? tx.from ?? tx.from_address ?? tx.senderAddress ?? tx.sender ?? '')
+      const sender = String(tx.sender_address ?? tx.fromAddress ?? tx.from ?? tx.from_address ?? tx.senderAddress ?? tx.sender ?? '')
       const hash = String(tx.hash ?? tx.transactionHash ?? tx.id ?? '')
       return { to, value, msg, sender, hash, time: txTimeMs(tx) }
     })
