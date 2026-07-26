@@ -1,8 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import QRCode from 'qrcode'
 import { type CreatorProfile } from '@/lib/types'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
+import { detectNimiqPay, buildNimiqPayDeepLink, wallUrl, isMobileDevice } from '@/lib/environment'
 
 export default function EditProfileClient({ handle, profile }: { handle: string; profile: CreatorProfile }) {
   const [wallet, setWallet] = useState('')
@@ -18,6 +20,20 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
   const [saved, setSaved] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState('')
   const [deleting, setDeleting] = useState(false)
+
+  // Editing needs a wallet signature, which only exists inside Nimiq Pay. On
+  // desktop we swap the dead "Connect" button for a handoff into the app.
+  const [inNimiqPay, setInNimiqPay] = useState<boolean | null>(null)
+  const [handoffQr, setHandoffQr] = useState('')
+  const editDeepLink = buildNimiqPayDeepLink(`${wallUrl(handle)}/edit`)
+
+  useEffect(() => { detectNimiqPay().then(setInNimiqPay) }, [])
+
+  useEffect(() => {
+    if (inNimiqPay !== false) return
+    QRCode.toDataURL(editDeepLink, { width: 220, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
+      .then(setHandoffQr).catch(() => setHandoffQr(''))
+  }, [inNimiqPay, editDeepLink])
 
   const isOwner = !!wallet && normalizeAddress(wallet) === normalizeAddress(profile.walletAddress)
 
@@ -112,14 +128,38 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
               <span className={`font-mono text-sm truncate ${isOwner ? 'text-emerald-400' : 'text-red-300'}`} title={wallet}>{wallet}</span>
               <span className="text-lg shrink-0">{isOwner ? '✓' : '✗'}</span>
             </div>
+          ) : inNimiqPay === false ? (
+            <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 space-y-3">
+              <p className="text-sm text-amber-200">
+                Editing needs your wallet signature, so it has to happen inside Nimiq Pay.
+              </p>
+              {isMobileDevice() ? (
+                <a
+                  href={editDeepLink}
+                  className="block w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 py-3 text-center font-bold text-slate-900"
+                >
+                  Open in Nimiq Pay
+                </a>
+              ) : (
+                <div className="space-y-2 text-center">
+                  {handoffQr && (
+                    // eslint-disable-next-line @next/next/no-img-element -- data: URL QR code; nothing to optimize
+                    <img src={handoffQr} alt="Scan to open this editor in Nimiq Pay" className="mx-auto rounded-lg" width={220} height={220} />
+                  )}
+                  <p className="text-xs text-slate-400">
+                    Scan with your phone to open this editor in Nimiq Pay.
+                  </p>
+                </div>
+              )}
+            </div>
           ) : (
             <button
               type="button"
               onClick={handleConnect}
-              disabled={connecting}
+              disabled={connecting || inNimiqPay === null}
               className="w-full bg-slate-900 hover:bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-60"
             >
-              {connecting ? 'Connecting…' : 'Connect Owner Wallet'}
+              {inNimiqPay === null ? 'Checking wallet…' : connecting ? 'Connecting…' : 'Connect Owner Wallet'}
             </button>
           )}
         </div>
