@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useTranslations } from '@/lib/i18n'
+import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const SEEN_KEY = 'tipwall:intro-seen'
 
@@ -13,7 +14,10 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }:
   // `show` starts false on both server and client, so there's no hydration
   // mismatch. localStorage is only read after mount inside the effect.
   const [show, setShow] = useState(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const t = useTranslations()
+
+  useFocusTrap(dialogRef, show)
 
   useEffect(() => {
     // When opened on demand (e.g. a "What is TipWall?" link), always show and
@@ -53,10 +57,12 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }:
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={dismiss}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={t('introTitle')}
-        className="w-full sm:max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl border-t-2 sm:border-2 border-amber-400/20 animate-slide-up"
+        tabIndex={-1}
+        className="w-full sm:max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl border-t-2 sm:border-2 border-amber-400/20 animate-slide-up focus:outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-6 sm:hidden" />

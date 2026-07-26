@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle } from '@/lib/profile-auth'
@@ -18,10 +18,29 @@ export default function CreatorSetup() {
   const [achievement, setAchievement] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showDetails, setShowDetails] = useState(false)
+
+  // Live handle availability
+  const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
+  const checkTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    const normalized = normalizeHandle(handle)
+    if (normalized.length < 3) { setHandleStatus('idle'); return }
+    setHandleStatus('checking')
+    if (checkTimeout.current) clearTimeout(checkTimeout.current)
+    checkTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/profile/${normalized}`)
+        setHandleStatus(res.status === 404 ? 'available' : 'taken')
+      } catch {
+        setHandleStatus('idle')
+      }
+    }, 400)
+    return () => { if (checkTimeout.current) clearTimeout(checkTimeout.current) }
+  }, [handle])
 
   const handleConnect = async () => {
-    // Connecting only lists accounts — no signature yet. The wallet is asked to
-    // sign exactly once, on submit, so users don't face two prompts in a row.
     setError(null)
     setConnecting(true)
     try {
@@ -39,27 +58,19 @@ export default function CreatorSetup() {
     setError(null)
 
     const handleStr = normalizeHandle(handle)
-    if (handleStr.length < 3) {
-      setError('Handle must be at least 3 characters')
-      return
-    }
-    if (!wallet) {
-      setError('Connect your Nimiq wallet first')
-      return
-    }
+    if (handleStr.length < 3) { setError('Handle must be at least 3 characters'); return }
+    if (!wallet) { setError('Connect your Nimiq wallet first'); return }
 
     setSubmitting(true)
     try {
       const auth = await signProfileAuth({ action: 'create', handle: handleStr, walletAddress: wallet })
-
-      const displayNameVal = displayName || handleStr
       const res = await fetch('/api/profile/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           handle: handleStr,
           walletAddress: wallet,
-          displayName: displayNameVal,
+          displayName: displayName || handleStr,
           bio,
           contentUrl,
           goal: { label: goalLabel, targetNIM: parseInt(goalTarget) || 1000 },
@@ -82,14 +93,10 @@ export default function CreatorSetup() {
               window.location.href = `/${walletData.handle}`
               return
             }
-          } catch {
-            // fall through to show the original error
-          }
+          } catch { /* fall through */ }
         }
         throw new Error(data.error)
       }
-      // Land on the Share Kit, not the empty wall: sharing intent peaks in the
-      // seconds after creation, and a wall nobody sees never earns a tip.
       window.location.href = `/${data.handle}/share?new=1`
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create profile')
@@ -97,16 +104,55 @@ export default function CreatorSetup() {
     }
   }
 
+  const normalizedHandle = normalizeHandle(handle)
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-4">
+      {/* Hero */}
+      <div className="w-full max-w-md text-center mb-8">
+        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent mb-3">
+          Tip the creator,<br />not the platform.
+        </h1>
+        <p className="text-slate-300 text-lg mb-2">
+          Put up a tipping wall in 60 seconds.<br />
+          Supporters tap, NIM lands in your wallet.
+        </p>
+        <p className="text-amber-400 font-semibold text-sm mb-4">TipWall takes 0%.</p>
+        <Link
+          href="/demo"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+        >
+          See an example wall →
+        </Link>
+      </div>
+
       <form onSubmit={submit} className="w-full max-w-md bg-slate-800 rounded-2xl p-6 space-y-4">
-        <h1 className="text-2xl font-bold text-center">Create Your TipWall</h1>
+        {/* Handle */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">
-            Handle <span className="text-slate-500">(your unique URL: tipwall.vercel.app/yourname)</span>
+            Handle <span className="text-slate-400">(tipwall.vercel.app/yourname)</span>
           </label>
-          <input value={handle} onChange={e => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))} placeholder="yourname" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" required />
+          <input
+            value={handle}
+            onChange={e => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
+            placeholder="yourname"
+            className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white"
+            required
+          />
+          {normalizedHandle.length >= 3 && (
+            <p className={`text-[11px] mt-1 ${
+              handleStatus === 'available' ? 'text-emerald-400' :
+              handleStatus === 'taken' ? 'text-red-400' :
+              'text-slate-500'
+            }`}>
+              {handleStatus === 'checking' && 'Checking…'}
+              {handleStatus === 'available' && `✓ tipwall.vercel.app/${normalizedHandle} is available`}
+              {handleStatus === 'taken' && `✗ ${normalizedHandle} is already taken`}
+            </p>
+          )}
         </div>
+
+        {/* Wallet */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">Nimiq Wallet</label>
           {wallet ? (
@@ -124,51 +170,68 @@ export default function CreatorSetup() {
               {connecting ? 'Connecting…' : 'Connect Nimiq Wallet'}
             </button>
           )}
-          <p className="text-[11px] text-slate-500 mt-1">
+          <p className="text-[11px] text-slate-400 mt-1">
             Your wallet signs to prove ownership — only it can edit this profile later.
           </p>
         </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">
-            Display Name <span className="text-slate-500">(optional, defaults to handle)</span>
-          </label>
-          <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your Name" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Bio</label>
-          <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">Content URL (optional)</label>
-          <input value={contentUrl} onChange={e => setContentUrl(e.target.value)} placeholder="https://x.com/yourthread" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm" />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Goal (NIM)</label>
-            <input type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Goal Label</label>
-            <input value={goalLabel} onChange={e => setGoalLabel(e.target.value)} placeholder="Next article" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">
-            What are you currently working on? <span className="text-slate-500">(optional)</span>
-          </label>
-          <input
-            value={achievement}
-            onChange={e => setAchievement(e.target.value)}
-            placeholder={PLACEHOLDER_TEXT}
-            maxLength={80}
-            className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm"
-          />
-        </div>
+
+        {/* Optional details toggle */}
+        <button
+          type="button"
+          onClick={() => setShowDetails(v => !v)}
+          className="text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+        >
+          {showDetails ? '− Hide optional details' : '+ Add details (optional)'}
+        </button>
+
+        {showDetails && (
+          <>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Display Name</label>
+              <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your Name" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Bio</label>
+              <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Content URL</label>
+              <input value={contentUrl} onChange={e => setContentUrl(e.target.value)} placeholder="https://x.com/yourthread" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Goal (NIM)</label>
+                <input type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Goal Label</label>
+                <input value={goalLabel} onChange={e => setGoalLabel(e.target.value)} placeholder="Next article" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">What are you currently working on?</label>
+              <input
+                value={achievement}
+                onChange={e => setAchievement(e.target.value)}
+                placeholder={PLACEHOLDER_TEXT}
+                maxLength={80}
+                className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm"
+              />
+            </div>
+          </>
+        )}
+
         {error && <div className="text-red-400 text-sm">{error}</div>}
-        <button type="submit" disabled={submitting || !wallet} className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-slate-900 font-bold py-3 rounded-full">
+
+        <button
+          type="submit"
+          disabled={submitting || !wallet || handleStatus === 'taken'}
+          className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-slate-900 font-bold py-3 rounded-full"
+        >
           {submitting ? 'Sign in wallet…' : 'Create TipWall'}
         </button>
-        <p className="text-center text-xs text-slate-500">
+
+        <p className="text-center text-xs text-slate-400">
           <Link href="/explore" className="underline underline-offset-4 hover:text-amber-300 transition-colors">
             Explore creator walls →
           </Link>

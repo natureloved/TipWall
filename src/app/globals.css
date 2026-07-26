@@ -72,10 +72,22 @@ body {
   animation: glow 4s ease-in-out infinite;
 }
 
+/* Fires once when a milestone unlocks — not an infinite loop. */
 .animate-bounce-custom {
-  animation: bounce 2s ease-in-out infinite;
+  animation: bounce 0.8s ease-in-out;
 }
 
 .animate-shimmer {
   animation: shimmer 2s infinite;
+}
+
+/* WCAG 2.3.3 — honour the OS "reduce motion" setting. Collapses every
+   animation and transition to effectively instant. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -37,7 +37,11 @@ async function loadWalls(): Promise<ExploreWall[]> {
   for (const handle of handles.slice(0, MAX_WALLS)) {
     const profile = await getProfile(handle)
     if (!profile) continue
-    walls.push({ profile, totalNIM: await getVerifiedTotalNim(handle) })
+    const totalNIM = await getVerifiedTotalNim(handle)
+    // Only surface walls with at least one verified tip. Empty/test walls carry
+    // no social proof and dilute the front door.
+    if (totalNIM <= 0) continue
+    walls.push({ profile, totalNIM })
   }
   return walls
 }

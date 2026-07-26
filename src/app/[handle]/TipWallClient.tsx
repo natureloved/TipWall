@@ -34,6 +34,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [isOwner, setIsOwner] = useState(false)
   const [sharePrompt, setSharePrompt] = useState<{ amount?: number } | null>(null)
   const [showMission, setShowMission] = useState(false)
+  const [manageOpen, setManageOpen] = useState(false)
   const t = useTranslations()
 
   const loadTips = useCallback(() => {
@@ -87,6 +88,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   }, [handle])
 
   const goalPercent = Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))
+  // An empty wall shows a single warm invitation instead of five stacked zeros.
+  // The full dashboard (stats, supporters, goal, milestones, feed) unlocks with
+  // the first tip — so tip #1 visibly turns the wall on.
+  const hasTips = tips.length > 0
 
   return (
     <>
@@ -94,6 +99,27 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
       <div className="tw-wall min-h-screen relative">
         {/* Animated background gradient */}
         <div className="fixed inset-0 z-0" />
+
+        {/* Owner-only management controls — hidden from supporters so the hero
+            stays clean and no admin surface is advertised to visitors. */}
+        {isOwner && (
+          <div className="fixed bottom-4 right-4 z-30 flex flex-col items-end gap-2">
+            {manageOpen && (
+              <div className="flex flex-col gap-1.5 rounded-2xl bg-slate-800/90 backdrop-blur border border-white/10 p-2 shadow-2xl animate-slide-up">
+                <a href={`/${handle}/dashboard`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">📊 Dashboard</a>
+                <a href={`/${handle}/analytics`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">📈 Analytics</a>
+                <a href={`/${handle}/edit`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">✏️ Edit wall</a>
+              </div>
+            )}
+            <button
+              onClick={() => setManageOpen(v => !v)}
+              aria-expanded={manageOpen}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-bold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 shadow-xl hover:shadow-2xl hover:from-amber-500 hover:to-amber-600 transition-all"
+            >
+              ⚙️ Manage
+            </button>
+          </div>
+        )}
 
         <div className="relative z-10 max-w-3xl mx-auto px-4 py-8 space-y-6">
           {/* Hero Section */}
@@ -112,7 +138,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 </p>
               )}
               {profile.achievement && (
-                <div className="animate-pulse-custom flex w-fit max-w-full items-center gap-3 bg-amber-400/15 border-2 border-amber-400/40 rounded-xl px-4 py-2 text-sm font-semibold text-amber-300" style={{animationDelay: '0.2s'}}>
+                <div className="flex w-fit max-w-full items-center gap-3 bg-amber-400/15 border-2 border-amber-400/40 rounded-xl px-4 py-2 text-sm font-semibold text-amber-300 animate-slide-up" style={{animationDelay: '0.2s'}}>
                   <span className="shrink-0">🏆</span>
                   <span>{profile.achievement}</span>
                 </div>
@@ -146,98 +172,102 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                   🧭 {t('exploreWalls')}
                 </Link>
               </div>
+              {/* Share is everyone's — supporters sharing is the wall's best
+                  distribution. Owner-only admin links live in the Manage pill. */}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
-                <a
-                  href={`/${handle}/edit`}
-                  className="hover:text-amber-300 underline underline-offset-4 transition-colors"
-                >
-                  Owner? Edit this wall
-                </a>
-                <a
-                  href={`/${handle}/analytics`}
-                  className="hover:text-amber-300 underline underline-offset-4 transition-colors"
-                >
-                  Analytics
-                </a>
                 <a
                   href={`/${handle}/share`}
                   className="hover:text-amber-300 underline underline-offset-4 transition-colors"
                 >
                   Share kit
                 </a>
-                {isOwner && (
-                  <a
-                    href={`/${handle}/dashboard`}
-                    className="hover:text-amber-300 underline underline-offset-4 transition-colors"
-                  >
-                    Dashboard
-                  </a>
-                )}
               </div>
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-3 gap-4">
-            <StatCard value={<AnimatedNumber value={totalNIM} />} label={t('totalTipped')} index={0} />
-            <StatCard value={<AnimatedNumber value={tips.length} />} label={t('tipsSent')} index={1} />
-            <StatCard value={`${goalPercent}%`} label={t('goalProgress')} index={2} />
-          </div>
-
-          {/* Supporters - prominently displayed for community recognition */}
-          <SupportersWall supporters={supporters} />
-
-          {/* Goal Progress */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-gray-600 uppercase tracking-wide">{profile.goal?.label || 'Goal'}</span>
-              <span className="text-xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
-                {goalPercent}%
-              </span>
-            </div>
-            <div
-              className="relative w-full h-3 rounded-full overflow-hidden bg-gray-100"
-              role="progressbar"
-              aria-valuenow={goalPercent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={profile.goal?.label || 'Goal'}
-            >
-              <div
-                className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700 relative"
-                style={{ width: `${goalPercent}%` }}
+          {!hasTips ? (
+            /* Empty wall: one warm invitation, no wall of zeros. */
+            <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-8 text-center shadow-lg border-2 border-amber-400/20 animate-slide-up" style={{animationDelay: '0.35s'}}>
+              <div className="text-5xl mb-4">🤝</div>
+              <h2 className="text-xl font-bold text-white mb-2">
+                {t('beFirstToSupport', { name: profile.displayName || `@${handle}` })}
+              </h2>
+              <p className="text-sm text-slate-400 mb-6 max-w-sm mx-auto">
+                {t('zeroFees')}
+              </p>
+              <button
+                onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg rounded-2xl font-bold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                <span className="text-xl">💸</span>
+                {t('sendTip')}
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Stats Grid */}
+              <div className="grid grid-cols-3 gap-4">
+                <StatCard value={<AnimatedNumber value={totalNIM} />} label={t('totalTipped')} index={0} />
+                <StatCard value={<AnimatedNumber value={tips.length} />} label={t('tipsSent')} index={1} />
+                <StatCard value={`${goalPercent}%`} label={t('goalProgress')} index={2} />
               </div>
-            </div>
-          </div>
 
-          {/* Milestones */}
-          <div className="rounded-2xl bg-white p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
-            <div className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-4">{t('milestones')}</div>
-            <div className="grid grid-cols-5 gap-2">
-              {MILESTONES.map((m, idx) => (
-                <div
-                  key={m}
-                  className={`py-3 px-2 rounded-xl text-center font-semibold text-sm transition-all duration-300 ${
-                    unlockedMilestones.includes(m)
-                      ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 shadow-lg animate-bounce-custom'
-                      : 'bg-gray-50 text-gray-500 border-2 border-gray-100'
-                  }`}
-                  style={{animationDelay: `${0.6 + idx * 0.05}s`}}
-                >
-                  {unlockedMilestones.includes(m) && <span className="text-xs mr-1" aria-label="unlocked">✓</span>}
-                  {m >= 1000 ? `${m / 1000}k` : m}
+              {/* Supporters - prominently displayed for community recognition */}
+              <SupportersWall supporters={supporters} />
+
+              {/* Goal Progress */}
+              <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{profile.goal?.label || 'Goal'}</span>
+                  <span className="text-xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+                    {goalPercent}%
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div
+                  className="relative w-full h-3 rounded-full overflow-hidden bg-white/10"
+                  role="progressbar"
+                  aria-valuenow={goalPercent}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={profile.goal?.label || 'Goal'}
+                >
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700 relative"
+                    style={{ width: `${goalPercent}%` }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                  </div>
+                </div>
+              </div>
 
-          {/* Content Preview */}
-          {profile.contentUrl && <ContentPreviewCard url={profile.contentUrl} handle={handle} />}
+              {/* Milestones */}
+              <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
+                <div className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">{t('milestones')}</div>
+                <div className="grid grid-cols-5 gap-2">
+                  {MILESTONES.map((m, idx) => (
+                    <div
+                      key={m}
+                      className={`py-3 px-2 rounded-xl text-center font-semibold text-sm transition-all duration-300 ${
+                        unlockedMilestones.includes(m)
+                          ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 shadow-lg animate-bounce-custom'
+                          : 'bg-white/5 text-slate-500 border-2 border-white/10'
+                      }`}
+                      style={{animationDelay: `${0.5 + idx * 0.03}s`}}
+                    >
+                      {unlockedMilestones.includes(m) && <span className="text-xs mr-1" aria-label="unlocked">✓</span>}
+                      {m >= 1000 ? `${m / 1000}k` : m}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* Live Feed */}
-          <TipFeed tips={tips} />
+              {/* Content Preview */}
+              {profile.contentUrl && <ContentPreviewCard url={profile.contentUrl} handle={handle} />}
+
+              {/* Live Feed */}
+              <TipFeed tips={tips} />
+            </>
+          )}
 
           {/* Share Button */}
           <ShareButton handle={handle} />
@@ -315,10 +345,6 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           onClose={() => setSharePrompt(null)}
         />
       )}
-      <FirstVisitIntro
-        onClose={() => {}}
-        onStart={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
-      />
       {showMission && (
         <FirstVisitIntro
           forceOpen
@@ -333,15 +359,15 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 function StatCard({ value, label, index }: { value: React.ReactNode; label: string; index: number }) {
   return (
     <div
-      className="relative group rounded-2xl bg-white p-6 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border-2 border-amber-400/10 hover:border-amber-400/30 overflow-hidden animate-slide-up"
+      className="relative group rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border-2 border-amber-400/10 hover:border-amber-400/30 overflow-hidden animate-slide-up"
       style={{animationDelay: `${0.35 + index * 0.05}s`}}
     >
       <div className="absolute inset-0 bg-gradient-radial from-amber-400/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="relative z-10">
-        <div className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-amber-400 to-amber-600 bg-clip-text text-transparent">
+        <div className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
           {value}
         </div>
-        <div className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mt-2">{label}</div>
+        <div className="text-xs sm:text-sm font-semibold text-slate-400 uppercase tracking-wide mt-2">{label}</div>
       </div>
     </div>
   )
@@ -354,8 +380,8 @@ function ShareButton({ handle }: { handle: string }) {
 
   return (
     <button
-      className="w-full rounded-2xl bg-white p-6 text-center font-semibold text-gray-700 shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up"
-      style={{animationDelay: '1.2s'}}
+      className="flex items-center justify-center gap-2 mx-auto w-auto rounded-full bg-transparent px-6 py-3 text-sm font-semibold text-amber-300 border-2 border-amber-400/40 hover:bg-amber-400/10 hover:border-amber-400/60 transition-colors duration-200 animate-slide-up"
+      style={{animationDelay: '0.4s'}}
       onClick={async () => {
         await navigator.clipboard.writeText(copyUrl)
         setCopied(true)

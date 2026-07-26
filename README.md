@@ -15,7 +15,7 @@ The wall of creators support. Tip the creator. Not the platform. Built for the [
 - **Share Kit** — post-creation share flow with pre-written posts (X / Telegram / WhatsApp), QR code + downloadable poster, live GitHub README badge, and blog/link-in-bio embeds
 - **Growth loops** — supporters get a share prompt after tipping, milestones offer one-tap shares, and `/explore` lists recently active walls
 - **Social share cards** — dynamic OG images per creator wall
-- **10-language UI** (en, es, de, fr, it, pt, ru, zh, ja, ko), auto-detected from the browser
+- **10-language tipping flow** (en, es, de, fr, it, pt, ru, zh, ja, ko), auto-detected from the browser — the supporter path (tip modal, reasons, live feed, supporters) is fully localized; owner-facing dashboard/edit surfaces are English
 - **Responsive, accessible design** — mobile-first, pinch-zoom friendly
 - **Full ownership, including exit** — creators can permanently delete their wall (signature-gated); deleted handles are tombstoned so nobody can re-register them and impersonate the previous owner
 

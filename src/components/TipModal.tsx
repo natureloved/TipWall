@@ -4,6 +4,7 @@ import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
 import { savePendingTipIntent } from '@/lib/tip-intent'
 import { useTranslations } from '@/lib/i18n'
+import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
@@ -28,13 +29,18 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   // Single source of truth for the amount: one editable field prefilled with a
   // sensible default. Presets fill it; the user can also type any value freely.
   const [amount, setAmount] = useState<string>(initialAmount ? String(initialAmount) : '100')
-  const [reason, setReason] = useState<TipReason | null>(null)
+  // Reason is optional garnish, not a gate. Default to a neutral "just support"
+  // so a tip always carries a valid reason without the user having to choose.
+  const [reason, setReason] = useState<TipReason>('just_support')
   const [message, setMessage] = useState(initialMessage || '')
   const [anonymous, setAnonymous] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const sendingRef = useRef(false)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const t = useTranslations()
+
+  useFocusTrap(dialogRef, isOpen)
 
   // Close on Escape while the modal is open (keyboard accessibility).
   useEffect(() => {
@@ -62,8 +68,6 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     const reset = () => { sendingRef.current = false }
 
     try {
-      if (!reason) { setError('Please select a reason for your tip'); reset(); return }
-
       // Outside Nimiq Pay: a payment can't complete here. Preserve the intent and
       // route the user into the onboarding flow instead of failing.
       if (nimiqAvailable === false) {
@@ -143,10 +147,12 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end z-50 backdrop-blur-sm animate-slide-up" onClick={onClose}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Tip @${creatorHandle}`}
-        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto shadow-2xl border-t-2 border-amber-400/20 animate-slide-up"
+        tabIndex={-1}
+        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto shadow-2xl border-t-2 border-amber-400/20 animate-slide-up focus:outline-none"
         onClick={e => e.stopPropagation()}
       >
         <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-6" />
@@ -156,7 +162,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
             Tip @{creatorHandle}
           </h3>
           <p className="text-sm text-gray-300">
-            Your tip goes directly to their Nimiq wallet
+            {t('tipGoesDirectly')}
           </p>
         </div>
 
@@ -166,9 +172,8 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </div>
         )}
 
-        <TipReasonPicker selected={reason} onChange={setReason} />
-
-        <div className="mt-6">
+        {/* Amount is the decision — it leads. Everything below is garnish. */}
+        <div>
           <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mb-3">{t('tipAmount')}</p>
 
           {/* Prominent, editable amount field — the focal point of the modal.
@@ -177,6 +182,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
             <input
               type="number"
               inputMode="numeric"
+              enterKeyHint="done"
               min={1}
               value={amount}
               onChange={e => setAmount(e.target.value)}
@@ -203,6 +209,8 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </div>
         </div>
 
+        <TipReasonPicker selected={reason} onChange={setReason} />
+
         <textarea
           value={message}
           onChange={e => setMessage(e.target.value)}
@@ -228,17 +236,22 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </div>
         )}
 
-        <button
-          onClick={handleSendTip}
-          disabled={loading || !finalAmount || (nimiqAvailable !== false && !reason)}
-          className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300 disabled:hover:shadow-lg transform hover:-translate-y-1 disabled:hover:-translate-y-0"
-        >
-          {loading
-            ? t('waiting')
-            : nimiqAvailable === false
-              ? `⚡ Continue in Nimiq Pay`
-              : `💰 ${finalAmount || '?'} NIM — ${t('confirmTip')}`}
-        </button>
+        {/* Sticky action bar — Send is always reachable without scrolling.
+            The negative margins let the scrim span the modal's full width and
+            sit flush with its rounded bottom; padding restores inner spacing. */}
+        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 pt-4 pb-6 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent">
+          <button
+            onClick={handleSendTip}
+            disabled={loading || !finalAmount}
+            className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300 disabled:hover:shadow-lg transform hover:-translate-y-1 disabled:hover:-translate-y-0"
+          >
+            {loading
+              ? t('waiting')
+              : nimiqAvailable === false
+                ? `⚡ Continue in Nimiq Pay`
+                : `💰 ${finalAmount || '?'} NIM — ${t('confirmTip')}`}
+          </button>
+        </div>
       </div>
     </div>
   )
