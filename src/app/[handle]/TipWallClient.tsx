@@ -16,6 +16,7 @@ import { detectNimiqPay } from '@/lib/environment'
 import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 import { track } from '@/lib/analytics'
 import { getNimiq } from '@/lib/nimiq'
+import { normalizeAddress } from '@/lib/profile-auth'
 import { useTranslations } from '@/lib/i18n'
 
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: CreatorProfile }) {
@@ -56,12 +57,15 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
     loadTips()
   }, [loadTips])
 
-  // Check if connected wallet is the owner for dashboard link
+  // Check if connected wallet is the owner for dashboard link. Only ever true
+  // inside Nimiq Pay (getNimiq() rejects on desktop); the footer link below is
+  // the desktop fallback. Compare normalized — canonical Nimiq addresses carry
+  // spaces, so a raw string compare can miss the true owner.
   useEffect(() => {
     let cancelled = false
     getNimiq().then((nimiq) => nimiq.listAccounts().then((accounts) => {
-      const address = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] : null
-      if (!cancelled && address === profile.walletAddress) {
+      const raw = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] : null
+      if (!cancelled && raw && normalizeAddress(raw) === normalizeAddress(profile.walletAddress)) {
         setIsOwner(true)
       }
     })).catch(() => {})
@@ -123,64 +127,65 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
         <div className="relative z-10 max-w-3xl mx-auto px-4 py-8 space-y-6">
           {/* Hero Section */}
-          <div className="animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-12 text-white overflow-hidden relative">
+          <div className="animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 text-white overflow-hidden relative">
             {/* Animated background orbs */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial from-amber-400/20 to-transparent rounded-full animate-float blur-3xl" />
             <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-radial from-purple-400/10 to-transparent rounded-full animate-float" style={{animationDelay: '2s', animationDirection: 'reverse'}} />
 
-            <div className="relative z-10 space-y-4">
-              <h1 className="text-5xl font-bold tracking-tight bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent animate-slide-up">
-                {profile.displayName || `@${handle}`}
-              </h1>
-              {profile.bio && (
-                <p className="text-lg text-gray-100 max-w-lg animate-slide-up" style={{animationDelay: '0.1s'}}>
-                  {profile.bio}
-                </p>
-              )}
-              {profile.achievement && (
-                <div className="flex w-fit max-w-full items-center gap-3 bg-amber-400/15 border-2 border-amber-400/40 rounded-xl px-4 py-2 text-sm font-semibold text-amber-300 animate-slide-up" style={{animationDelay: '0.2s'}}>
-                  <span className="shrink-0">🏆</span>
-                  <span>{profile.achievement}</span>
+            <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+
+              {/* Identity */}
+              <div className="min-w-0 sm:flex-1 space-y-3">
+                <div className="space-y-1 animate-slide-up">
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight break-words bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
+                    {profile.displayName || `@${handle}`}
+                  </h1>
+                  {profile.displayName && (
+                    <p className="text-sm text-slate-400">@{handle}</p>
+                  )}
                 </div>
-              )}
-              <div className="pt-4">
+
+                {profile.bio && (
+                  <p className="text-base sm:text-lg text-gray-100 max-w-prose animate-slide-up" style={{animationDelay: '0.1s'}}>
+                    {profile.bio}
+                  </p>
+                )}
+
+                {profile.achievement && (
+                  <div className="inline-flex w-fit max-w-full items-center gap-2 rounded-full bg-amber-400/15 border border-amber-400/40 px-3 py-1.5 text-sm font-semibold text-amber-300 animate-slide-up" style={{animationDelay: '0.2s'}}>
+                    <span className="shrink-0">🏆</span>
+                    <span className="truncate">{profile.achievement}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="w-full sm:w-auto sm:shrink-0 sm:min-w-[260px] space-y-3">
                 <button
                   onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 text-lg rounded-2xl font-bold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl relative overflow-hidden group animate-slide-up"
+                  className="group relative w-full inline-flex items-center justify-center gap-2 overflow-hidden rounded-2xl px-8 py-4 text-lg font-bold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 shadow-xl transition-all duration-300 hover:from-amber-500 hover:to-amber-600 hover:shadow-2xl animate-slide-up"
                   style={{animationDelay: '0.3s'}}
                 >
-                  <span className="absolute inset-0 bg-gradient-to-r from-white/0 to-white/30 transform translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-500" />
+                  <span className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-white/0 to-white/30 transition-transform duration-500 group-hover:translate-x-[100%]" />
                   <span className="text-xl">💸</span>
                   {t('sendTip')}
                 </button>
-              </div>
-              <div className="pt-2">
-                <button
-                  onClick={() => setShowMission(true)}
-                  className="text-sm text-amber-300/90 hover:text-amber-200 underline underline-offset-4 transition-colors animate-slide-up"
-                  style={{animationDelay: '0.32s'}}
-                >
-                  {t('whatIsTipWall')}
-                </button>
-              </div>
-              <div className="pt-3">
-                <Link
-                  href="/explore"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 text-sm rounded-xl font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/15 transition-all duration-300 animate-slide-up"
-                  style={{animationDelay: '0.35s'}}
-                >
-                  🧭 {t('exploreWalls')}
-                </Link>
-              </div>
-              {/* Share is everyone's — supporters sharing is the wall's best
-                  distribution. Owner-only admin links live in the Manage pill. */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 text-xs text-slate-400">
-                <a
-                  href={`/${handle}/share`}
-                  className="hover:text-amber-300 underline underline-offset-4 transition-colors"
-                >
-                  Share kit
-                </a>
+
+                <div className="flex items-center justify-center gap-3 text-sm text-slate-400 animate-slide-up" style={{animationDelay: '0.32s'}}>
+                  <button
+                    onClick={() => setShowMission(true)}
+                    className="underline underline-offset-4 transition-colors hover:text-amber-300"
+                  >
+                    {t('whatIsTipWall')}
+                  </button>
+                  <span aria-hidden className="text-white/20">·</span>
+                  <a
+                    href={`/${handle}/share`}
+                    className="underline underline-offset-4 transition-colors hover:text-amber-300"
+                  >
+                    Share
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -277,6 +282,17 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             Powered by <Link href="/" className="underline underline-offset-4 hover:text-amber-300 transition-colors">TipWall</Link>
             {' · '}
             <Link href="/explore" className="underline underline-offset-4 hover:text-amber-300 transition-colors">Explore walls</Link>
+            {/* Desktop fallback: detected owners get the Manage pill (better UX
+                inside Nimiq Pay); everyone else keeps this low-key path in.
+                The pages behind it are signature-gated server-side. */}
+            {!isOwner && (
+              <>
+                {' · '}
+                <a href={`/${handle}/edit`} className="underline underline-offset-4 hover:text-amber-300 transition-colors">
+                  Creator? Manage this wall
+                </a>
+              </>
+            )}
           </p>
         </div>
       </div>
