@@ -119,10 +119,10 @@ export default function CreatorSetup() {
         </p>
         <p className="text-amber-400 font-semibold text-sm mb-4">TipWall takes 0%.</p>
         <Link
-          href="/demo"
+          href="/explore"
           className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
         >
-          See an example wall →
+          Browse walls →
         </Link>
       </div>
 
