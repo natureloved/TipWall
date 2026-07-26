@@ -17,6 +17,7 @@ import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 import { track } from '@/lib/analytics'
 import { getNimiq } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
+import { timeAgo } from '@/lib/time'
 import { useTranslations } from '@/lib/i18n'
 
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: CreatorProfile }) {
@@ -96,6 +97,9 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   // The full dashboard (stats, supporters, goal, milestones, feed) unlocks with
   // the first tip — so tip #1 visibly turns the wall on.
   const hasTips = tips.length > 0
+  // Most recent tip time for the "Last tip" stat tile. Tips arrive newest-first
+  // from the API, but reduce over all of them so we don't depend on order.
+  const lastTipAt = hasTips ? tips.reduce((max, t) => Math.max(max, t.timestamp), 0) : null
 
   return (
     <>
@@ -214,7 +218,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               <div className="grid grid-cols-3 gap-4">
                 <StatCard value={<AnimatedNumber value={totalNIM} />} label={t('totalTipped')} index={0} />
                 <StatCard value={<AnimatedNumber value={tips.length} />} label={t('tipsSent')} index={1} />
-                <StatCard value={`${goalPercent}%`} label={t('goalProgress')} index={2} />
+                <StatCard value={lastTipAt ? timeAgo(lastTipAt) : '—'} label={t('lastTip')} index={2} suppressHydrationWarning />
               </div>
 
               {/* Supporters - prominently displayed for community recognition */}
@@ -372,7 +376,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   )
 }
 
-function StatCard({ value, label, index }: { value: React.ReactNode; label: string; index: number }) {
+function StatCard({ value, label, index, suppressHydrationWarning }: { value: React.ReactNode; label: string; index: number; suppressHydrationWarning?: boolean }) {
   return (
     <div
       className="relative group rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border-2 border-amber-400/10 hover:border-amber-400/30 overflow-hidden animate-slide-up"
@@ -380,7 +384,7 @@ function StatCard({ value, label, index }: { value: React.ReactNode; label: stri
     >
       <div className="absolute inset-0 bg-gradient-radial from-amber-400/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="relative z-10">
-        <div className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+        <div className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent" suppressHydrationWarning={suppressHydrationWarning}>
           {value}
         </div>
         <div className="text-xs sm:text-sm font-semibold text-slate-400 uppercase tracking-wide mt-2">{label}</div>

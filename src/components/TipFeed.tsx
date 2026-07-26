@@ -1,6 +1,7 @@
 'use client'
 import { Tip, TIP_REASON_LABELS, TipReason } from '@/lib/types'
 import { useTranslations } from '@/lib/i18n'
+import { timeAgo } from '@/lib/time'
 
 export default function TipFeed({ tips }: { tips: Tip[] }) {
   const t = useTranslations()
@@ -44,6 +45,9 @@ export default function TipFeed({ tips }: { tips: Tip[] }) {
                     title={tip.verified ? undefined : t('confirmingOnChain')}
                   >
                     {tip.verified ? t('verified') : t('pending')}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1" suppressHydrationWarning>
+                    {timeAgo(tip.timestamp)}
                   </div>
                 </div>
               </div>
