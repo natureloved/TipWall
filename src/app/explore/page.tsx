@@ -15,6 +15,18 @@ export const dynamic = 'force-dynamic'
 export const metadata = {
   title: 'TipWall — Most tipped creators this week',
   description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
+  openGraph: {
+    title: 'Most tipped creators this week',
+    description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
+    url: 'https://tipwall.vercel.app/explore',
+    images: [{ url: '/banner.png', width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Most tipped creators this week',
+    description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
+    images: ['/banner.png'],
+  },
 }
 
 const MAX_WALLS = 24

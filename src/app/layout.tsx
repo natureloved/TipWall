@@ -21,19 +21,19 @@ export const metadata: Metadata = {
   description: "A living community tipping wall for creators on Nimiq",
   manifest: "/manifest.json",
   // Site-wide social/app-browser preview image (creator walls override this
-  // with their own dynamic OG card). Some in-app browsers use og:image as the
-  // app tile when no better icon is picked up.
+  // with their own dynamic OG card). A full 1200×630 banner so link unfurls
+  // render as a large card, not a small icon tile.
   openGraph: {
     title: "TipWall — Creator Tipping Wall",
     description: "A living community tipping wall for creators on Nimiq",
     siteName: "TipWall",
-    images: [{ url: "/android-chrome-512x512.png", width: 512, height: 512 }],
+    images: [{ url: "/banner.png", width: 1200, height: 630 }],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "TipWall — Creator Tipping Wall",
     description: "A living community tipping wall for creators on Nimiq",
-    images: ["/android-chrome-512x512.png"],
+    images: ["/banner.png"],
   },
   // TipWall logo as the site icon everywhere: browser tabs (ico/png),
   // iOS home screen (apple-touch-icon), Android/PWA (manifest icons below
