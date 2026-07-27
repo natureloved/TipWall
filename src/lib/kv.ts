@@ -345,6 +345,31 @@ export function verifiedTotal(tips: Tip[]): number {
   return tips.reduce((sum, t) => sum + (t.verified ? t.amountNIM : 0), 0)
 }
 
+/** Rolling window for the /explore leaderboard. */
+export const LEADERBOARD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
+
+/**
+ * Verified NIM received by a creator within the trailing `windowMs`.
+ *
+ * Computed from the tip list rather than a stored counter: the list is the only
+ * place tip timestamps live, and it is exact for any wall under the 200-entry
+ * ltrim cap. A wall past that cap could under-report inside the window, which is
+ * acceptable — this drives a "recent activity" ranking, not an audited total.
+ * Lifetime figures must still come from getVerifiedTotalNim().
+ */
+export async function getRecentVerifiedNim(
+  handle: string,
+  windowMs: number = LEADERBOARD_WINDOW_MS,
+  now: number = Date.now(),
+): Promise<number> {
+  const tips = await getTips(handle)
+  const cutoff = now - windowMs
+  return tips.reduce(
+    (sum, t) => (t.verified && t.timestamp >= cutoff ? sum + (t.amountNIM || 0) : sum),
+    0,
+  )
+}
+
 export async function getSupporters(handle: string): Promise<Supporter[]> {
   // Derive supporters from verified, NON-anonymous tips only: pending/forged
   // tips don't appear until they confirm, and an anonymous tipper's address

@@ -1,13 +1,21 @@
 import Link from 'next/link'
 import { kv } from '@vercel/kv'
-import { getActiveHandles, getProfile, getVerifiedTotalNim } from '@/lib/kv'
-import type { CreatorProfile } from '@/lib/types'
+import {
+  getActiveHandles,
+  getProfile,
+  getVerifiedTotalNim,
+  getTips,
+  LEADERBOARD_WINDOW_MS,
+} from '@/lib/kv'
+import type { CreatorProfile, Tip } from '@/lib/types'
 import MissionLink from '@/components/MissionLink'
 
-// Recently-active creator walls. In-ecosystem discovery is a supporting
-// channel (creators' own audiences are the real one), but it gives new walls
-// social proof and gives the Nimiq community a front door.
 export const dynamic = 'force-dynamic'
+
+export const metadata = {
+  title: 'TipWall — Most tipped creators this week',
+  description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
+}
 
 const MAX_WALLS = 24
 const PROFILE_PREFIX = 'tipwall:profile:'
@@ -15,6 +23,8 @@ const PROFILE_PREFIX = 'tipwall:profile:'
 type ExploreWall = {
   profile: CreatorProfile
   totalNIM: number
+  recentNIM: number
+  recentTips: number
 }
 
 async function loadWalls(): Promise<ExploreWall[]> {
@@ -26,39 +36,75 @@ async function loadWalls(): Promise<ExploreWall[]> {
       const allHandles = keys.map(k => k.slice(PROFILE_PREFIX.length))
       const seen = new Set(handles)
       const legacy = allHandles.filter(h => !seen.has(h))
-      const needed = MAX_WALLS - handles.length
-      handles = [...handles, ...legacy.slice(0, needed)]
+      handles = [...handles, ...legacy.slice(0, MAX_WALLS - handles.length)]
     } catch {
       // Best effort — if KV keys() fails, just use the active set.
     }
   }
 
-  const walls: ExploreWall[] = []
-  for (const handle of handles.slice(0, MAX_WALLS)) {
-    const profile = await getProfile(handle)
-    if (!profile) continue
-    const totalNIM = await getVerifiedTotalNim(handle)
-    // Only surface walls with at least one verified tip. Empty/test walls carry
-    // no social proof and dilute the front door.
-    if (totalNIM <= 0) continue
-    walls.push({ profile, totalNIM })
-  }
+  const cutoff = Date.now() - LEADERBOARD_WINDOW_MS
+
+  // Parallel: one Promise per wall, each fetching profile + tips in parallel.
+  // getTips() is called once per wall; totalNIM and recentNIM both derive from it.
+  const results = await Promise.all(
+    handles.slice(0, MAX_WALLS).map(async (handle): Promise<ExploreWall | null> => {
+      const [profile, tips] = await Promise.all([
+        getProfile(handle),
+        getTips(handle),
+      ])
+      if (!profile) return null
+      const totalNIM = await getVerifiedTotalNim(handle)
+      if (totalNIM <= 0) return null
+      const recentNIM = tips.reduce(
+        (sum: number, t: Tip) => (t.verified && t.timestamp >= cutoff ? sum + (t.amountNIM || 0) : sum),
+        0,
+      )
+      const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
+      return { profile, totalNIM, recentNIM, recentTips }
+    }),
+  )
+
+  const walls = results.filter((w): w is ExploreWall => w !== null)
+
+  // Sort: recentNIM desc, tiebreak by totalNIM desc
+  walls.sort((a, b) => b.recentNIM - a.recentNIM || b.totalNIM - a.totalNIM)
   return walls
 }
+
+const RANK_BADGE = [
+  // 1st — gold, with a subtle glow
+  'bg-[#F6B221] text-slate-900 shadow-lg shadow-amber-400/20',
+  // 2nd — silver/slate
+  'bg-slate-300 text-slate-900',
+  // 3rd — bronze/amber-700
+  'bg-amber-700 text-amber-50',
+]
 
 export default async function ExplorePage() {
   const walls = await loadWalls()
 
+  const trending = walls.filter(w => w.recentNIM > 0).slice(0, 3)
+  const trendingHandles = new Set(trending.map(w => w.profile.handle))
+  const rest = walls.filter(w => !trendingHandles.has(w.profile.handle))
+
+  // Ecosystem totals: derived from the already-loaded array, no extra KV reads.
+  const wallCount = walls.length
+  const weekNIM = walls.reduce((sum, w) => sum + w.recentNIM, 0)
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white px-4 py-10">
       <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
-            Explore TipWalls
+            Most tipped this week
           </h1>
-          <p className="text-sm text-slate-400 mt-2">
-            Recently active creator walls. Tip the creator. Not the platform.
-          </p>
+          {wallCount > 0 && (
+            <p className="text-sm text-slate-400 mt-2">
+              {wallCount.toLocaleString()} creator {wallCount === 1 ? 'wall' : 'walls'}
+              {' · '}
+              {Math.round(weekNIM).toLocaleString()} NIM tipped this week
+            </p>
+          )}
           <div className="mt-3">
             <MissionLink />
           </div>
@@ -70,31 +116,89 @@ export default async function ExplorePage() {
             <p className="text-slate-300 font-semibold">No walls yet — yours could be the first.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {walls.map(({ profile, totalNIM }) => (
-              <a
-                key={profile.handle}
-                href={`/${profile.handle}`}
-                className="block rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 hover:border-amber-400/40 p-5 transition-colors"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <p className="font-bold text-amber-300 truncate">
-                    {profile.displayName || `@${profile.handle}`}
-                  </p>
-                  <p className="shrink-0 text-xs font-semibold text-emerald-400">
-                    {Math.round(totalNIM).toLocaleString()} NIM
-                  </p>
+          <>
+            {/* Leaderboard — only when at least one wall has recent activity.
+                Until tips start landing, this is empty and the flat grid below
+                carries the page. */}
+            {trending.length > 0 && (
+              <section className="mb-8">
+                <h2 className="text-lg font-bold text-white">🔥 Most tipped this week</h2>
+                <p className="text-xs text-slate-500 mb-3">Trailing 7 days · updates live</p>
+                <div className="space-y-3">
+                  {trending.map(({ profile, totalNIM, recentNIM }, i) => (
+                    <a
+                      key={profile.handle}
+                      href={`/${profile.handle}`}
+                      className="flex items-center gap-3 rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 hover:border-amber-400/40 p-4 sm:p-5 transition-colors"
+                    >
+                      <div
+                        className={`flex-none flex items-center justify-center w-9 h-9 rounded-full font-bold text-base ${RANK_BADGE[i]}`}
+                        aria-label={`Rank ${i + 1}`}
+                      >
+                        {i + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-amber-300 truncate">
+                          {profile.displayName || `@${profile.handle}`}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">@{profile.handle}</p>
+                        {profile.bio && (
+                          <p className="text-sm text-slate-300 mt-1 line-clamp-2">{profile.bio}</p>
+                        )}
+                        {profile.achievement && (
+                          <p className="text-xs text-amber-200/80 mt-1 truncate">🏆 {profile.achievement}</p>
+                        )}
+                      </div>
+                      <div className="flex-none text-right">
+                        <p className="text-lg font-bold text-amber-300 whitespace-nowrap">
+                          {Math.round(recentNIM).toLocaleString()} NIM
+                        </p>
+                        <p className="text-xs text-slate-500">this week</p>
+                        <p className="text-xs text-slate-500 mt-1 whitespace-nowrap">
+                          {Math.round(totalNIM).toLocaleString()} NIM all time
+                        </p>
+                      </div>
+                    </a>
+                  ))}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">@{profile.handle}</p>
-                {profile.bio && (
-                  <p className="text-sm text-slate-300 mt-2 line-clamp-2">{profile.bio}</p>
+              </section>
+            )}
+
+            {rest.length > 0 && (
+              <section>
+                {trending.length > 0 && (
+                  <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
+                    More creator walls
+                  </h2>
                 )}
-                {profile.achievement && (
-                  <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
-                )}
-              </a>
-            ))}
-          </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {rest.map(({ profile, totalNIM }) => (
+                    <a
+                      key={profile.handle}
+                      href={`/${profile.handle}`}
+                      className="block rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 hover:border-amber-400/40 p-5 transition-colors"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="font-bold text-amber-300 truncate">
+                          {profile.displayName || `@${profile.handle}`}
+                        </p>
+                        <p className="shrink-0 text-xs font-semibold text-emerald-400">
+                          {Math.round(totalNIM).toLocaleString()} NIM
+                        </p>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">@{profile.handle}</p>
+                      {profile.bio && (
+                        <p className="text-sm text-slate-300 mt-2 line-clamp-2">{profile.bio}</p>
+                      )}
+                      {profile.achievement && (
+                        <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
         <div className="text-center mt-10">
@@ -108,9 +212,4 @@ export default async function ExplorePage() {
       </div>
     </div>
   )
-}
-
-export const metadata = {
-  title: 'TipWall — Explore creator walls',
-  description: 'Recently active creator tipping walls on Nimiq. Tip the creator. Not the platform.',
 }

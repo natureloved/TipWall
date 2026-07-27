@@ -37,6 +37,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [sharePrompt, setSharePrompt] = useState<{ amount?: number } | null>(null)
   const [showMission, setShowMission] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
+  const [weeklyRank, setWeeklyRank] = useState<number | null>(null)
   const t = useTranslations()
 
   const loadTips = useCallback(() => {
@@ -57,6 +58,22 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   useEffect(() => {
     loadTips()
   }, [loadTips])
+
+  // Weekly leaderboard rank drives the growth loop: a ranked creator sees their
+  // rank on their own wall and shares it. Fail silently — a leaderboard outage
+  // must never affect the wall.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/leaderboard')
+      .then(res => (res.ok ? (res.json() as Promise<{ handle: string; rank: number }[]>) : null))
+      .then(rows => {
+        if (cancelled || !rows) return
+        const mine = rows.find(r => r.handle === handle)
+        if (mine) setWeeklyRank(mine.rank)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [handle])
 
   // Check if connected wallet is the owner for dashboard link. Only ever true
   // inside Nimiq Pay (getNimiq() rejects on desktop); the footer link below is
@@ -140,6 +157,14 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
               {/* Identity */}
               <div className="min-w-0 sm:flex-1 space-y-3">
+                {weeklyRank !== null && (
+                  <Link
+                    href="/explore"
+                    className="inline-flex w-fit max-w-full items-center gap-1.5 rounded-full bg-sky-400/15 border border-sky-400/40 px-3 py-1 text-xs font-bold text-sky-300 hover:bg-sky-400/25 transition-colors animate-slide-up"
+                  >
+                    🔥 #{weeklyRank} most tipped this week
+                  </Link>
+                )}
                 <div className="space-y-1 animate-slide-up">
                   <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight break-words bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
                     {profile.displayName || `@${handle}`}
