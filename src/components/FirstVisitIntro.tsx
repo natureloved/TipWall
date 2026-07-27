@@ -11,25 +11,24 @@ const SEEN_KEY = 'tipwall:intro-seen'
  * blocks returning users or the tipping flow.
  */
 export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }: { onClose: () => void; onStart?: () => void; forceOpen?: boolean }) {
-  // `show` starts false on both server and client, so there's no hydration
-  // mismatch. localStorage is only read after mount inside the effect.
+  // `show` starts false on both server and client to avoid hydration mismatch.
+  // After mount we read localStorage once and flip it if needed.
   const [show, setShow] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const t = useTranslations()
 
   useFocusTrap(dialogRef, show)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
+  // setState-in-effect is intentional: we must read localStorage after mount
+  // to avoid a server/client hydration mismatch (server always renders false).
   useEffect(() => {
-    // When opened on demand (e.g. a "What is TipWall?" link), always show and
-    // skip the once-per-browser gate.
     if (forceOpen) { setShow(true); return }
     try {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (!localStorage.getItem(SEEN_KEY)) setShow(true)
-    } catch {
-      /* storage blocked — skip intro */
-    }
+    } catch { /* storage blocked — skip intro */ }
   }, [forceOpen])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const dismiss = useCallback(() => {
     try { localStorage.setItem(SEEN_KEY, '1') } catch { /* ignore */ }

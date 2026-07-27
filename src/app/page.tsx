@@ -24,6 +24,7 @@ export default function CreatorSetup() {
   const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
   const checkTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const normalized = normalizeHandle(handle)
     if (normalized.length < 3) { setHandleStatus('idle'); return }
@@ -39,6 +40,7 @@ export default function CreatorSetup() {
     }, 400)
     return () => { if (checkTimeout.current) clearTimeout(checkTimeout.current) }
   }, [handle])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleConnect = async () => {
     setError(null)
