@@ -76,8 +76,8 @@ const RANK_BADGE = [
   'bg-[#F6B221] text-slate-900 shadow-lg shadow-amber-400/20',
   // 2nd — silver/slate
   'bg-slate-300 text-slate-900',
-  // 3rd — bronze/amber-700
-  'bg-amber-700 text-amber-50',
+  // 3rd — bronze
+  'bg-[#CD7F32] text-amber-50',
 ]
 
 export default async function ExplorePage() {
@@ -96,7 +96,7 @@ export default async function ExplorePage() {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
-            Most tipped this week
+            Explore TipWalls
           </h1>
           {wallCount > 0 && (
             <p className="text-sm text-slate-400 mt-2">
@@ -123,7 +123,7 @@ export default async function ExplorePage() {
             {trending.length > 0 && (
               <section className="mb-8">
                 <h2 className="text-lg font-bold text-white">🔥 Most tipped this week</h2>
-                <p className="text-xs text-slate-500 mb-3">Trailing 7 days · updates live</p>
+                <p className="text-xs text-slate-500 mb-3">Updated live · last 7 days</p>
                 <div className="space-y-3">
                   {trending.map(({ profile, totalNIM, recentNIM }, i) => (
                     <a
