@@ -218,7 +218,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               <div className="grid grid-cols-3 gap-4">
                 <StatCard value={<AnimatedNumber value={totalNIM} />} label={t('totalTipped')} index={0} />
                 <StatCard value={<AnimatedNumber value={tips.length} />} label={t('tipsSent')} index={1} />
-                <StatCard value={lastTipAt ? timeAgo(lastTipAt) : '—'} label={t('lastTip')} index={2} suppressHydrationWarning />
+                <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : '—'} label={t('lastTip')} index={2} suppressHydrationWarning />
               </div>
 
               {/* Supporters - prominently displayed for community recognition */}

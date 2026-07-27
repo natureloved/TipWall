@@ -5,6 +5,9 @@ import { getProfile, getVerifiedTotalNim } from '@/lib/kv'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 export const alt = 'TipWall creator tipping wall'
+// Cache the rendered card for 5 min: a posted link hitting X/Telegram/Discord/
+// Slack at once should share one KV read + Satori render, not stampede.
+export const revalidate = 300
 
 export default async function Image({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
