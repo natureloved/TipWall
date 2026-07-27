@@ -32,11 +32,23 @@ export const metadata = {
 const MAX_WALLS = 24
 const PROFILE_PREFIX = 'tipwall:profile:'
 
+/**
+ * New walls are surfaced for their first 48h even with no tips — a creator who
+ * just signed up must be able to find themselves. After that, a wall needs at
+ * least one verified tip to stay listed, so abandoned/test walls fall off.
+ */
+const NEW_WALL_GRACE_MS = 48 * 60 * 60 * 1000
+
+// Cap the "Just joined" section so nobody can flood the front door by
+// mass-registering handles.
+const MAX_NEW_WALLS = 6
+
 type ExploreWall = {
   profile: CreatorProfile
   totalNIM: number
   recentNIM: number
   recentTips: number
+  isNew: boolean
 }
 
 async function loadWalls(): Promise<ExploreWall[]> {
@@ -66,13 +78,14 @@ async function loadWalls(): Promise<ExploreWall[]> {
       ])
       if (!profile) return null
       const totalNIM = await getVerifiedTotalNim(handle)
-      if (totalNIM <= 0) return null
+      const isNew = Date.now() - profile.createdAt < NEW_WALL_GRACE_MS
+      if (totalNIM <= 0 && !isNew) return null
       const recentNIM = tips.reduce(
         (sum: number, t: Tip) => (t.verified && t.timestamp >= cutoff ? sum + (t.amountNIM || 0) : sum),
         0,
       )
       const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
-      return { profile, totalNIM, recentNIM, recentTips }
+      return { profile, totalNIM, recentNIM, recentTips, isNew }
     }),
   )
 
@@ -97,7 +110,19 @@ export default async function ExplorePage() {
 
   const trending = walls.filter(w => w.recentNIM > 0).slice(0, 3)
   const trendingHandles = new Set(trending.map(w => w.profile.handle))
-  const rest = walls.filter(w => !trendingHandles.has(w.profile.handle))
+
+  // "Just joined" — new walls with no verified tips yet. They can't rank, so
+  // give them their own call-to-action section instead of burying them.
+  // Newest first, capped to keep the front door from being flooded.
+  const justJoined = walls
+    .filter(w => w.isNew && w.totalNIM <= 0)
+    .sort((a, b) => b.profile.createdAt - a.profile.createdAt)
+    .slice(0, MAX_NEW_WALLS)
+  const justJoinedHandles = new Set(justJoined.map(w => w.profile.handle))
+
+  const rest = walls.filter(
+    w => !trendingHandles.has(w.profile.handle) && !justJoinedHandles.has(w.profile.handle),
+  )
 
   // Ecosystem totals: derived from the already-loaded array, no extra KV reads.
   const wallCount = walls.length
@@ -204,6 +229,33 @@ export default async function ExplorePage() {
                       )}
                       {profile.achievement && (
                         <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {justJoined.length > 0 && (
+              <section className="mt-8">
+                <h2 className="text-lg font-bold text-white">🌱 Just joined</h2>
+                <p className="text-xs text-slate-500 mb-3">Be their first supporter</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {justJoined.map(({ profile }) => (
+                    <a
+                      key={profile.handle}
+                      href={`/${profile.handle}`}
+                      className="block rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 hover:border-emerald-400/40 p-5 transition-colors"
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="font-bold text-amber-300 truncate">
+                          {profile.displayName || `@${profile.handle}`}
+                        </p>
+                        <p className="shrink-0 text-xs font-semibold text-emerald-400">New</p>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">@{profile.handle}</p>
+                      {profile.bio && (
+                        <p className="text-sm text-slate-300 mt-2 line-clamp-2">{profile.bio}</p>
                       )}
                     </a>
                   ))}
