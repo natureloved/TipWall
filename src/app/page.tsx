@@ -13,8 +13,8 @@ export default function CreatorSetup() {
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [contentUrl, setContentUrl] = useState('')
-  const [goalLabel, setGoalLabel] = useState('Goal')
-  const [goalTarget, setGoalTarget] = useState('1000')
+  const [goalLabel, setGoalLabel] = useState('')
+  const [goalTarget, setGoalTarget] = useState('')
   const [achievement, setAchievement] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +75,10 @@ export default function CreatorSetup() {
           displayName: displayName || handleStr,
           bio,
           contentUrl,
-          goal: { label: goalLabel, targetNIM: parseInt(goalTarget) || 1000 },
+          // Goal is optional — only send it when the creator filled both fields.
+          ...(goalTarget.trim() && goalLabel.trim()
+            ? { goal: { label: goalLabel.trim(), targetNIM: parseInt(goalTarget) || undefined } }
+            : {}),
           achievement: achievement || undefined,
           auth,
         }),
@@ -202,12 +205,12 @@ export default function CreatorSetup() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Goal (NIM)</label>
-                <input type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+                <label className="block text-xs text-slate-400 mb-1">Goal (NIM) <span className="text-slate-500">· optional</span></label>
+                <input type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} placeholder="1000" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Goal Label</label>
-                <input value={goalLabel} onChange={e => setGoalLabel(e.target.value)} placeholder="Next article" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+                <label className="block text-xs text-slate-400 mb-1">Goal Label <span className="text-slate-500">· optional</span></label>
+                <input value={goalLabel} onChange={e => setGoalLabel(e.target.value)} placeholder="e.g. New microphone" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
               </div>
             </div>
             <div>

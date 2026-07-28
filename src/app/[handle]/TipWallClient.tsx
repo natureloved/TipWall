@@ -255,6 +255,9 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               {/* Supporters - prominently displayed for community recognition */}
               <SupportersWall supporters={supporters} />
 
+              {/* Goal + milestones only render when the creator has set a goal. */}
+              {profile.goal && (
+                <>
               {/* Goal Progress */}
               <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
                 <div className="flex items-center justify-between mb-3">
@@ -283,7 +286,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               {/* Milestones */}
               <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
                 <div className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">{t('milestones')}</div>
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${goalMilestones.length}, minmax(0, 1fr))` }}>
                   {goalMilestones.map((m, idx) => (
                     <div
                       key={m}
@@ -295,11 +298,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                       style={{animationDelay: `${0.5 + idx * 0.03}s`}}
                     >
                       {unlockedMilestones.includes(m) && <span className="text-xs mr-1" aria-label="unlocked">✓</span>}
-                      {m >= 1000 ? `${m / 1000}k` : m}
+                      {m >= 1000 ? `${(m / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k` : m}
                     </div>
                   ))}
                 </div>
               </div>
+                </>
+              )}
 
               {/* Content Preview */}
               {profile.contentUrl && <ContentPreviewCard url={profile.contentUrl} handle={handle} />}

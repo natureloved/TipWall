@@ -24,11 +24,12 @@ export type OGMetadata = {
 }
 
 // Milestones are derived from a creator's goal rather than a fixed ladder, so the
-// row always shows a meaningful mix of reached + aspirational rungs at any goal
-// size. 100% lines up with the progress bar hitting full; 150% keeps a target
-// visible above a smashed goal (see "goal smashed 🎉"). Rounded to tidy values so
-// labels read "250 / 2.5k", never "247".
-const MILESTONE_FRACTIONS = [0.25, 0.5, 0.75, 1, 1.5]
+// row always builds up to — and ends exactly at — the goal (the goal is the final
+// rung, lining up with the progress bar hitting full). Even quarter-steps give a
+// predictable shape at any goal size: 1000 -> [250, 500, 750, 1000];
+// 10000 -> [2500, 5000, 7500, 10000]. Rounded to tidy values so labels read
+// "250 / 2.5k", never "247".
+const MILESTONE_FRACTIONS = [0.25, 0.5, 0.75, 1]
 
 // Round to a step scaled by magnitude (nearest 10 under 1k, 50 under 5k, 100 under
 // 50k, 500 above) so any goal — round or odd — yields clean milestone labels.
@@ -38,9 +39,14 @@ function roundNice(n: number): number {
 }
 
 export function getGoalMilestones(targetNIM: number): number[] {
-  const target = targetNIM > 0 ? targetNIM : 1000
-  // De-dupe in case two fractions round to the same value on a very small goal.
-  return [...new Set(MILESTONE_FRACTIONS.map(f => roundNice(target * f)))]
+  const target = targetNIM > 0 ? Math.round(targetNIM) : 1000
+  // The goal itself is always the final, exact rung. Lower rungs are rounded for
+  // tidy labels; de-dupe in case two fractions round together on a tiny goal, and
+  // drop any rounded rung that meets/exceeds the goal so nothing sits past it.
+  const lower = MILESTONE_FRACTIONS.slice(0, -1)
+    .map(f => roundNice(target * f))
+    .filter(m => m < target)
+  return [...new Set([...lower, target])]
 }
 
 // Legacy fixed ladder — retained for any non-goal-aware callers.
