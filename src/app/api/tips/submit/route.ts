@@ -4,7 +4,7 @@ import {
   trackEvent, checkRateLimit, markTxSeen, getVerifiedTotalNim, addVerifiedNim,
   touchActivity,
 } from '@/lib/kv'
-import { Tip, MilestoneEvent, TipReason } from '@/lib/types'
+import { Tip, MilestoneEvent, TipReason, getGoalMilestones } from '@/lib/types'
 import { checkMilestone } from '@/lib/milestones'
 import { verifyTx } from '@/lib/verify-tx'
 
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     const newTotal = verified ? await addVerifiedNim(handle, tip.amountNIM) : previousTotal
 
     let milestone: MilestoneEvent | null = null
-    const milestoneEvent = checkMilestone(previousTotal, newTotal, tip.anonymous ? 'Anonymous' : tip.senderAddress)
+    const milestoneEvent = checkMilestone(previousTotal, newTotal, tip.anonymous ? 'Anonymous' : tip.senderAddress, getGoalMilestones(profile.goal?.targetNIM ?? 1000))
     if (milestoneEvent) {
       const added = await addMilestone(handle, milestoneEvent)
       if (added) milestone = milestoneEvent

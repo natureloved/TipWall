@@ -7,6 +7,8 @@ import { track } from '@/lib/analytics'
 interface Props {
   previousTotal: number
   newTotal: number
+  /** Goal-relative milestone ladder for this creator; defaults to the fixed ladder. */
+  milestones?: number[]
   /** When set, the banner offers a one-tap share of the milestone. */
   handle?: string
   onDone?: () => void
@@ -17,8 +19,8 @@ interface Props {
  * derived from props (no state to sync); the parent remounts this component
  * (via key) per tip, so the auto-dismiss timer resets naturally.
  */
-export default function MilestoneCelebration({ previousTotal, newTotal, handle, onDone }: Props) {
-  const milestone = MILESTONES.find(m => previousTotal < m && newTotal >= m) ?? null
+export default function MilestoneCelebration({ previousTotal, newTotal, milestones = MILESTONES, handle, onDone }: Props) {
+  const milestone = milestones.find(m => previousTotal < m && newTotal >= m) ?? null
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {

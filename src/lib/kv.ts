@@ -1,5 +1,5 @@
 import { kv } from '@vercel/kv'
-import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent, ClaimIntent } from './types'
+import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent, ClaimIntent, getGoalMilestones } from './types'
 import { FUNNEL_EVENTS, type FunnelEvent } from './events'
 import { verifyTx } from './verify-tx'
 import { normalizeAddress } from './profile-auth'
@@ -329,11 +329,14 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
 
   // Tips that just confirmed on-chain now count toward the lifetime total, and
   // may push the wall over a milestone the submit-time check couldn't award.
+  // Milestones are goal-relative, so award against this creator's derived ladder.
+  const goalTarget = (await getProfile(handle))?.goal?.targetNIM ?? 1000
+  const milestones = getGoalMilestones(goalTarget)
   for (const t of current) {
     if (updates.get(t.id) !== 'verify') continue
     const prevTotal = await getVerifiedTotalNim(handle)
     const newTotal = await addVerifiedNim(handle, t.amountNIM)
-    const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress)
+    const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress, milestones)
     if (event) await addMilestone(handle, event)
   }
   return rebuilt

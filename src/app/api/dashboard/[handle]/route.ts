@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { MILESTONES } from '@/lib/types'
+import { getGoalMilestones } from '@/lib/types'
 import { getProfile, reverifyPendingTips, getSupporters, getVerifiedTotalNim, getMilestones, sanitizeTips } from '@/lib/kv'
 import { normalizeAddress, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
   // would silently shrink a popular wall's total).
   const totalNIM = await getVerifiedTotalNim(handle)
 
-  const nextMilestone = MILESTONES.find(m => m > totalNIM) ?? null
+  const nextMilestone = getGoalMilestones(profile.goal?.targetNIM ?? 1000).find(m => m > totalNIM) ?? null
 
   const now = Date.now()
   const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000

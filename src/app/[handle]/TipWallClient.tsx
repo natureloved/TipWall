@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { MILESTONES, type CreatorProfile, type Tip, type MilestoneEvent, type Supporter } from '@/lib/types'
+import { getGoalMilestones, type CreatorProfile, type Tip, type MilestoneEvent, type Supporter } from '@/lib/types'
 import ContentPreviewCard from '@/components/ContentPreviewCard'
 import TipModal from '@/components/TipModal'
 import MilestoneCelebration from '@/components/MilestoneCelebration'
@@ -50,10 +50,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         const newTotal = data.totalNIM ?? data.tips.reduce((s, t) => s + (t.verified ? t.amountNIM || 0 : 0), 0)
         setTotalNIM(newTotal)
         setSupporters(data.supporters)
-        setUnlockedMilestones(MILESTONES.filter(m => newTotal >= m))
+        setUnlockedMilestones(getGoalMilestones(profile.goal?.targetNIM ?? 1000).filter(m => newTotal >= m))
       })
       .catch(() => {})
-  }, [handle])
+  }, [handle, profile.goal?.targetNIM])
 
   useEffect(() => {
     loadTips()
@@ -115,6 +115,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const goalPercentTrue = Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100)
   const goalPercent = Math.min(100, goalPercentTrue)
   const goalSmashed = goalPercentTrue > 100
+  const goalMilestones = getGoalMilestones(profile.goal?.targetNIM ?? 1000)
   // An empty wall shows a single warm invitation instead of five stacked zeros.
   // The full dashboard (stats, supporters, goal, milestones, feed) unlocks with
   // the first tip — so tip #1 visibly turns the wall on.
@@ -283,7 +284,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
                 <div className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">{t('milestones')}</div>
                 <div className="grid grid-cols-5 gap-2">
-                  {MILESTONES.map((m, idx) => (
+                  {goalMilestones.map((m, idx) => (
                     <div
                       key={m}
                       className={`py-3 px-2 rounded-xl text-center font-semibold text-sm transition-all duration-300 ${
@@ -385,6 +386,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           key={milestoneState.curr}
           previousTotal={milestoneState.prev}
           newTotal={milestoneState.curr}
+          milestones={goalMilestones}
           handle={handle}
         />
       )}
