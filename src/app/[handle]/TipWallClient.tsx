@@ -416,12 +416,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 function StatCard({ value, label, index, suppressHydrationWarning }: { value: React.ReactNode; label: string; index: number; suppressHydrationWarning?: boolean }) {
   return (
     <div
-      className="relative group rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border-2 border-amber-400/10 hover:border-amber-400/30 overflow-hidden animate-slide-up"
+      className="relative group rounded-2xl bg-slate-800/60 backdrop-blur p-4 sm:p-6 shadow-lg hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border-2 border-amber-400/10 hover:border-amber-400/30 overflow-hidden animate-slide-up"
       style={{animationDelay: `${0.35 + index * 0.05}s`}}
     >
       <div className="absolute inset-0 bg-gradient-radial from-amber-400/0 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
       <div className="relative z-10">
-        <div className="text-2xl sm:text-4xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent" suppressHydrationWarning={suppressHydrationWarning}>
+        <div className="text-lg sm:text-4xl font-bold leading-tight tabular-nums tracking-tight bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent" suppressHydrationWarning={suppressHydrationWarning}>
           {value}
         </div>
         <div className="text-xs sm:text-sm font-semibold text-slate-400 uppercase tracking-wide mt-2">{label}</div>
