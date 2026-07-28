@@ -109,7 +109,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
     return () => { cancelled = true }
   }, [handle])
 
-  const goalPercent = Math.min(100, Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100))
+  // True progress can exceed 100% when a creator beats their goal — keep that figure
+  // for the label so overachievement is visible. The bar itself stays capped at 100%
+  // (a bar past full looks broken).
+  const goalPercentTrue = Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100)
+  const goalPercent = Math.min(100, goalPercentTrue)
+  const goalSmashed = goalPercentTrue > 100
   // An empty wall shows a single warm invitation instead of five stacked zeros.
   // The full dashboard (stats, supporters, goal, milestones, feed) unlocks with
   // the first tip — so tip #1 visibly turns the wall on.
@@ -254,7 +259,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{profile.goal?.label || 'Goal'}</span>
                   <span className="text-xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
-                    {goalPercent}%
+                    {goalPercentTrue}%{goalSmashed && <span className="ml-1 text-sm font-semibold text-amber-300">· goal smashed 🎉</span>}
                   </span>
                 </div>
                 <div

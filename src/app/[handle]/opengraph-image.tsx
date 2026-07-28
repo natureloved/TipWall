@@ -24,7 +24,9 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
       totalNIM = await getVerifiedTotalNim(handle)
       if (profile.goal?.targetNIM) {
         goalLabel = profile.goal.label || 'Goal'
-        goalPercent = Math.min(100, Math.round((totalNIM / profile.goal.targetNIM) * 100))
+        // The label shows the true figure (can exceed 100% when the goal is beaten);
+        // callers that draw a bar still cap width at 100% so it never looks broken.
+        goalPercent = Math.round((totalNIM / profile.goal.targetNIM) * 100)
       }
     }
   } catch {
@@ -78,6 +80,9 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
                   {goalLabel.slice(0, 30)}
                 </div>
                 <div style={{ fontSize: 52, fontWeight: 800, color: '#34d399' }}>{`${goalPercent}%`}</div>
+                {goalPercent > 100 ? (
+                  <div style={{ fontSize: 24, fontWeight: 700, color: '#fbbf24' }}>goal smashed 🎉</div>
+                ) : null}
               </div>
             ) : (
               <div style={{ fontSize: 30, color: '#94a3b8' }}>Tip the creator. Not the platform.</div>
