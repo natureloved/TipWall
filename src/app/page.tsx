@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle } from '@/lib/profile-auth'
+import MissionLink from '@/components/MissionLink'
 
 const PLACEHOLDER_TEXT = 'e.g. "Building an AI agent"'
 
@@ -123,12 +124,16 @@ export default function CreatorSetup() {
           Supporters tap, NIM lands in your wallet.
         </p>
         <p className="text-amber-400 font-semibold text-sm mb-4">TipWall takes 0%.</p>
-        <Link
-          href="/explore"
-          className="inline-flex items-center gap-1.5 text-sm text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
-        >
-          Browse walls →
-        </Link>
+        <div className="flex items-center justify-center gap-3 text-sm">
+          <MissionLink />
+          <span className="text-slate-600" aria-hidden="true">·</span>
+          <Link
+            href="/explore"
+            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+          >
+            Browse walls →
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={submit} className="w-full max-w-md bg-slate-800 rounded-2xl p-6 space-y-4">
