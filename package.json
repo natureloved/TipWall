@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@nimconnect/profile-client": "0.5.0",
     "@nimiq/core": "^2.7.0",
     "@nimiq/hub-api": "^1.14.0",
     "@nimiq/mini-app-sdk": "^0.1.0",

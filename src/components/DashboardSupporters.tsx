@@ -17,8 +17,17 @@ export default function DashboardSupporters({ supporters }: { supporters: Suppor
       <div className="space-y-1.5 max-h-64 overflow-y-auto">
         {supporters.map((s) => (
           <div key={s.address} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg text-sm">
-            <span className="text-gray-600 font-mono text-xs">{truncate(s.address)}</span>
-            <span className="text-gray-800 font-medium">{s.totalNIM} NIM · {s.tipCount}x</span>
+            <span className="min-w-0 text-gray-600">
+              {s.nimConnectHandle ? (
+                <>
+                  <span className="block truncate font-semibold text-gray-800">@{s.nimConnectHandle}</span>
+                  <span className="block font-mono text-xs text-gray-500">{truncate(s.address)}</span>
+                </>
+              ) : (
+                <span className="font-mono text-xs">{truncate(s.address)}</span>
+              )}
+            </span>
+            <span className="shrink-0 text-gray-800 font-medium">{s.totalNIM} NIM · {s.tipCount}x</span>
           </div>
         ))}
       </div>
