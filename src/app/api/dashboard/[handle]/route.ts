@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGoalMilestones } from '@/lib/types'
 import { getProfile, reverifyPendingTips, getSupporters, getVerifiedTotalNim, getMilestones, sanitizeTips } from '@/lib/kv'
+import { enrichSupportersWithNimConnectHandles } from '@/lib/nimconnect'
 import { normalizeAddress, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
 
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
 
   // Re-check pending tips, then report money metrics from verified tips only.
   const allTips = await reverifyPendingTips(handle, profile.walletAddress)
-  const supporters = await getSupporters(handle)
+  const supporters = await enrichSupportersWithNimConnectHandles(await getSupporters(handle))
   const tips = allTips.filter(t => t.verified)
 
   // Lifetime verified total (the tip list is trimmed to 200, so summing it

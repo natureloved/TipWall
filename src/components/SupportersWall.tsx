@@ -1,5 +1,6 @@
 'use client'
 import { useTranslations } from '@/lib/i18n'
+import type { Supporter } from '@/lib/types'
 
 // Deterministic avatar from the address: same supporter always gets the same
 // emoji + colour. Reads as an identity, unlike a "27"/"UK" hex fragment.
@@ -13,7 +14,7 @@ function avatarIndex(address: string, mod: number): number {
   return hash % mod
 }
 
-export default function SupportersWall({ supporters }: { supporters: { address: string; totalNIM: number; tipCount: number }[] }) {
+export default function SupportersWall({ supporters }: { supporters: Supporter[] }) {
   const t = useTranslations()
   const colors = [
     'from-blue-400 to-blue-600',
@@ -46,10 +47,17 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
             return (
               <div
                 key={s.address}
-                title={`${s.address.slice(0, 6)}…${s.address.slice(-4)} · ${s.totalNIM} NIM`}
-                className={`w-12 h-12 rounded-full flex items-center justify-center text-xl flex-shrink-0 shadow-md border-2 border-white/20 bg-gradient-to-br ${color}`}
+                title={`${s.nimConnectHandle ? `@${s.nimConnectHandle} · ` : ''}${s.address.slice(0, 6)}…${s.address.slice(-4)} · ${s.totalNIM} NIM`}
+                className="flex max-w-24 flex-col items-center gap-1"
               >
-                {emoji}
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl flex-shrink-0 shadow-md border-2 border-white/20 bg-gradient-to-br ${color}`}>
+                  {emoji}
+                </div>
+                {s.nimConnectHandle && (
+                  <span className="w-full truncate text-center text-sm font-semibold text-amber-200">
+                    @{s.nimConnectHandle}
+                  </span>
+                )}
               </div>
             )
           })}
@@ -67,8 +75,15 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
           <div>
             <p className="text-xs font-bold text-amber-200 uppercase tracking-wide">{t('topSupporter')}</p>
             <p className="text-sm font-semibold text-white mt-1">
-              {supporters[0].address.slice(0, 6)}…{supporters[0].address.slice(-4)}
+              {supporters[0].nimConnectHandle
+                ? `@${supporters[0].nimConnectHandle}`
+                : `${supporters[0].address.slice(0, 6)}…${supporters[0].address.slice(-4)}`}
             </p>
+            {supporters[0].nimConnectHandle && (
+              <p className="text-xs font-mono text-amber-200/60 mt-0.5">
+                {supporters[0].address.slice(0, 6)}…{supporters[0].address.slice(-4)}
+              </p>
+            )}
             <p className="text-xs text-amber-200/70 mt-0.5">
               {t(supporters[0].tipCount === 1 ? 'nimAcrossTip' : 'nimAcrossTips', { n: supporters[0].totalNIM, k: supporters[0].tipCount })}
             </p>

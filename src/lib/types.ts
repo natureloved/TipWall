@@ -97,6 +97,7 @@ export interface Tip {
 
 export interface Supporter {
   address: string
+  nimConnectHandle?: string
   totalNIM: number
   tipCount: number
   firstTipAt: number
