@@ -125,7 +125,7 @@ export default function CreatorSetup() {
         </p>
         <p className="text-amber-400 font-semibold text-sm mb-4">TipWall takes 0%.</p>
         <div className="flex items-center justify-center gap-3 text-sm">
-          <MissionLink />
+          <MissionLink labelKey="learnAboutTipWall" variant="home" />
           <span className="text-slate-600" aria-hidden="true">·</span>
           <Link
             href="/explore"

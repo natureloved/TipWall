@@ -10,7 +10,15 @@ const SEEN_KEY = 'tipwall:intro-seen'
  * Gated by localStorage so it appears exactly once per browser and never
  * blocks returning users or the tipping flow.
  */
-export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }: { onClose: () => void; onStart?: () => void; forceOpen?: boolean }) {
+/**
+ * Optional copy override. When omitted, the overlay uses the default first-visit
+ * strings (introTitle/introBody/introMission/introPoint1-3). The home page passes
+ * a `home` variant so its "Learn about TipWall" button shows a balanced,
+ * creator-and-supporter write-up without changing the wall/explore overlay.
+ */
+export type IntroVariant = 'default' | 'home'
+
+export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, variant = 'default' }: { onClose: () => void; onStart?: () => void; forceOpen?: boolean; variant?: IntroVariant }) {
   // `show` starts false on both server and client to avoid hydration mismatch.
   // After mount we read localStorage once and flip it if needed.
   const [show, setShow] = useState(false)
@@ -51,7 +59,13 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }:
 
   if (!show) return null
 
-  const points = [t('introPoint1'), t('introPoint2'), t('introPoint3')]
+  // Home variant shows a balanced creator-and-supporter write-up; default keeps
+  // the original first-visit copy used on walls and /explore.
+  const k = variant === 'home'
+    ? { title: 'homeIntroTitle', body: 'homeIntroBody', mission: 'homeIntroMission', p1: 'homeIntroPoint1', p2: 'homeIntroPoint2', p3: 'homeIntroPoint3' }
+    : { title: 'introTitle', body: 'introBody', mission: 'introMission', p1: 'introPoint1', p2: 'introPoint2', p3: 'introPoint3' }
+
+  const points = [t(k.p1), t(k.p2), t(k.p3)]
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={dismiss}>
@@ -59,7 +73,7 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }:
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={t('introTitle')}
+        aria-label={t(k.title)}
         tabIndex={-1}
         className="w-full sm:max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl border-t-2 sm:border-2 border-amber-400/20 animate-slide-up focus:outline-none"
         onClick={(e) => e.stopPropagation()}
@@ -69,15 +83,15 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false }:
         <div className="text-center mb-5">
           <div className="text-4xl mb-2">⚡</div>
           <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
-            {t('introTitle')}
+            {t(k.title)}
           </h2>
-          <p className="text-sm text-gray-300 mt-2">{t('introBody')}</p>
+          <p className="text-sm text-gray-300 mt-2">{t(k.body)}</p>
         </div>
 
         {/* Mission — the "why" behind TipWall, front and centre */}
         <div className="mb-5 rounded-xl bg-amber-400/10 border border-amber-400/25 px-4 py-3">
           <p className="text-[11px] font-bold text-amber-300 uppercase tracking-widest mb-1.5">Our mission</p>
-          <p className="text-sm text-gray-200 leading-relaxed">{t('introMission')}</p>
+          <p className="text-sm text-gray-200 leading-relaxed">{t(k.mission)}</p>
         </div>
 
         <ul className="space-y-2 mb-6">
