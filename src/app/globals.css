@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 @keyframes gradientShift {
@@ -49,11 +49,9 @@
 
 /* Single dark theme by design — matches the in-app Nimiq Pay look. */
 body {
-  background: linear-gradient(-45deg, #0f1419, #1a1f2e, #16213e, #0f3460);
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
+  background: #101318;
   color: #f1f5f9;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Creator wall backdrop. Painted from the very first frame so the translucent
@@ -62,9 +60,7 @@ body {
    entry animations settle. Opaque on purpose; the animated body gradient still
    shows around the max-w content column. */
 .tw-wall {
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(246, 178, 33, 0.06) 0%, transparent 60%),
-    #0f1419;
+  background: #101318;
 }
 
 .animate-float {
@@ -80,7 +76,7 @@ body {
 }
 
 .animate-glow {
-  animation: glow 4s ease-in-out infinite;
+  animation: none;
 }
 
 /* Fires once when a milestone unlocks — not an infinite loop. */
@@ -89,7 +85,25 @@ body {
 }
 
 .animate-shimmer {
-  animation: shimmer 2s infinite;
+  animation: none;
+}
+
+.app-shell {
+  background: #101318;
+}
+
+.surface {
+  background: #171b22;
+  border: 1px solid #303846;
+}
+
+.surface-soft {
+  background: #202631;
+  border: 1px solid #303846;
+}
+
+.sticky-tip-cta {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
 /* WCAG 2.3.3 — honour the OS "reduce motion" setting. Collapses every

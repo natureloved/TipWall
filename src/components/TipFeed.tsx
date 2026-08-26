@@ -6,8 +6,9 @@ import { timeAgo } from '@/lib/time'
 export default function TipFeed({ tips }: { tips: Tip[] }) {
   const t = useTranslations()
   return (
-    <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.4s'}} suppressHydrationWarning>
-      <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">{t('liveFeed')}</h2>
+    <div className="surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay: '0.4s'}} suppressHydrationWarning>
+      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-1">Wall of appreciation</h2>
+      <p className="text-xs text-slate-500 mb-4">Messages and reasons from the people your work helped.</p>
       {!tips.length && (
         <div className="text-center py-12 text-slate-400 animate-pulse">
           <p className="text-lg">✨</p>

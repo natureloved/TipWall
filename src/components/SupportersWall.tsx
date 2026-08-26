@@ -29,7 +29,7 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
   ]
 
   return (
-    <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
+    <div className="surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay: '0.4s'}}>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{t('supporters')} ({supporters.length})</p>
       </div>

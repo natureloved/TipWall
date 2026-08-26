@@ -114,20 +114,32 @@ export default function CreatorSetup() {
   const normalizedHandle = normalizeHandle(handle)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex flex-col items-center justify-center p-4">
+    <div className="app-shell min-h-screen text-white flex flex-col items-center p-4 sm:p-8">
       {/* Hero */}
-      <div className="w-full max-w-md text-center mb-8">
-        <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent mb-3">
-          Tip the creator,<br />not the platform.
+      <div className="w-full max-w-5xl grid gap-10 lg:grid-cols-[1fr_0.9fr] items-center py-8 sm:py-14">
+      <div className="text-left">
+        <p className="text-xs uppercase tracking-[0.18em] text-sky-300 font-bold mb-4">The wall of appreciation</p>
+        <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-5">
+          Your audience has<br /><span className="text-amber-300">something to say.</span>
         </h1>
-        <p className="text-slate-300 text-lg mb-2">
-          Put up a tipping wall in 60 seconds.<br />
-          Supporters tap, NIM lands in your wallet.
+        <p className="text-slate-300 text-lg sm:text-xl max-w-xl mb-4">
+          TipWall turns direct NIM support into useful feedback. Learn what people value, keep 100%, and give your audience a place to show up.
         </p>
-        <p className="text-amber-400 font-semibold text-sm mb-4">TipWall takes 0%.</p>
+        <p className="text-amber-300 font-semibold text-sm mb-5">0% platform fee · On-chain verified · Audience insight</p>
         <div className="flex items-center justify-center text-sm">
           <MissionLink labelKey="learnAboutTipWall" variant="home" />
         </div>
+      </div>
+
+      <div className="surface rounded-3xl p-5 sm:p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+          <div><p className="font-bold text-white">Maya builds in public</p><p className="text-xs text-slate-500">@mayabuilds</p></div>
+          <span className="text-xs font-bold text-emerald-300">● Live wall</span>
+        </div>
+        <div className="rounded-2xl bg-sky-400/10 border border-sky-400/25 p-4 mb-4"><p className="text-[11px] uppercase tracking-wide text-sky-300 font-bold">Audience signal</p><p className="text-sm text-slate-100 mt-1">People support Maya most for <strong>helpful content</strong>.</p><p className="text-xs text-slate-400 mt-2">18 tips · 420 NIM</p></div>
+        <div className="space-y-3"><div className="rounded-xl bg-[#202631] p-3"><p className="text-sm text-slate-200">“Your tutorial saved me hours.”</p><p className="text-xs text-sky-300 mt-2">💡 Helpful content · 10 NIM</p></div><div className="rounded-xl bg-[#202631] p-3"><p className="text-sm text-slate-200">“Keep building. This is a great idea.”</p><p className="text-xs text-sky-300 mt-2">⚡ Great idea · 25 NIM</p></div></div>
+        <div className="mt-5 w-full rounded-xl bg-amber-400 py-3 text-center font-bold text-slate-900">Send a tip + feedback</div>
+      </div>
       </div>
 
       {/* Audience router — name both paths so first-time visitors know which one they are */}

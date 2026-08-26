@@ -142,7 +142,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const weekNIM = walls.reduce((sum, w) => sum + w.recentNIM, 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white px-4 py-10">
+    <div className="app-shell min-h-screen text-white px-4 py-10">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
@@ -184,7 +184,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                     <a
                       key={profile.handle}
                       href={`/${profile.handle}`}
-                      className="flex items-center gap-3 rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 hover:border-amber-400/40 p-4 sm:p-5 transition-colors"
+                      className="surface flex items-center gap-3 rounded-2xl hover:border-amber-400/50 p-4 sm:p-5 transition-colors"
                     >
                       <div
                         className={`flex-none flex items-center justify-center w-9 h-9 rounded-full font-bold text-base ${RANK_BADGE[i]}`}
@@ -242,7 +242,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                     <a
                       key={profile.handle}
                       href={`/${profile.handle}`}
-                      className="block rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 hover:border-amber-400/40 p-5 transition-colors"
+                      className="surface block rounded-2xl hover:border-amber-400/50 p-5 transition-colors"
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="font-bold text-amber-300 truncate">
@@ -275,7 +275,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                     <a
                       key={profile.handle}
                       href={`/${profile.handle}`}
-                      className="block rounded-2xl bg-slate-800 hover:bg-slate-700/80 border border-slate-700 hover:border-emerald-400/40 p-5 transition-colors"
+                      className="surface block rounded-2xl hover:border-emerald-400/50 p-5 transition-colors"
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="font-bold text-amber-300 truncate">

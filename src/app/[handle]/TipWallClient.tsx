@@ -228,6 +228,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             </div>
           </div>
 
+          {hasTips && topReason && (
+            <div className="surface-soft rounded-2xl px-5 py-4 flex items-center gap-3 animate-slide-up">
+              <span className="text-2xl">{TIP_REASON_LABELS[topReason.reason].emoji}</span>
+              <div className="min-w-0"><p className="text-[11px] uppercase tracking-wide font-bold text-sky-300">What your audience values</p><p className="text-sm text-slate-200 mt-0.5">Supporters most often come for <strong>{TIP_REASON_LABELS[topReason.reason].label.toLowerCase()}</strong>.</p></div>
+            </div>
+          )}
+
           {!hasTips ? (
             /* Empty wall: one warm invitation, no wall of zeros. */
             <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-8 text-center shadow-lg border-2 border-amber-400/20 animate-slide-up" style={{animationDelay: '0.35s'}}>
@@ -328,7 +335,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           <ShareButton handle={handle} />
 
           {/* Viral footer: every wall is a doorway into the rest */}
-          <p className="text-center text-xs text-slate-400 pb-4">
+          <p className="text-center text-xs text-slate-400 pb-24 sm:pb-4">
             Powered by <Link href="/" className="underline underline-offset-4 hover:text-amber-300 transition-colors">TipWall</Link>
             {' · '}
             <Link href="/explore" className="underline underline-offset-4 hover:text-amber-300 transition-colors">Explore walls</Link>
@@ -345,6 +352,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             )}
           </p>
         </div>
+      </div>
+
+      <div className="sticky-tip-cta fixed bottom-0 inset-x-0 z-20 px-4 pt-3 bg-[#101318]/95 backdrop-blur border-t border-white/10 sm:hidden">
+        <button onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }} className="w-full rounded-2xl bg-amber-400 py-3.5 font-bold text-slate-900 shadow-xl">💸 Send a tip + feedback</button>
       </div>
 
       {showTipModal && (
