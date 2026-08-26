@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { getGoalMilestones, type CreatorProfile, type Tip, type MilestoneEvent, type Supporter } from '@/lib/types'
+import { getGoalMilestones, TIP_REASON_LABELS, type CreatorProfile, type Tip, type MilestoneEvent, type Supporter, type TipReason } from '@/lib/types'
 import ContentPreviewCard from '@/components/ContentPreviewCard'
 import TipModal from '@/components/TipModal'
 import MilestoneCelebration from '@/components/MilestoneCelebration'
@@ -123,13 +123,16 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   // Most recent tip time for the "Last tip" stat tile. Tips arrive newest-first
   // from the API, but reduce over all of them so we don't depend on order.
   const lastTipAt = hasTips ? tips.reduce((max, t) => Math.max(max, t.timestamp), 0) : null
+  const reasonCounts = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: tips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
+  const topReason = reasonCounts[0]?.count ? reasonCounts[0] : null
 
   return (
     <>
       <FloatingTips trigger={floatingTipTrigger} />
       <div className="tw-wall min-h-screen relative">
-        {/* Animated background gradient */}
-        <div className="fixed inset-0 z-0" />
+        {/* Fixed, opaque wall backdrop — painted from first frame (see .tw-wall
+            in globals.css) so translucent cards never flash washed-out. */}
+        <div className="tw-wall fixed inset-0 z-0" />
 
         {/* Owner-only management controls — hidden from supporters so the hero
             stays clean and no admin surface is advertised to visitors. */}
@@ -252,6 +255,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : '—'} label={t('lastTip')} index={2} suppressHydrationWarning />
               </div>
 
+              {topReason && (
+                <div className="rounded-2xl bg-sky-400/10 border border-sky-400/25 px-5 py-4 flex items-center gap-3">
+                  <span className="text-2xl">{TIP_REASON_LABELS[topReason.reason].emoji}</span>
+                  <div><p className="text-xs uppercase tracking-wide font-bold text-sky-300">Audience signal</p><p className="text-sm text-slate-200 mt-0.5">Your supporters most often come for <strong>{TIP_REASON_LABELS[topReason.reason].label.toLowerCase()}</strong>.</p></div>
+                </div>
+              )}
+
               {/* Supporters - prominently displayed for community recognition */}
               <SupportersWall supporters={supporters} />
 
@@ -345,6 +355,8 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           creatorHandle={handle}
           creatorWalletAddress={profile.walletAddress}
           nimiqAvailable={nimiqAvailable}
+          goal={profile.goal}
+          totalNIM={totalNIM}
           initialAmount={resume?.amount}
           initialMessage={resume?.message}
           welcome={!!resume}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getProfile, getStats, getTips } from '@/lib/kv'
+import type { TipReason } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
 
@@ -35,6 +36,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ han
 
     const stats = await getStats(handleStr)
     const tips = await getTips(handleStr)
+    const reasonStats = (['helpful_content', 'tutorial', 'open_source', 'great_idea', 'just_support'] as TipReason[]).map(reason => {
+      const matching = tips.filter(t => t.verified && t.reason === reason)
+      return { reason, tips: matching.length, nim: matching.reduce((sum, t) => sum + (t.amountNIM || 0), 0) }
+    }).sort((a, b) => b.tips - a.tips || b.nim - a.nim)
 
     const views = stats.TIP_WALL_VIEWED
     const completed = Math.max(stats.TIP_COMPLETED, tips.length) // tips are the source of truth
@@ -49,6 +54,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ han
         conversionRate,
         recoveredSupporters: recovered,
         lostSupporters: lost,
+        reasonStats,
+        topReason: reasonStats[0]?.tips ? reasonStats[0].reason : null,
       },
     })
   } catch (err) {

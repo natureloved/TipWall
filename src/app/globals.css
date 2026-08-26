@@ -56,6 +56,17 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Creator wall backdrop. Painted from the very first frame so the translucent
+   (`bg-slate-800/60 backdrop-blur`) hero and cards always have a solid, dark
+   surface behind them — without this the wall flashes washed-out before the
+   entry animations settle. Opaque on purpose; the animated body gradient still
+   shows around the max-w content column. */
+.tw-wall {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(246, 178, 33, 0.06) 0%, transparent 60%),
+    #0f1419;
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
@@ -65,7 +76,7 @@ body {
 }
 
 .animate-slide-up {
-  animation: slideUp 0.8s ease-out;
+  animation: slideUp 0.8s ease-out both;
 }
 
 .animate-glow {

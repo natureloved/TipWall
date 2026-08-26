@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile } from '@/lib/kv'
+import { getProfile, checkRateLimit } from '@/lib/kv'
 import { normalizeHandle, normalizeAddress } from '@/lib/profile-auth'
 import { messageHasNonce } from '@/lib/pay-request'
 
@@ -26,7 +26,13 @@ export async function GET(req: NextRequest) {
   // identical-amount tip. Default: 15 min ago, to tolerate clock skew.
   const since = Number(searchParams.get('since')) || Date.now() - 15 * 60_000
 
-  if (!handle || !amountNIM) {
+  const forwarded = req.headers.get('x-forwarded-for')
+  const ip = (forwarded ? forwarded.split(',')[0].trim() : '') || req.headers.get('x-real-ip') || 'unknown'
+  if (!(await checkRateLimit(`detect:${ip}:${handle}`, 30, 60_000))) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+  }
+
+  if (!handle || !Number.isFinite(amountNIM) || amountNIM < 1 || amountNIM > 100_000_000 || !Number.isFinite(since) || since < Date.now() - 60 * 60_000 || since > Date.now() + 60_000) {
     return NextResponse.json({ error: 'missing params' }, { status: 400 })
   }
 
@@ -113,6 +119,7 @@ export async function GET(req: NextRequest) {
 
   // Prefer a nonce match if the message survived; else take the most recent.
   const nonceMatch = nonce ? candidates.find((c) => messageHasNonce(c.msg, nonce)) : undefined
+  if (nonce && !nonceMatch) return NextResponse.json({ found: false })
   const best = nonceMatch || candidates.sort((a, b) => b.time - a.time)[0]
 
   return NextResponse.json({

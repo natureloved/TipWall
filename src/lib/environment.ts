@@ -53,3 +53,15 @@ export function wallUrl(handle: string): string {
     ''
   return `${origin}/${handle}`
 }
+
+/**
+ * Env-only wall URL: always derived from `NEXT_PUBLIC_APP_URL`, never from
+ * `window`. Use this for the initial render of components that resolve the real
+ * origin after mount — it renders identically on the server and during
+ * hydration, avoiding a text mismatch. The trailing-slash strip keeps
+ * `NEXT_PUBLIC_APP_URL=https://tipwall.vercel.app/` from producing `//handle`.
+ */
+export function envWallUrl(handle: string): string {
+  const origin = (process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/+$/, '')
+  return `${origin}/${handle}`
+}

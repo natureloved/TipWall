@@ -12,7 +12,8 @@ export async function GET() {
     if (result !== 'ok') {
       return NextResponse.json({ status: 'ERROR' }, { status: 500 })
     }
-    return NextResponse.json({ status: 'OK' })
+    const rpcConfigured = Boolean(process.env.NIMIQ_RPC_URL)
+    return NextResponse.json({ status: 'OK', services: { kv: 'OK', nimiqRpcConfigured: rpcConfigured } })
   } catch {
     return NextResponse.json({ status: 'ERROR' }, { status: 500 })
   }

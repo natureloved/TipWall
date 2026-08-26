@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { verifyTx } from '../verify-tx'
+import { verifyTx, verifyTxDetails } from '../verify-tx'
 
 const RECIPIENT = 'NQ48 8CKH BA24 2VR3 N249 N8MN J5XX 74DB U4JF'
 const RECIPIENT_NORM = 'NQ488CKHBA242VR3N249N8MNJ5XX74DBU4JF'
@@ -32,6 +32,15 @@ describe('verifyTx', () => {
   it('verifies a JSON-RPC envelope (result.data with `to`/`value`)', async () => {
     mockFetchOnce({ result: { data: { to: RECIPIENT_NORM, value: AMOUNT_LUNA } } })
     await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('verified')
+  })
+
+  it('returns the sender address from trusted chain data', async () => {
+    const sender = 'NQ07000000000000000000000000000000000000'
+    mockFetchOnce({ to: RECIPIENT_NORM, from: sender, value: AMOUNT_LUNA })
+    await expect(verifyTxDetails(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toEqual({
+      result: 'verified',
+      senderAddress: sender,
+    })
   })
 
   it('accepts a small amount tolerance', async () => {

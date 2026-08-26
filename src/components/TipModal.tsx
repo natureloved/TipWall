@@ -8,7 +8,7 @@ import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
-export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken }: {
+export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken, goal, totalNIM }: {
   isOpen: boolean
   onClose: () => void
   creatorHandle: string
@@ -25,6 +25,11 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   welcome?: boolean
   /** When this tip fulfils a claim intent, its token (marks the claim claimed). */
   claimToken?: string
+  /** Creator goal — when set, shows a compact progress bar so supporters see the
+      impact of their tip. Omitted when the creator hasn't set a goal. */
+  goal?: { label: string; targetNIM: number }
+  /** Verified lifetime total, used with `goal` to draw the progress bar. */
+  totalNIM?: number
 }) {
   // Single source of truth for the amount: one editable field prefilled with a
   // sensible default. Presets fill it; the user can also type any value freely.
@@ -51,6 +56,12 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   }, [isOpen, onClose])
 
   const finalAmount = Number(amount)
+
+  // Compact goal progress for the modal — only meaningful when the creator set a
+  // goal. Mirrors the wall's logic: true % can exceed 100 (label), bar caps at 100.
+  const showGoal = !!goal && goal.targetNIM > 0 && typeof totalNIM === 'number'
+  const goalPercentTrue = showGoal ? Math.round((totalNIM! / goal!.targetNIM) * 100) : 0
+  const goalPercent = Math.min(100, goalPercentTrue)
 
   const buildExtraData = () => {
     const parts = [
@@ -152,9 +163,11 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         aria-modal="true"
         aria-label={`Tip @${creatorHandle}`}
         tabIndex={-1}
-        className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto shadow-2xl border-t-2 border-amber-400/20 animate-slide-up focus:outline-none"
+        className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto shadow-2xl shadow-amber-400/10 border-t-2 border-amber-400/30 animate-slide-up focus:outline-none"
         onClick={e => e.stopPropagation()}
       >
+        {/* Soft gold glow behind the sheet — depth without leaving the dark theme. */}
+        <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-48 bg-gradient-radial from-amber-400/20 to-transparent blur-3xl" />
         <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-6" />
 
         <div className="mb-6">
@@ -169,6 +182,33 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         {welcome && (
           <div className="mb-5 rounded-xl bg-emerald-400/10 border border-emerald-400/30 px-4 py-3 text-sm text-emerald-200">
             👋 Welcome back! Your tip is ready to send.
+          </div>
+        )}
+
+        {/* Goal context — shows supporters where their tip lands. Only when a goal exists. */}
+        {showGoal && (
+          <div className="mb-6 rounded-2xl bg-slate-800/60 border border-amber-400/15 px-4 py-3">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <span className="text-xs font-semibold text-slate-300 truncate">{goal!.label || t('goalProgress')}</span>
+              <span className="text-xs font-bold text-amber-300 shrink-0">{goalPercentTrue}%</span>
+            </div>
+            <div
+              className="relative w-full h-2 rounded-full overflow-hidden bg-white/10"
+              role="progressbar"
+              aria-valuenow={goalPercent}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={goal!.label || t('goalProgress')}
+            >
+              <div
+                className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700"
+                style={{ width: `${goalPercent}%` }}
+              />
+            </div>
+            <div className="flex justify-between mt-1.5 text-[11px] text-slate-400">
+              <span>{totalNIM!.toLocaleString()} NIM</span>
+              <span>{goal!.targetNIM.toLocaleString()} NIM</span>
+            </div>
           </div>
         )}
 
@@ -197,10 +237,10 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
               <button
                 key={amt}
                 onClick={() => setAmount(String(amt))}
-                className={`py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border-2 ${
+                className={`py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border-2 hover:-translate-y-0.5 ${
                   Number(amount) === amt
-                    ? 'border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-slate-900 shadow-lg hover:shadow-xl'
-                    : 'border-amber-400/20 bg-slate-800/50 text-amber-300 hover:border-amber-400/40 hover:bg-slate-800'
+                    ? 'border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-slate-900 shadow-lg shadow-amber-400/30 hover:shadow-xl'
+                    : 'border-amber-400/20 bg-slate-800/50 text-amber-300 hover:border-amber-400/50 hover:bg-slate-800'
                 }`}
               >
                 {amt}
@@ -251,6 +291,9 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
                 ? `⚡ Continue in Nimiq Pay`
                 : `💰 ${finalAmount || '?'} NIM — ${t('confirmTip')}`}
           </button>
+          <p className="text-center text-[11px] text-slate-400 mt-2.5">
+            ⚡ {t('tipGoesDirectly')}
+          </p>
         </div>
       </div>
     </div>

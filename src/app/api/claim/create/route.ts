@@ -35,7 +35,9 @@ export async function POST(req: NextRequest) {
     if (!profile) return NextResponse.json({ error: 'Creator not found' }, { status: 404 })
 
     const reason = VALID_REASONS.includes(body.reason) ? (body.reason as TipReason) : undefined
-    const token = crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+    // Full 128-bit bearer token. Claim URLs are capabilities, so shortening the
+    // UUID needlessly reduces resistance to guessing and enumeration.
+    const token = crypto.randomUUID().replace(/-/g, '')
 
     const claim: ClaimIntent = {
       token,

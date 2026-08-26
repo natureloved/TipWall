@@ -13,6 +13,10 @@ function avatarIndex(address: string, mod: number): number {
   return hash % mod
 }
 
+// Podium medals for the three biggest supporters — makes the ranking legible at
+// a glance, not just implied by list order. Index 0/1/2 → gold/silver/bronze.
+const RANK_MEDALS = ['🥇', '🥈', '🥉']
+
 export default function SupportersWall({ supporters }: { supporters: { address: string; totalNIM: number; tipCount: number }[] }) {
   const t = useTranslations()
   const colors = [
@@ -40,16 +44,29 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
 
       {supporters.length > 0 && (
         <div className="flex flex-wrap gap-3 mb-5" suppressHydrationWarning>
-          {supporters.slice(0, 12).map((s) => {
+          {supporters.slice(0, 12).map((s, idx) => {
             const emoji = AVATARS[avatarIndex(s.address, AVATARS.length)]
             const color = colors[avatarIndex(s.address, colors.length)]
+            const medal = idx < 3 ? RANK_MEDALS[idx] : null
             return (
               <div
                 key={s.address}
-                title={`${s.address.slice(0, 6)}…${s.address.slice(-4)} · ${s.totalNIM} NIM`}
-                className={`w-12 h-12 rounded-full flex items-center justify-center text-xl flex-shrink-0 shadow-md border-2 border-white/20 bg-gradient-to-br ${color}`}
+                className="relative"
               >
-                {emoji}
+                <div
+                  title={`${s.address.slice(0, 6)}…${s.address.slice(-4)} · ${s.totalNIM} NIM`}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center text-xl flex-shrink-0 shadow-md border-2 border-white/20 bg-gradient-to-br ${color}`}
+                >
+                  {emoji}
+                </div>
+                {medal && (
+                  <div
+                    className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-xs"
+                    aria-label={`Rank ${idx + 1}`}
+                  >
+                    {medal}
+                  </div>
+                )}
               </div>
             )
           })}

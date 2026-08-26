@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-import { creatorShareText, openShare, canNativeShare, wallUrl, type ShareChannel } from '@/lib/share'
+import { creatorShareText, openShare, canNativeShare, envWallUrl, type ShareChannel } from '@/lib/share'
 import { track } from '@/lib/analytics'
 
 /**
@@ -24,7 +24,12 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
   const [copied, setCopied] = useState<string | null>(null)
   const [nativeShare, setNativeShare] = useState(false)
 
-  const url = origin ? `${origin}/${handle}` : wallUrl(handle)
+  // `origin` is resolved from the browser after mount (see effect below). Until
+  // then we must render the SAME value the server did, so both the server and
+  // the first client render use the env-derived fallback. Deriving from
+  // `window` before `origin` is set would make the first client render disagree
+  // with the server HTML → hydration mismatch.
+  const url = origin ? `${origin}/${handle}` : envWallUrl(handle)
   const badgeUrl = `${origin}/api/badge/${handle}`
   const badgeMarkdown = `[![Tip me on TipWall](${badgeUrl})](${url})`
   const embedHtml = `<a href="${url}" target="_blank" rel="noopener">⚡ Tip ${displayName || `@${handle}`} in NIM on TipWall</a>`

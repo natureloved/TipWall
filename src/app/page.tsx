@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle } from '@/lib/profile-auth'
 import MissionLink from '@/components/MissionLink'
+import EcosystemStats from '@/components/EcosystemStats'
 
 const PLACEHOLDER_TEXT = 'e.g. "Building an AI agent"'
 
@@ -124,17 +125,29 @@ export default function CreatorSetup() {
           Supporters tap, NIM lands in your wallet.
         </p>
         <p className="text-amber-400 font-semibold text-sm mb-4">TipWall takes 0%.</p>
-        <div className="flex items-center justify-center gap-3 text-sm">
+        <div className="flex items-center justify-center text-sm">
           <MissionLink labelKey="learnAboutTipWall" variant="home" />
-          <span className="text-slate-600" aria-hidden="true">·</span>
+        </div>
+      </div>
+
+      {/* Audience router — name both paths so first-time visitors know which one they are */}
+      <div className="w-full max-w-md mb-6">
+        <div className="rounded-xl bg-slate-800/60 border border-slate-700/60 px-4 py-3 text-sm text-slate-300 text-center leading-relaxed">
+          <span className="font-semibold text-white">Creating a wall?</span> Fill it out below.
+          <span className="hidden sm:inline text-slate-600" aria-hidden="true"> · </span>
+          <br className="sm:hidden" />
+          <span className="font-semibold text-white">Here to support?</span>{' '}
           <Link
             href="/explore"
-            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors"
+            className="text-amber-300 hover:text-amber-200 font-semibold underline underline-offset-4 transition-colors"
           >
-            Browse walls →
+            Explore walls →
           </Link>
         </div>
       </div>
+
+      {/* Live social proof — proves the network is real before asking for a signup */}
+      <EcosystemStats />
 
       <form onSubmit={submit} className="w-full max-w-md bg-slate-800 rounded-2xl p-6 space-y-4">
         {/* Handle */}
@@ -245,6 +258,12 @@ export default function CreatorSetup() {
           <Link href="/explore" className="underline underline-offset-4 hover:text-amber-300 transition-colors">
             Explore creator walls →
           </Link>
+        </p>
+
+        <p className="text-center text-[11px] text-slate-500">
+          <Link href="/privacy" className="hover:text-amber-300 transition-colors">Privacy</Link>
+          {' · '}
+          <Link href="/terms" className="hover:text-amber-300 transition-colors">Terms</Link>
         </p>
       </form>
     </div>

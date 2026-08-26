@@ -7,8 +7,9 @@ import {
   getTips,
   LEADERBOARD_WINDOW_MS,
 } from '@/lib/kv'
-import type { CreatorProfile, Tip } from '@/lib/types'
+import { TIP_REASON_LABELS, type CreatorProfile, type Tip, type TipReason } from '@/lib/types'
 import MissionLink from '@/components/MissionLink'
+import { timeAgo } from '@/lib/time'
 
 export const dynamic = 'force-dynamic'
 
@@ -49,6 +50,8 @@ type ExploreWall = {
   recentNIM: number
   recentTips: number
   isNew: boolean
+  lastTipAt: number | null
+  topReason: TipReason | null
 }
 
 async function loadWalls(): Promise<ExploreWall[]> {
@@ -85,7 +88,14 @@ async function loadWalls(): Promise<ExploreWall[]> {
         0,
       )
       const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
-      return { profile, totalNIM, recentNIM, recentTips, isNew }
+      const reasons = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: tips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
+      const topReason = reasons[0]?.count ? reasons[0].reason : null
+      // Most recent verified tip overall — powers the "last tipped Xm ago" line.
+      const lastTipAt = tips.reduce<number | null>(
+        (latest, t) => (t.verified && (latest === null || t.timestamp > latest) ? t.timestamp : latest),
+        null,
+      )
+      return { profile, totalNIM, recentNIM, recentTips, isNew, lastTipAt, topReason }
     }),
   )
 
@@ -105,8 +115,11 @@ const RANK_BADGE = [
   'bg-[#CD7F32] text-amber-50',
 ]
 
-export default async function ExplorePage() {
-  const walls = await loadWalls()
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
+  const requestedReason = (await searchParams).reason
+  const activeReason = (Object.keys(TIP_REASON_LABELS) as TipReason[]).includes(requestedReason as TipReason) ? requestedReason as TipReason : null
+  const allWalls = await loadWalls()
+  const walls = activeReason ? allWalls.filter(w => w.topReason === activeReason) : allWalls
 
   const trending = walls.filter(w => w.recentNIM > 0).slice(0, 3)
   const trendingHandles = new Set(trending.map(w => w.profile.handle))
@@ -133,8 +146,9 @@ export default async function ExplorePage() {
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
-            Explore TipWalls
+            Find creators worth supporting
           </h1>
+          <p className="max-w-xl mx-auto mt-2 text-sm text-slate-400">Browse by the kind of work people value, not just the amount raised.</p>
           {wallCount > 0 && (
             <p className="text-sm text-slate-400 mt-2">
               {wallCount.toLocaleString()} creator {wallCount === 1 ? 'wall' : 'walls'}
@@ -144,6 +158,10 @@ export default async function ExplorePage() {
           )}
           <div className="mt-3">
             <MissionLink />
+          </div>
+          <div className="mt-5 flex gap-2 overflow-x-auto pb-1 sm:justify-center">
+            <Link href="/explore" className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'border-amber-400 bg-amber-400/15 text-amber-200' : 'border-slate-700 text-slate-400 hover:text-white'}`}>All creators</Link>
+            {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-slate-700 text-slate-400 hover:text-white'}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
           </div>
         </div>
 
@@ -162,7 +180,7 @@ export default async function ExplorePage() {
                 <h2 className="text-lg font-bold text-white">🔥 Most tipped this week</h2>
                 <p className="text-xs text-slate-500 mb-3">Updated live · last 7 days</p>
                 <div className="space-y-3">
-                  {trending.map(({ profile, totalNIM, recentNIM }, i) => (
+                  {trending.map(({ profile, totalNIM, recentNIM, isNew, lastTipAt, topReason }, i) => (
                     <a
                       key={profile.handle}
                       href={`/${profile.handle}`}
@@ -175,8 +193,13 @@ export default async function ExplorePage() {
                         {i + 1}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="font-bold text-amber-300 truncate">
-                          {profile.displayName || `@${profile.handle}`}
+                        <p className="font-bold text-amber-300 truncate flex items-center gap-2">
+                          <span className="truncate">{profile.displayName || `@${profile.handle}`}</span>
+                          {isNew && (
+                            <span className="flex-none text-[10px] font-bold uppercase tracking-wide text-emerald-300 bg-emerald-400/15 border border-emerald-400/30 rounded-full px-1.5 py-0.5">
+                              New
+                            </span>
+                          )}
                         </p>
                         <p className="text-xs text-slate-500 truncate">@{profile.handle}</p>
                         {profile.bio && (
@@ -185,12 +208,18 @@ export default async function ExplorePage() {
                         {profile.achievement && (
                           <p className="text-xs text-amber-200/80 mt-1 truncate">🏆 {profile.achievement}</p>
                         )}
+                        {topReason && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
                       </div>
                       <div className="flex-none text-right">
                         <p className="text-lg font-bold text-amber-300 whitespace-nowrap">
                           {Math.round(recentNIM).toLocaleString()} NIM
                         </p>
                         <p className="text-xs text-slate-500">this week</p>
+                        {lastTipAt !== null && (
+                          <p className="text-xs text-emerald-400/80 mt-1 whitespace-nowrap">
+                            ● tipped {timeAgo(lastTipAt)}
+                          </p>
+                        )}
                         <p className="text-xs text-slate-500 mt-1 whitespace-nowrap">
                           {Math.round(totalNIM).toLocaleString()} NIM all time
                         </p>
@@ -209,7 +238,7 @@ export default async function ExplorePage() {
                   </h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {rest.map(({ profile, totalNIM }) => (
+                  {rest.map(({ profile, totalNIM, topReason }) => (
                     <a
                       key={profile.handle}
                       href={`/${profile.handle}`}
@@ -230,6 +259,7 @@ export default async function ExplorePage() {
                       {profile.achievement && (
                         <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
                       )}
+                      {topReason && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
                     </a>
                   ))}
                 </div>

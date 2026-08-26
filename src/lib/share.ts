@@ -5,7 +5,7 @@
 // surface funnels through here (consistent copy + WALL_SHARED tracking).
 
 import { track } from './analytics'
-import { wallUrl } from './environment'
+import { wallUrl, envWallUrl } from './environment'
 
 export type ShareChannel = 'x' | 'telegram' | 'whatsapp' | 'native' | 'copy'
 
@@ -58,4 +58,4 @@ export function openShare(channel: ShareChannel, handle: string, text: string, u
   window.open(shareIntentUrl(channel, text, url), '_blank', 'noopener,noreferrer')
 }
 
-export { wallUrl }
+export { wallUrl, envWallUrl }

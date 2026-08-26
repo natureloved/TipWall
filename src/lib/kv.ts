@@ -1,7 +1,7 @@
 import { kv } from '@vercel/kv'
 import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent, ClaimIntent, getGoalMilestones } from './types'
 import { FUNNEL_EVENTS, type FunnelEvent } from './events'
-import { verifyTx } from './verify-tx'
+import { verifyTxDetails } from './verify-tx'
 import { normalizeAddress } from './profile-auth'
 import { checkMilestone } from './milestones'
 
@@ -74,13 +74,12 @@ export async function getClaim(token: string): Promise<ClaimIntent | null> {
 
 /** Mark a claim as fulfilled once an on-chain tip completes it. Idempotent. */
 export async function markClaimClaimed(token: string, txHash?: string): Promise<boolean> {
-  const claim = await getClaim(token)
-  if (!claim || claim.claimed) return false
-  claim.claimed = true
-  claim.claimedAt = Date.now()
-  if (txHash) claim.claimTxHash = txHash
-  await kv.set(`${PREFIX}claim:${claim.token}`, claim, { px: CLAIM_TTL_MS })
-  return true
+  const result = await kv.eval(
+    `local raw=redis.call('GET',KEYS[1]); if not raw then return 0 end; local claim=cjson.decode(raw); if claim.claimed then return 0 end; claim.claimed=true; claim.claimedAt=tonumber(ARGV[1]); if ARGV[2]~='' then claim.claimTxHash=ARGV[2] end; redis.call('SET',KEYS[1],cjson.encode(claim),'PX',ARGV[3]); return 1`,
+    [`${PREFIX}claim:${token}`],
+    [String(Date.now()), txHash || '', String(CLAIM_TTL_MS)],
+  )
+  return Number(result) === 1
 }
 
 // --- Conversion funnel counters (Phase 3) ----------------------------------
@@ -124,12 +123,17 @@ export async function setProfile(profile: CreatorProfile): Promise<void> {
 export async function setProfileNX(profile: CreatorProfile): Promise<boolean> {
   const key = `${PREFIX}profile:${profile.handle.toLowerCase()}`
   const res = await kv.set(key, profile, { nx: true })
-  return res === 'OK'
+  if (res === 'OK') {
+    await kv.sadd(`${PREFIX}profiles`, profile.handle.toLowerCase())
+    return true
+  }
+  return false
 }
 
 const WALLET_INDEX_PREFIX = `${PREFIX}wallet:`
 
 export async function addProfileToWalletIndex(profile: CreatorProfile): Promise<void> {
+  await kv.sadd(`${PREFIX}walletset:${normalizeAddress(profile.walletAddress)}`, profile.handle.toLowerCase())
   const key = `${WALLET_INDEX_PREFIX}${normalizeAddress(profile.walletAddress)}`
   const existing = (await kv.get<string[]>(key)) || []
   if (!existing.includes(profile.handle.toLowerCase())) {
@@ -139,6 +143,11 @@ export async function addProfileToWalletIndex(profile: CreatorProfile): Promise<
 }
 
 export async function getProfileByWallet(walletAddress: string): Promise<CreatorProfile | null> {
+  const setHandles = await kv.smembers<string[]>(`${PREFIX}walletset:${normalizeAddress(walletAddress)}`)
+  for (const h of setHandles || []) {
+    const p = await getProfile(h)
+    if (p) return p
+  }
   const key = `${WALLET_INDEX_PREFIX}${normalizeAddress(walletAddress)}`
   const handles = (await kv.get<string[]>(key)) || []
   for (const h of handles) {
@@ -154,6 +163,19 @@ export async function addTip(handle: string, tip: Tip): Promise<void> {
   // to the same creator can't clobber each other (lost-update race).
   await kv.lpush(key, tip)
   await kv.ltrim(key, 0, 199)
+}
+
+/** Atomically reserve a transaction hash and append its tip record. */
+export async function recordTipAtomically(handle: string, txHash: string, tip: Tip): Promise<boolean> {
+  const globalTxKey = `${PREFIX}txseen:global`
+  const txKey = `${PREFIX}txseen:${handle.toLowerCase()}`
+  const tipKey = `${PREFIX}tips:${handle.toLowerCase()}`
+  const result = await kv.eval(
+    `if redis.call('SADD', KEYS[1], ARGV[1]) == 1 then redis.call('SADD',KEYS[2],ARGV[1]); redis.call('LPUSH', KEYS[3], ARGV[2]); redis.call('LTRIM', KEYS[3], 0, 199); return 1 else return 0 end`,
+    [globalTxKey, txKey, tipKey],
+    [txHash, JSON.stringify(tip)],
+  )
+  return Number(result) === 1
 }
 
 // --- Lifetime aggregates ----------------------------------------------------
@@ -229,6 +251,57 @@ export async function getActiveHandles(limit = 24): Promise<string[]> {
   }
 }
 
+// --- Ecosystem aggregates (site-wide social proof) --------------------------
+// Site-wide totals for the home page's "the network is real" strip. Reads the
+// persistent lifetime counters (vtotal / txseen), never the 200-trimmed tip
+// list, so figures stay correct for high-volume walls. Best effort: any read
+// failure yields zeros rather than throwing — this only powers a marketing strip.
+
+export type EcosystemStats = {
+  walls: number
+  tippedCreators: number
+  totalNIM: number
+  totalTips: number
+}
+
+export async function getEcosystemStats(): Promise<EcosystemStats> {
+  try {
+    let handles = await kv.smembers<string[]>(`${PREFIX}profiles`)
+    if (!handles?.length) {
+      const keys = await kv.keys(`${PREFIX}profile:*`)
+      handles = keys.map(k => k.slice(`${PREFIX}profile:`.length)).filter(Boolean)
+      for (const handle of handles) await kv.sadd(`${PREFIX}profiles`, handle)
+    }
+
+    let tippedCreators = 0
+    let totalLuna = 0
+    let totalTips = 0
+
+    // Per-wall reads run in parallel; each wall contributes its lifetime luna
+    // total and its distinct verified-txHash count.
+    await Promise.all(
+      handles.map(async (h) => {
+        const [luna, txCount] = await Promise.all([
+          kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
+          kv.scard(`${PREFIX}txseen:${h}`).then(n => Number(n ?? 0) || 0).catch(() => 0),
+        ])
+        totalLuna += luna
+        totalTips += txCount
+        if (luna > 0 || txCount > 0) tippedCreators++
+      }),
+    )
+
+    return {
+      walls: handles.length,
+      tippedCreators,
+      totalNIM: totalLuna / LUNA_PER_NIM,
+      totalTips,
+    }
+  } catch {
+    return { walls: 0, tippedCreators: 0, totalNIM: 0, totalTips: 0 }
+  }
+}
+
 // --- Wall deletion -----------------------------------------------------------
 
 const TOMBSTONE_PREFIX = `${PREFIX}tombstone:`
@@ -255,6 +328,8 @@ export async function deleteProfileData(profile: CreatorProfile): Promise<void> 
 
   // Wallet index: drop this handle, keep any others owned by the same wallet.
   const walletKey = `${WALLET_INDEX_PREFIX}${normalizeAddress(profile.walletAddress)}`
+  await kv.srem(`${PREFIX}walletset:${normalizeAddress(profile.walletAddress)}`, h)
+  await kv.srem(`${PREFIX}profiles`, h)
   const handles = (await kv.get<string[]>(walletKey)) || []
   const remaining = handles.filter(x => x !== h)
   if (remaining.length) {
@@ -307,25 +382,26 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
   const pending = tips.filter(t => !t.verified && now - t.timestamp > 20000)
   if (!pending.length) return tips
 
-  const updates = new Map<string, 'verify' | 'remove'>()
+  const updates = new Map<string, { action: 'verify' | 'remove'; senderAddress?: string }>()
   for (const t of pending) {
-    const res = await verifyTx(t.txHash, walletAddress, Math.round(t.amountNIM * 100000), 1)
-    if (res === 'verified') updates.set(t.id, 'verify')
-    else if (res === 'mismatch') updates.set(t.id, 'remove')
+    const res = await verifyTxDetails(t.txHash, walletAddress, Math.round(t.amountNIM * 100000), 1)
+    if (res.result === 'verified') updates.set(t.id, { action: 'verify', senderAddress: res.senderAddress })
+    else if (res.result === 'mismatch') updates.set(t.id, { action: 'remove' })
   }
   if (!updates.size) return tips
 
-  // Rebuild from the current list so a tip added since our read isn't lost.
+  // Update individual entries atomically so concurrent new tips are never deleted.
   const current = await getTips(handle)
-  const rebuilt = current
-    .filter(t => updates.get(t.id) !== 'remove')
-    .map(t => (updates.get(t.id) === 'verify' ? { ...t, verified: true } : t))
-
-  await kv.del(key)
-  // getTips returns newest-first (lpush order); rpush in that same order preserves it.
-  // Known (tiny) race: a tip lpush'd between the del and the rpush would be lost;
-  // the window is one round-trip and reverify only runs when something changed.
-  if (rebuilt.length) await kv.rpush(key, ...rebuilt)
+  for (const t of current) {
+    const update = updates.get(t.id)
+    if (!update) continue
+    await kv.eval(
+      `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then if ARGV[2]=='remove' then redis.call('LREM',KEYS[1],1,row) else item.verified=true; if ARGV[3]~='' then item.senderAddress=ARGV[3] end; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)) end; return 1 end end; return 0`,
+      [key],
+      [t.id, update.action, update.senderAddress || ''],
+    )
+  }
+  const rebuilt = await getTips(handle)
 
   // Tips that just confirmed on-chain now count toward the lifetime total, and
   // may push the wall over a milestone the submit-time check couldn't award.
@@ -333,7 +409,7 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
   const goalTarget = (await getProfile(handle))?.goal?.targetNIM ?? 1000
   const milestones = getGoalMilestones(goalTarget)
   for (const t of current) {
-    if (updates.get(t.id) !== 'verify') continue
+    if (updates.get(t.id)?.action !== 'verify') continue
     const prevTotal = await getVerifiedTotalNim(handle)
     const newTotal = await addVerifiedNim(handle, t.amountNIM)
     const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress, milestones)
@@ -406,11 +482,12 @@ export async function getMilestones(handle: string): Promise<MilestoneEvent[]> {
 }
 
 export async function addMilestone(handle: string, event: MilestoneEvent): Promise<boolean> {
-  const existing = await getMilestones(handle)
-  if (existing.some(m => m.threshold === event.threshold)) return false
-  const updated = [...existing, event].sort((a, b) => a.threshold - b.threshold)
-  await kv.set(`${PREFIX}milestones:${handle.toLowerCase()}`, updated)
-  return true
+  const result = await kv.eval(
+    `local raw=redis.call('GET',KEYS[1]); local rows={}; if raw then rows=cjson.decode(raw) end; local incoming=cjson.decode(ARGV[1]); for _,row in ipairs(rows) do if row.threshold==incoming.threshold then return 0 end end; table.insert(rows,incoming); table.sort(rows,function(a,b) return a.threshold<b.threshold end); redis.call('SET',KEYS[1],cjson.encode(rows)); return 1`,
+    [`${PREFIX}milestones:${handle.toLowerCase()}`],
+    [JSON.stringify(event)],
+  )
+  return Number(result) === 1
 }
 
 export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
@@ -439,13 +516,18 @@ export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
     const resp = await fetch(url, {
       signal: controller.signal,
       headers: { 'User-Agent': 'Mozilla/5.0' },
+      redirect: 'manual',
     })
     clearTimeout(timeout)
 
+    if (resp.status >= 300 && resp.status < 400) return null
     if (!resp.ok) return null
 
+    const contentLength = Number(resp.headers.get('content-length') || 0)
+    if (contentLength > 512_000) return null
+
     const html = await resp.text()
-    if (!html) return null
+    if (!html || html.length > 512_000) return null
 
     const getMeta = (prop: string) => {
       const re = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']+)["']`, 'i')

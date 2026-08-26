@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import type { FunnelEvent } from '@/lib/events'
+import { TIP_REASON_LABELS, type TipReason } from '@/lib/types'
 
 type StatsResponse = {
   stats: Record<FunnelEvent, number>
@@ -11,6 +12,8 @@ type StatsResponse = {
     conversionRate: number
     recoveredSupporters: number
     lostSupporters: number
+    reasonStats: { reason: TipReason; tips: number; nim: number }[]
+    topReason: TipReason | null
   }
 }
 
@@ -93,6 +96,23 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
               <Card label="Conversion rate" value={`${d.conversionRate}%`} accent />
               <Card label="Recovered supporters" value={d.recoveredSupporters} />
               <Card label="Lost supporters" value={d.lostSupporters} />
+            </div>
+
+            <div className="rounded-2xl bg-slate-800 p-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-1">What your audience values</h2>
+              <p className="text-xs text-slate-500 mb-4">Supporters tag the work they appreciate, so every tip becomes useful feedback.</p>
+              {d.reasonStats.length === 0 ? <p className="text-sm text-slate-400">Reason data will appear as supporters leave feedback.</p> : (
+                <div className="space-y-3">
+                  {d.reasonStats.map((item, index) => {
+                    const label = TIP_REASON_LABELS[item.reason].label
+                    const max = d.reasonStats[0].tips || 1
+                    return <div key={item.reason}>
+                      <div className="flex items-center justify-between text-sm mb-1"><span className="text-slate-200">{TIP_REASON_LABELS[item.reason].emoji} {label}</span><span className="text-slate-400">{item.tips} tips · {item.nim} NIM</span></div>
+                      <div className="h-2 rounded-full bg-slate-700 overflow-hidden"><div className={`h-full rounded-full ${index === 0 ? 'bg-amber-400' : 'bg-sky-400/70'}`} style={{ width: `${(item.tips / max) * 100}%` }} /></div>
+                    </div>
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Funnel */}
