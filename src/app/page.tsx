@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle } from '@/lib/profile-auth'
 import MissionLink from '@/components/MissionLink'
@@ -25,6 +26,7 @@ export default function CreatorSetup() {
   // Live handle availability
   const [handleStatus, setHandleStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
   const checkTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const setupRef = useRef<HTMLFormElement>(null)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -114,24 +116,34 @@ export default function CreatorSetup() {
   const normalizedHandle = normalizeHandle(handle)
 
   return (
-    <div className="app-shell min-h-screen text-white flex flex-col items-center p-4 sm:p-8">
+    <div className="app-shell min-h-screen text-white flex flex-col items-center px-4 sm:px-8">
+      <header className="w-full max-w-6xl py-5 flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 font-bold"><span className="grid place-items-center h-8 w-8 rounded-lg bg-amber-400 text-slate-950">T</span>TipWall</Link>
+        <div className="flex items-center gap-4 text-sm"><Link href="/explore" className="text-slate-300 hover:text-white">Explore</Link><button onClick={() => setupRef.current?.scrollIntoView({ behavior: 'smooth' })} className="rounded-lg bg-amber-400 px-4 py-2 font-bold text-slate-950">Create a wall</button></div>
+      </header>
       {/* Hero */}
-      <div className="w-full max-w-5xl grid gap-10 lg:grid-cols-[1fr_0.9fr] items-center py-8 sm:py-14">
+      <div className="w-full max-w-6xl grid gap-12 lg:grid-cols-[0.9fr_1.1fr] items-center py-10 sm:py-20">
       <div className="text-left">
-        <p className="text-xs uppercase tracking-[0.18em] text-sky-300 font-bold mb-4">The wall of appreciation</p>
-        <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-5">
-          Your audience has<br /><span className="text-amber-300">something to say.</span>
+        <p className="inline-flex rounded-full border border-sky-400/25 bg-sky-400/10 px-3 py-1.5 text-xs uppercase tracking-[0.16em] text-sky-200 font-bold mb-5">Support that says something</p>
+        <h1 className="text-5xl sm:text-7xl leading-[1.02] font-bold tracking-tight text-white mb-6">
+          More than<br /><span className="text-amber-300">a tip jar.</span>
         </h1>
         <p className="text-slate-300 text-lg sm:text-xl max-w-xl mb-4">
-          TipWall turns direct NIM support into useful feedback. Learn what people value, keep 100%, and give your audience a place to show up.
+          Give your audience a direct way to fund your work and tell you why it matters. Every NIM goes to you. Every reason becomes insight.
         </p>
         <p className="text-amber-300 font-semibold text-sm mb-5">0% platform fee · On-chain verified · Audience insight</p>
-        <div className="flex items-center justify-center text-sm">
+        <div className="flex flex-wrap gap-3 mb-5"><button onClick={() => setupRef.current?.scrollIntoView({ behavior: 'smooth' })} className="rounded-xl bg-amber-400 px-6 py-3.5 font-bold text-slate-950 hover:bg-amber-300">Create your wall</button><Link href="/explore" className="rounded-xl border border-slate-600 px-6 py-3.5 font-semibold hover:border-slate-400">Discover creators</Link></div>
+        <div className="text-sm">
           <MissionLink labelKey="learnAboutTipWall" variant="home" />
         </div>
       </div>
 
-      <div className="surface rounded-3xl p-5 sm:p-6 shadow-2xl">
+      <div className="relative lg:pl-6">
+        <div className="absolute -inset-5 rounded-full bg-amber-400/10 blur-3xl" aria-hidden="true" />
+        <div className="relative overflow-hidden rounded-2xl border border-slate-600 bg-[#171b22] shadow-2xl"><Image src="/promo/screenshot-wall.png" alt="A creator's TipWall with direct tipping and supporter feedback" width={1200} height={800} priority className="w-full h-auto" /></div>
+        <div className="relative sm:absolute sm:-left-5 sm:bottom-6 mt-3 sm:mt-0 max-w-xs rounded-2xl border border-sky-400/30 bg-[#171b22]/95 p-4 shadow-xl backdrop-blur"><p className="text-[11px] uppercase tracking-wide text-sky-300 font-bold">Audience signal</p><p className="mt-1 text-sm text-white">Your tutorial saved me hours.</p><p className="mt-2 text-xs text-sky-200">Helpful content · 10 NIM</p></div>
+      </div>
+      <div className="hidden">
         <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
           <div><p className="font-bold text-white">Maya builds in public</p><p className="text-xs text-slate-500">@mayabuilds</p></div>
           <span className="text-xs font-bold text-emerald-300">● Live wall</span>
@@ -161,7 +173,8 @@ export default function CreatorSetup() {
       {/* Live social proof — proves the network is real before asking for a signup */}
       <EcosystemStats />
 
-      <form onSubmit={submit} className="w-full max-w-md bg-slate-800 rounded-2xl p-6 space-y-4">
+      <form ref={setupRef} onSubmit={submit} className="surface w-full max-w-md rounded-2xl p-6 space-y-4 scroll-mt-6">
+        <div><p className="text-xs uppercase tracking-wide text-sky-300 font-bold">Create your wall</p><h2 className="text-2xl font-bold mt-1">Start with your creator identity.</h2><p className="text-sm text-slate-400 mt-1">You can add the details later.</p></div>
         {/* Handle */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">

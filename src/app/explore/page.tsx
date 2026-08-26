@@ -143,7 +143,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="app-shell min-h-screen text-white px-4 py-10">
-      <div className="max-w-3xl mx-auto">
+      <div className="w-full max-w-6xl mx-auto">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
             Find creators worth supporting
@@ -159,7 +159,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <div className="mt-3">
             <MissionLink />
           </div>
-          <div className="mt-5 flex gap-2 overflow-x-auto pb-1 sm:justify-center">
+          <div className="mt-5 flex flex-wrap gap-2 justify-center pb-1">
             <Link href="/explore" className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'border-amber-400 bg-amber-400/15 text-amber-200' : 'border-slate-700 text-slate-400 hover:text-white'}`}>All creators</Link>
             {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-slate-700 text-slate-400 hover:text-white'}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
           </div>
@@ -237,7 +237,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                     More creator walls
                   </h2>
                 )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {rest.map(({ profile, totalNIM, topReason }) => (
                     <a
                       key={profile.handle}
@@ -270,7 +270,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               <section className="mt-8">
                 <h2 className="text-lg font-bold text-white">🌱 Just joined</h2>
                 <p className="text-xs text-slate-500 mb-3">Be their first supporter</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {justJoined.map(({ profile }) => (
                     <a
                       key={profile.handle}

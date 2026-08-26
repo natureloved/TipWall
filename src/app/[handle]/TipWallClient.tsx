@@ -155,7 +155,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           </div>
         )}
 
-        <div className="relative z-10 max-w-3xl mx-auto px-4 py-8 space-y-6">
+        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
           {/* Hero Section */}
           <div className="animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 text-white overflow-hidden relative">
             {/* Animated background orbs */}
