@@ -4,7 +4,7 @@ import { normalizeHandle } from '@/lib/profile-auth'
 
 // Shields-style SVG badge for READMEs, blogs, and link-in-bio pages:
 //   [ ⚡ TipWall | tip @handle · 1.2k NIM ]
-// The right side carries the live verified total — social proof that updates
+// The right side carries the live verified total - social proof that updates
 // itself wherever the badge is embedded.
 
 const FONT_WIDTH = 6.6 // approx px per char at 11px Verdana

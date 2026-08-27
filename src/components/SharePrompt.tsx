@@ -4,7 +4,7 @@ import { supporterShareText, openShare, canNativeShare, type ShareChannel } from
 
 /**
  * Post-tip supporter share prompt. A supporter announcing "I just tipped X" is
- * more credible distribution than the creator asking — so the moment right
+ * more credible distribution than the creator asking - so the moment right
  * after a successful tip gets its own gentle, dismissable prompt.
  */
 export default function SharePrompt({ handle, amountNIM, onClose }: {
@@ -54,7 +54,7 @@ export default function SharePrompt({ handle, amountNIM, onClose }: {
           <div>
             <p className="text-sm font-bold text-emerald-300">💚 Thanks for supporting @{handle}!</p>
             <p className="text-xs text-gray-300 mt-1">
-              Tell others — supporters like you are how creators get found.
+              Tell others - supporters like you are how creators get found.
             </p>
           </div>
           <button

@@ -12,7 +12,7 @@ type EcosystemStats = {
 /**
  * Live "the network is real" strip for the home page. Fetches site-wide totals
  * once on mount and counts them up. Renders nothing until real data arrives and
- * nothing at all if the ecosystem is empty — a fresh deploy should never greet a
+ * nothing at all if the ecosystem is empty - a fresh deploy should never greet a
  * first visitor with "0 walls · 0 NIM".
  */
 export default function EcosystemStats() {
@@ -27,7 +27,7 @@ export default function EcosystemStats() {
     return () => { alive = false }
   }, [])
 
-  // Nothing to brag about yet — stay quiet rather than advertise an empty wall.
+  // Nothing to brag about yet - stay quiet rather than advertise an empty wall.
   if (!stats || (stats.walls === 0 && stats.totalTips === 0)) return null
 
   const items: { value: number; label: string; prefix?: string }[] = [
@@ -43,13 +43,13 @@ export default function EcosystemStats() {
       className="w-full max-w-md mb-6 animate-slide-up"
       aria-label="TipWall network stats"
     >
-      <div className="flex items-stretch justify-center divide-x divide-slate-700/60 rounded-xl bg-slate-800/40 border border-slate-700/50 py-3">
+      <div className="ecosystem-stats-panel flex items-stretch justify-center divide-x py-3">
         {items.map((item) => (
           <div key={item.label} className="flex-1 px-3 text-center">
-            <p className="text-lg font-bold text-amber-300 tabular-nums">
+            <p className="ecosystem-stat-value text-lg font-bold tabular-nums">
               <AnimatedNumber value={item.value} />
             </p>
-            <p className="text-[11px] text-slate-400 leading-tight mt-0.5">{item.label}</p>
+            <p className="ecosystem-stat-label text-[11px] leading-tight mt-0.5">{item.label}</p>
           </div>
         ))}
       </div>

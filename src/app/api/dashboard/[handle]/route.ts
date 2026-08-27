@@ -22,7 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
   if (!profile) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   // Authorization: require a fresh, signed `view` proof from the owner wallet.
-  // The wallet address alone is public, so a header claim is not trusted — the
+  // The wallet address alone is public, so a header claim is not trusted - the
   // signature is verified and must derive to the creator's wallet.
   const proof = readAuthProof(req)
   if (!proof || proof.action !== 'view') {
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
     return NextResponse.json({ error: verdict.error || 'Invalid wallet signature' }, { status: 401 })
   }
   if (verdict.signerAddress !== normalizeAddress(profile.walletAddress)) {
-    return NextResponse.json({ error: 'Unauthorized — wallet does not match creator' }, { status: 403 })
+    return NextResponse.json({ error: 'Unauthorized - wallet does not match creator' }, { status: 403 })
   }
 
   // Re-check pending tips, then report money metrics from verified tips only.

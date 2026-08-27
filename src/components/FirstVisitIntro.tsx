@@ -34,7 +34,7 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
     if (forceOpen) { setShow(true); return }
     try {
       if (!localStorage.getItem(SEEN_KEY)) setShow(true)
-    } catch { /* storage blocked — skip intro */ }
+    } catch { /* storage blocked - skip intro */ }
   }, [forceOpen])
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -88,7 +88,7 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
           <p className="text-sm text-gray-300 mt-2">{t(k.body)}</p>
         </div>
 
-        {/* Mission — the "why" behind TipWall, front and centre */}
+        {/* Mission - the "why" behind TipWall, front and centre */}
         <div className="mb-5 rounded-xl bg-amber-400/10 border border-amber-400/25 px-4 py-3">
           <p className="text-[11px] font-bold text-amber-300 uppercase tracking-widest mb-1.5">Our mission</p>
           <p className="text-sm text-gray-200 leading-relaxed">{t(k.mission)}</p>

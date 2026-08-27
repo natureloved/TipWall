@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getGoalMilestones, TIP_REASON_LABELS, type CreatorProfile, type Tip, type MilestoneEvent, type Supporter, type TipReason } from '@/lib/types'
 import ContentPreviewCard from '@/components/ContentPreviewCard'
 import TipModal from '@/components/TipModal'
@@ -23,6 +24,7 @@ import { useTranslations } from '@/lib/i18n'
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: CreatorProfile }) {
   const profile = initialProfile
   const [tips, setTips] = useState<Tip[]>([])
+  const [tipsLoading, setTipsLoading] = useState(true)
   const [totalNIM, setTotalNIM] = useState(0)
   const [showTipModal, setShowTipModal] = useState(false)
   const [milestoneState, setMilestoneState] = useState<{ prev: number; curr: number; event?: MilestoneEvent } | null>(null)
@@ -53,6 +55,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         setUnlockedMilestones(getGoalMilestones(profile.goal?.targetNIM ?? 1000).filter(m => newTotal >= m))
       })
       .catch(() => {})
+      .finally(() => setTipsLoading(false))
   }, [handle, profile.goal?.targetNIM])
 
   useEffect(() => {
@@ -60,7 +63,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   }, [loadTips])
 
   // Weekly leaderboard rank drives the growth loop: a ranked creator sees their
-  // rank on their own wall and shares it. Fail silently — a leaderboard outage
+  // rank on their own wall and shares it. Fail silently - a leaderboard outage
   // must never affect the wall.
   useEffect(() => {
     let cancelled = false
@@ -77,7 +80,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
   // Check if connected wallet is the owner for dashboard link. Only ever true
   // inside Nimiq Pay (getNimiq() rejects on desktop); the footer link below is
-  // the desktop fallback. Compare normalized — canonical Nimiq addresses carry
+  // the desktop fallback. Compare normalized - canonical Nimiq addresses carry
   // spaces, so a raw string compare can miss the true owner.
   useEffect(() => {
     let cancelled = false
@@ -109,7 +112,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
     return () => { cancelled = true }
   }, [handle])
 
-  // True progress can exceed 100% when a creator beats their goal — keep that figure
+  // True progress can exceed 100% when a creator beats their goal - keep that figure
   // for the label so overachievement is visible. The bar itself stays capped at 100%
   // (a bar past full looks broken).
   const goalPercentTrue = Math.round((totalNIM / (profile.goal?.targetNIM ?? 1000)) * 100)
@@ -118,7 +121,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const goalMilestones = getGoalMilestones(profile.goal?.targetNIM ?? 1000)
   // An empty wall shows a single warm invitation instead of five stacked zeros.
   // The full dashboard (stats, supporters, goal, milestones, feed) unlocks with
-  // the first tip — so tip #1 visibly turns the wall on.
+  // the first tip - so tip #1 visibly turns the wall on.
   const hasTips = tips.length > 0
   // Most recent tip time for the "Last tip" stat tile. Tips arrive newest-first
   // from the API, but reduce over all of them so we don't depend on order.
@@ -130,11 +133,11 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
     <>
       <FloatingTips trigger={floatingTipTrigger} />
       <div className="tw-wall min-h-screen relative">
-        {/* Fixed, opaque wall backdrop — painted from first frame (see .tw-wall
+        {/* Fixed, opaque wall backdrop - painted from first frame (see .tw-wall
             in globals.css) so translucent cards never flash washed-out. */}
         <div className="tw-wall fixed inset-0 z-0" />
 
-        {/* Owner-only management controls — hidden from supporters so the hero
+        {/* Owner-only management controls - hidden from supporters so the hero
             stays clean and no admin surface is advertised to visitors. */}
         {isOwner && (
           <div className="fixed bottom-4 right-4 z-30 flex flex-col items-end gap-2">
@@ -156,8 +159,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         )}
 
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
+          <header className="flex items-center justify-between border-b border-slate-700 pb-4">
+            <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
+            <Link href="/explore" className="text-sm font-semibold text-slate-400">Explore creators →</Link>
+          </header>
           {/* Hero Section */}
-          <div className="animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 text-white overflow-hidden relative">
+          <div className="creator-wall-hero animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 text-white overflow-hidden relative">
             {/* Animated background orbs */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial from-amber-400/20 to-transparent rounded-full animate-float blur-3xl" />
             <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-radial from-purple-400/10 to-transparent rounded-full animate-float" style={{animationDelay: '2s', animationDirection: 'reverse'}} />
@@ -166,6 +173,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
               {/* Identity */}
               <div className="min-w-0 sm:flex-1 space-y-3">
+                <p className="creator-wall-eyebrow">Creator appreciation wall</p>
                 {weeklyRank !== null && (
                   <Link
                     href="/explore"
@@ -175,7 +183,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                   </Link>
                 )}
                 <div className="space-y-1 animate-slide-up">
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight break-words bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
+                  <h1 className="creator-wall-name text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight break-words">
                     {profile.displayName || `@${handle}`}
                   </h1>
                   {profile.displayName && (
@@ -235,9 +243,11 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             </div>
           )}
 
-          {!hasTips ? (
+          {tipsLoading ? (
+            <div className="wall-content-loading" role="status" aria-live="polite"><span className="wall-loading-spinner" /><p>Opening the appreciation wall...</p></div>
+          ) : !hasTips ? (
             /* Empty wall: one warm invitation, no wall of zeros. */
-            <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-8 text-center shadow-lg border-2 border-amber-400/20 animate-slide-up" style={{animationDelay: '0.35s'}}>
+            <div className="empty-appreciation-board rounded-2xl bg-slate-800/60 backdrop-blur p-8 text-center shadow-lg border-2 border-amber-400/20 animate-slide-up" style={{animationDelay: '0.35s'}}>
               <div className="text-5xl mb-4">🤝</div>
               <h2 className="text-xl font-bold text-white mb-2">
                 {t('beFirstToSupport', { name: profile.displayName || `@${handle}` })}
@@ -245,6 +255,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               <p className="text-sm text-slate-400 mb-6 max-w-sm mx-auto">
                 {t('zeroFees')}
               </p>
+              <div className="appreciation-prompts" aria-label="Examples of feedback reasons"><span>💡 Helpful content</span><span>📚 Tutorial</span><span>⚡ Great idea</span><span>💗 Just support</span></div>
               <button
                 onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }}
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg rounded-2xl font-bold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
@@ -259,7 +270,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               <div className="grid grid-cols-3 gap-4">
                 <StatCard value={<AnimatedNumber value={totalNIM} />} label={t('totalTipped')} index={0} />
                 <StatCard value={<AnimatedNumber value={tips.length} />} label={t('tipsSent')} index={1} />
-                <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : '—'} label={t('lastTip')} index={2} suppressHydrationWarning />
+                <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : 'No tips yet'} label={t('lastTip')} index={2} suppressHydrationWarning />
               </div>
 
               {topReason && (
@@ -354,7 +365,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         </div>
       </div>
 
-      <div className="sticky-tip-cta fixed bottom-0 inset-x-0 z-20 px-4 pt-3 bg-[#101318]/95 backdrop-blur border-t border-white/10 sm:hidden">
+      <div className="creator-sticky-tip sticky-tip-cta fixed bottom-0 inset-x-0 z-20 px-4 pt-3 backdrop-blur border-t sm:hidden">
         <button onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }} className="w-full rounded-2xl bg-amber-400 py-3.5 font-bold text-slate-900 shadow-xl">💸 Send a tip + feedback</button>
       </div>
 
@@ -385,7 +396,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             setFloatingTipTrigger(t => t + 1)
             setShowTipModal(false)
             setResume(null)
-            // Invite the supporter to announce their tip — supporters sharing
+            // Invite the supporter to announce their tip - supporters sharing
             // is the wall's most credible distribution channel.
             setSharePrompt({ amount: tip.amountNIM })
             await loadTips()

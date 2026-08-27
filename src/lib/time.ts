@@ -3,7 +3,7 @@
  * Client-only: renders from Date.now(), so callers must guard against
  * hydration mismatch (see TipFeed / the stats grid).
  *
- * Output strings are intentionally English-only for now — a half-translated
+ * Output strings are intentionally English-only for now - a half-translated
  * relative-time system is worse than a consistent English one. Localizing this
  * (Intl.RelativeTimeFormat) is a separate, larger job.
  */

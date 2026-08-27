@@ -1,0 +1,5 @@
+import Image from 'next/image'
+
+export default function CreatorWallLoading() {
+  return <main className="creator-wall-loading min-h-screen"><div className="mx-auto w-full max-w-5xl px-4 py-8"><header className="flex items-center justify-between border-b border-black/20 pb-4"><span className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</span><span className="h-4 w-28 rounded-full bg-black/10" /></header><section className="creator-loading-hero mt-6"><div className="space-y-3"><div className="h-12 w-56 rounded-lg bg-black/10" /><div className="h-4 w-28 rounded bg-black/10" /><div className="h-5 w-80 max-w-full rounded bg-black/10" /></div><div className="h-16 w-56 rounded-2xl bg-[#f05a3c]/30" /></section><section className="creator-loading-board mt-6" aria-label="Loading creator wall"><div className="creator-loading-note note-one" /><div className="creator-loading-note note-two" /><div className="creator-loading-note note-three" /><p>Opening the wall...</p></section></div></main>
+}

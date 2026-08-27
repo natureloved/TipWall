@@ -1,7 +1,7 @@
 'use client'
 // Share helpers used everywhere a wall can travel: the post-creation Share Kit,
 // the post-tip supporter prompt, and milestone celebrations. Sharing is the
-// app's only distribution channel — creators' own audiences — so every share
+// app's only distribution channel - creators' own audiences - so every share
 // surface funnels through here (consistent copy + WALL_SHARED tracking).
 
 import { track } from './analytics'
@@ -11,7 +11,7 @@ export type ShareChannel = 'x' | 'telegram' | 'whatsapp' | 'native' | 'copy'
 
 /** Pre-written post for a creator announcing their own wall. */
 export function creatorShareText(): string {
-  return `I just set up my TipWall — if my work has ever helped you, you can now tip me directly in NIM. No platform, no fees, straight to my wallet ⚡`
+  return `I just set up my TipWall - if my work has ever helped you, you can now tip me directly in NIM. No platform, no fees, straight to my wallet ⚡`
 }
 
 /** Post for a supporter who just tipped. */

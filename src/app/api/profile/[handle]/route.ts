@@ -17,7 +17,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
 /**
  * Edit an existing profile. Requires a fresh `update` signature from the wallet
  * that originally created the profile (verified against the stored owner).
- * Only mutable presentation fields can be changed — handle and wallet/owner are
+ * Only mutable presentation fields can be changed - handle and wallet/owner are
  * immutable so the signature binding can never be transferred.
  */
 export async function PUT(request: Request, { params }: { params: Promise<{ handle: string }> }) {
@@ -106,7 +106,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
 
 /**
  * Permanently delete a wall and every record it owns. Requires a fresh,
- * single-use `delete` signature from the owner wallet — the same binding as
+ * single-use `delete` signature from the owner wallet - the same binding as
  * edit, but for an irreversible action. The handle is tombstoned so it can
  * never be re-registered by someone else (link-hijack / impersonation guard).
  */

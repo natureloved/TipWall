@@ -12,7 +12,7 @@ const VALID_REASONS: TipReason[] = ['helpful_content', 'open_source', 'tutorial'
  */
 export async function POST(req: NextRequest) {
   try {
-    // Each claim is a 30-day KV record — rate-limit per IP so this can't be
+    // Each claim is a 30-day KV record - rate-limit per IP so this can't be
     // used to balloon storage.
     const forwarded = req.headers.get('x-forwarded-for')
     const ip = (forwarded ? forwarded.split(',')[0].trim() : '') || 'unknown'

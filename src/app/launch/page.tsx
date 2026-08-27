@@ -3,9 +3,9 @@ import Link from 'next/link'
 /* eslint-disable react/no-unescaped-entities */
 
 export const metadata = {
-  title: 'Tip the creator, not the platform — TipWall',
+  title: 'Tip the creator, not the platform - TipWall',
   description:
-    'TipWall turns your audience’s goodwill into NIM tips — on-chain, one tap, and 100% yours. No platform cut. No accounts. Ever.',
+    'TipWall turns your audience’s goodwill into NIM tips - on-chain, one tap, and 100% yours. No platform cut. No accounts. Ever.',
   openGraph: {
     title: 'Tip the creator, not the platform',
     description:
@@ -24,7 +24,7 @@ export const metadata = {
 
 export default function LaunchPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white px-4 py-10">
+    <div className="editorial-page">
       <div className="max-w-3xl mx-auto">
         {/* Hero */}
         <div className="text-center">
@@ -38,7 +38,7 @@ export default function LaunchPage() {
           </h1>
           <p className="text-lg sm:text-xl text-slate-300 max-w-2xl mx-auto mb-7">
             <strong className="text-white">TipWall</strong> turns your audience's goodwill into NIM
-            tips — on-chain, one tap, and 100% yours. No platform cut. No accounts. Ever.
+            tips - on-chain, one tap, and 100% yours. No platform cut. No accounts. Ever.
           </p>
           <Link
             href="/"
@@ -84,7 +84,7 @@ export default function LaunchPage() {
         {/* Solution */}
         <section className="mt-10">
           <h2 className="text-3xl font-bold text-white mb-4">
-            TipWall is your wall — and only yours.
+            TipWall is your wall - and only yours.
           </h2>
           <p className="text-lg text-slate-300 mb-6">
             A shareable page where supporters tip you NIM directly. You keep every cent.
@@ -93,11 +93,11 @@ export default function LaunchPage() {
             {[
               {
                 title: 'One tap to tip.',
-                desc: 'Inside Nimiq Pay, supporting you takes a single tap — no sign-up, no account, no friction for the people who want to pay you.',
+                desc: 'Inside Nimiq Pay, supporting you takes a single tap - no sign-up, no account, no friction for the people who want to pay you.',
               },
               {
                 title: 'Verified on-chain.',
-                desc: 'Every tip is checked against the Nimiq blockchain. Not "trust me" — proof.',
+                desc: 'Every tip is checked against the Nimiq blockchain. Not "trust me" - proof.',
               },
               {
                 title: 'You keep 100%.',
@@ -105,7 +105,7 @@ export default function LaunchPage() {
               },
               {
                 title: 'Yours to own, yours to leave.',
-                desc: 'Ownership is a wallet signature — no passwords, no login. Want out? Delete your wall and your handle is locked forever, so no one can impersonate you.',
+                desc: 'Ownership is a wallet signature - no passwords, no login. Want out? Delete your wall and your handle is locked forever, so no one can impersonate you.',
               },
             ].map((benefit) => (
               <li
@@ -127,7 +127,7 @@ export default function LaunchPage() {
             </h3>
             <p className="text-slate-300">
               Covered. Anyone without it gets a claim link and QR code that saves their tip intent,
-              so no supporter hits a dead end. It's non-custodial the whole way through — nobody
+              so no supporter hits a dead end. It's non-custodial the whole way through - nobody
               ever holds your funds, not even for a second.
             </p>
           </div>
@@ -148,7 +148,7 @@ export default function LaunchPage() {
               },
               {
                 title: 'Get tipped.',
-                desc: 'Supporters tip NIM in one tap. You watch it land — live supporters wall, milestone celebrations, and a leaderboard, all built in.',
+                desc: 'Supporters tip NIM in one tap. You watch it land - live supporters wall, milestone celebrations, and a leaderboard, all built in.',
               },
             ].map((step, i) => (
               <div key={step.title} className="flex gap-4 items-start">

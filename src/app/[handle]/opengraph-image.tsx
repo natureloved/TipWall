@@ -30,7 +30,7 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
       }
     }
   } catch {
-    // KV unavailable — render the generic card.
+    // KV unavailable - render the generic card.
   }
 
   try {
@@ -93,7 +93,7 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
       size,
     )
   } catch {
-    // A share card must never 500 — scrapers (X, Telegram, Discord) would cache
+    // A share card must never 500 - scrapers (X, Telegram, Discord) would cache
     // a broken unfurl. If Satori throws for any reason, fall back to a plain
     // text-only card that cannot fail (single-child divs, no dynamic layout).
     return new ImageResponse(

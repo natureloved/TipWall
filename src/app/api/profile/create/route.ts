@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     if (handleError) {
       return NextResponse.json({ error: handleError }, { status: 400 })
     }
-    // A deleted wall's handle stays burned — otherwise anyone could re-register
+    // A deleted wall's handle stays burned - otherwise anyone could re-register
     // it and impersonate the previous owner to their existing audience.
     if (await isHandleTombstoned(handleStr)) {
       return NextResponse.json({ error: 'This handle belonged to a deleted wall and cannot be reused' }, { status: 409 })

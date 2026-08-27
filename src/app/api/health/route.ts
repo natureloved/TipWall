@@ -3,7 +3,7 @@ import { kv } from '@vercel/kv'
 
 /**
  * Liveness check. Intentionally terse: no env values, URLs, or error internals
- * are exposed — this endpoint is public.
+ * are exposed - this endpoint is public.
  */
 export async function GET() {
   try {

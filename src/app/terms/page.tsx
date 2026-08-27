@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Terms of Service — TipWall',
+  title: 'Terms of Service - TipWall',
   description:
     'The terms for using TipWall, a non-custodial creator tipping wall on Nimiq. Tip the creator, not the platform.',
 }
@@ -13,8 +13,8 @@ const LAST_UPDATED = 'August 6, 2026'
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white px-4 py-10">
-      <div className="max-w-3xl mx-auto">
+    <div className="editorial-page">
+      <div className="editorial-card">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
           Terms of Service
         </h1>
@@ -47,8 +47,8 @@ export default function TermsPage() {
                 phrase secure. TipWall cannot recover them and never has access to them.
               </li>
               <li>
-                You are responsible for the content you publish on your wall — your handle, display
-                name, bio, and links — and for making sure it&apos;s lawful and doesn&apos;t
+                You are responsible for the content you publish on your wall - your handle, display
+                name, bio, and links - and for making sure it&apos;s lawful and doesn&apos;t
                 infringe anyone&apos;s rights.
               </li>
               <li>
@@ -87,8 +87,7 @@ export default function TermsPage() {
             <h2 className="text-xl font-bold text-white mb-3">No warranty</h2>
             <p>
               TipWall is provided &quot;as is,&quot; without warranties of any kind. It depends on
-              external systems — the Nimiq network, the Nimiq Pay app, and hosting infrastructure —
-              that we don&apos;t control. We don&apos;t guarantee the service will always be
+              external systems - the Nimiq network, the Nimiq Pay app, and hosting infrastructure - that we don&apos;t control. We don&apos;t guarantee the service will always be
               available, uninterrupted, or error-free.
             </p>
           </section>

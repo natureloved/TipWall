@@ -1,7 +1,7 @@
 // Shared (client + server) helpers for the "scan to pay" flow.
 //
 // A tip can complete two ways:
-//   1. Inside Nimiq Pay (mini-app SDK) — the original path, direct txHash.
+//   1. Inside Nimiq Pay (mini-app SDK) - the original path, direct txHash.
 //   2. By scanning a `nimiq:` payment-request QR with the Nimiq Pay app from any
 //      device. The payment happens OUTSIDE this app, so we get no txHash back.
 //      To attribute it, we embed a short nonce in the on-chain message and poll
@@ -21,7 +21,7 @@ const NONCE_PREFIX = '#'
 
 /** Generate a short, URL/message-safe attribution nonce (base36). */
 export function generatePayNonce(): string {
-  // 6 base36 chars ≈ 2 billion combos — ample within one creator+amount window.
+  // 6 base36 chars ≈ 2 billion combos - ample within one creator+amount window.
   const rand = Math.floor(Math.random() * 36 ** 6)
   return rand.toString(36).padStart(6, '0')
 }

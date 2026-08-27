@@ -6,7 +6,7 @@ function truncate(addr: string) {
 
 export default function DashboardSupporters({ supporters }: { supporters: Supporter[] }) {
   if (!supporters.length) return (
-    <p className="text-sm text-gray-400">No supporters yet — share your wall to get your first tip.</p>
+    <p className="text-sm text-gray-400">No supporters yet - share your wall to get your first tip.</p>
   )
 
   return (

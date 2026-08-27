@@ -8,7 +8,7 @@ import { messageHasNonce } from '@/lib/pay-request'
  * shown, for the expected amount. Used by the scan-to-pay flow.
  *
  * Matching strategy (resilient): recipient + amount + freshness are REQUIRED.
- * The attribution nonce is only a preferred tiebreaker — Nimiq Pay's scanner
+ * The attribution nonce is only a preferred tiebreaker - Nimiq Pay's scanner
  * may or may not carry the message field into on-chain extra_data, so we must
  * not depend on it, or detection would never succeed.
  *
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 
   const txs: Record<string, unknown>[] = []
 
-  // 1. Nimiq RPC — getTransactionsByAddress
+  // 1. Nimiq RPC - getTransactionsByAddress
   if (rpcUrl) {
     try {
       const resp = await fetch(rpcUrl, {

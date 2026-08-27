@@ -9,7 +9,7 @@ export default function AnimatedNumber({
   prefix?: string
 }) {
   const [display, setDisplay] = useState(value)
-  // Where the last animation left off — the start point of the next one.
+  // Where the last animation left off - the start point of the next one.
   // A ref (not `display` in deps) so the effect only re-runs on target change.
   const startRef = useRef(value)
 

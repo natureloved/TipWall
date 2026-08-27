@@ -3,7 +3,7 @@ import { getOgMetadata, getProfile, checkRateLimit } from '@/lib/kv'
 import { normalizeHandle } from '@/lib/profile-auth'
 
 /**
- * Fetch OG metadata for a creator's content link. Scoped by handle — the server
+ * Fetch OG metadata for a creator's content link. Scoped by handle - the server
  * only ever fetches the URL stored on that profile, so this endpoint can't be
  * used as an open fetch proxy or to bloat the KV cache with arbitrary URLs.
  */

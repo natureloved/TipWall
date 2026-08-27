@@ -5,7 +5,7 @@ import { normalizeAddress, normalizeHandle, type ProfileAuthProof } from '@/lib/
 import { verifyProfileAuth } from '@/lib/verify-signature'
 
 /**
- * Return a creator's funnel analytics — gated by an owner `view` signature so
+ * Return a creator's funnel analytics - gated by an owner `view` signature so
  * only the wallet that owns the profile can read its conversion data.
  *
  * POST body: { auth: ProfileAuthProof (action 'view') }

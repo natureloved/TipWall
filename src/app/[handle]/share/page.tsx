@@ -4,7 +4,7 @@ import ShareKit from '@/components/ShareKit'
 
 /**
  * The creator's Share Kit. Landed on right after profile creation (?new=1),
- * and linkable any time from the wall and dashboard. Public on purpose — it
+ * and linkable any time from the wall and dashboard. Public on purpose - it
  * contains nothing private, and supporters sharing a creator's wall is a win.
  */
 export default async function SharePage({ params, searchParams }: {
@@ -26,7 +26,7 @@ export default async function SharePage({ params, searchParams }: {
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
   return {
-    title: `TipWall — Share @${handle}`,
+    title: `TipWall - Share @${handle}`,
     description: `Share kit for @${handle}'s TipWall: link, QR code, badge, and embeds.`,
     robots: { index: false },
   }

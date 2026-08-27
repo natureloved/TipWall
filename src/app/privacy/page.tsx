@@ -1,7 +1,7 @@
 import Link from 'next/link'
 
 export const metadata = {
-  title: 'Privacy Policy — TipWall',
+  title: 'Privacy Policy - TipWall',
   description:
     'How TipWall handles data. Non-custodial, no accounts, no PII analytics. Tip the creator, not the platform.',
 }
@@ -14,8 +14,8 @@ const LAST_UPDATED = 'August 6, 2026'
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white px-4 py-10">
-      <div className="max-w-3xl mx-auto">
+    <div className="editorial-page">
+      <div className="editorial-card">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
           Privacy Policy
         </h1>
@@ -44,14 +44,14 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-xl font-bold text-white mb-3">What a creator profile stores</h2>
             <p>
-              When you create a wall, we store the profile information you choose to publish — your
-              handle, display name, bio, links, and goal settings — along with your public Nimiq
+              When you create a wall, we store the profile information you choose to publish - your
+              handle, display name, bio, links, and goal settings - along with your public Nimiq
               wallet address, which is used to receive tips and to verify ownership. This
               information is public by design: a tipping wall only works if people can see it.
             </p>
             <p className="mt-3">
               Creating, editing, or deleting a wall requires a fresh cryptographic signature from
-              your wallet. We do not store private keys, seed phrases, or passwords — we never see
+              your wallet. We do not store private keys, seed phrases, or passwords - we never see
               them.
             </p>
           </section>

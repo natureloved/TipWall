@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { kv } from '@vercel/kv'
 import {
   getActiveHandles,
@@ -14,7 +15,7 @@ import { timeAgo } from '@/lib/time'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'TipWall — Most tipped creators this week',
+  title: 'TipWall - Most tipped creators this week',
   description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
   openGraph: {
     title: 'Most tipped creators this week',
@@ -34,7 +35,7 @@ const MAX_WALLS = 24
 const PROFILE_PREFIX = 'tipwall:profile:'
 
 /**
- * New walls are surfaced for their first 48h even with no tips — a creator who
+ * New walls are surfaced for their first 48h even with no tips - a creator who
  * just signed up must be able to find themselves. After that, a wall needs at
  * least one verified tip to stay listed, so abandoned/test walls fall off.
  */
@@ -65,7 +66,7 @@ async function loadWalls(): Promise<ExploreWall[]> {
       const legacy = allHandles.filter(h => !seen.has(h))
       handles = [...handles, ...legacy.slice(0, MAX_WALLS - handles.length)]
     } catch {
-      // Best effort — if KV keys() fails, just use the active set.
+      // Best effort - if KV keys() fails, just use the active set.
     }
   }
 
@@ -90,7 +91,7 @@ async function loadWalls(): Promise<ExploreWall[]> {
       const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
       const reasons = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: tips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
       const topReason = reasons[0]?.count ? reasons[0].reason : null
-      // Most recent verified tip overall — powers the "last tipped Xm ago" line.
+      // Most recent verified tip overall - powers the "last tipped Xm ago" line.
       const lastTipAt = tips.reduce<number | null>(
         (latest, t) => (t.verified && (latest === null || t.timestamp > latest) ? t.timestamp : latest),
         null,
@@ -107,11 +108,11 @@ async function loadWalls(): Promise<ExploreWall[]> {
 }
 
 const RANK_BADGE = [
-  // 1st — gold, with a subtle glow
+  // 1st - gold, with a subtle glow
   'bg-[#F6B221] text-slate-900 shadow-lg shadow-amber-400/20',
-  // 2nd — silver/slate
+  // 2nd - silver/slate
   'bg-slate-300 text-slate-900',
-  // 3rd — bronze
+  // 3rd - bronze
   'bg-[#CD7F32] text-amber-50',
 ]
 
@@ -124,7 +125,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const trending = walls.filter(w => w.recentNIM > 0).slice(0, 3)
   const trendingHandles = new Set(trending.map(w => w.profile.handle))
 
-  // "Just joined" — new walls with no verified tips yet. They can't rank, so
+  // "Just joined" - new walls with no verified tips yet. They can't rank, so
   // give them their own call-to-action section instead of burying them.
   // Newest first, capped to keep the front door from being flooded.
   const justJoined = walls
@@ -144,13 +145,18 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   return (
     <div className="app-shell min-h-screen text-white px-4 py-10">
       <div className="w-full max-w-6xl mx-auto">
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
-            Find creators worth supporting
+        <header className="flex items-center justify-between mb-10 border-b border-slate-700 pb-4">
+          <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
+          <Link href="/?create=1" className="rounded-full border border-slate-700 bg-white/5 px-4 py-2 text-sm font-bold">Create a wall</Link>
+        </header>
+        <div className="text-center mb-8">
+          <p className="landing-section-kicker mb-3">Creator discovery</p>
+          <h1 className="font-serif text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900">
+            Find creators worth <span className="text-amber-300 italic">supporting.</span>
           </h1>
-          <p className="max-w-xl mx-auto mt-2 text-sm text-slate-400">Browse by the kind of work people value, not just the amount raised.</p>
+          <p className="max-w-xl mx-auto mt-3 text-sm text-slate-400">Browse by the kind of work people value, not just the amount raised.</p>
           {wallCount > 0 && (
-            <p className="text-sm text-slate-400 mt-2">
+            <p className="inline-flex mt-4 rounded-full border border-slate-700 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-400">
               {wallCount.toLocaleString()} creator {wallCount === 1 ? 'wall' : 'walls'}
               {' · '}
               {Math.round(weekNIM).toLocaleString()} NIM tipped this week
@@ -160,19 +166,19 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             <MissionLink />
           </div>
           <div className="mt-5 flex flex-wrap gap-2 justify-center pb-1">
-            <Link href="/explore" className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'border-amber-400 bg-amber-400/15 text-amber-200' : 'border-slate-700 text-slate-400 hover:text-white'}`}>All creators</Link>
-            {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-slate-700 text-slate-400 hover:text-white'}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
+            <Link href="/explore" className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'border-amber-400 bg-amber-400/15 text-amber-200' : 'border-slate-700 bg-white/5 text-slate-400 hover:text-white'}`}>All creators</Link>
+            {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-slate-700 bg-white/5 text-slate-400 hover:text-white'}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
           </div>
         </div>
 
         {walls.length === 0 ? (
           <div className="text-center rounded-2xl bg-slate-800 p-10">
             <p className="text-4xl mb-3">🌱</p>
-            <p className="text-slate-300 font-semibold">No walls yet — yours could be the first.</p>
+            <p className="text-slate-300 font-semibold">No walls yet - yours could be the first.</p>
           </div>
         ) : (
           <>
-            {/* Leaderboard — only when at least one wall has recent activity.
+            {/* Leaderboard - only when at least one wall has recent activity.
                 Until tips start landing, this is empty and the flat grid below
                 carries the page. */}
             {trending.length > 0 && (
@@ -297,7 +303,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
         <div className="text-center mt-10">
           <Link
-            href="/"
+            href="/?create=1"
             className="inline-block px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 font-bold text-sm transition-all"
           >
             Create your own TipWall

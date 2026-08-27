@@ -3,24 +3,24 @@ import { NimiqProvider } from "@/components/NimiqProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  // Resolve every icon/og URL to an absolute one — naive metadata scrapers
+  // Resolve every icon/og URL to an absolute one - naive metadata scrapers
   // (in-app browsers, link unfurlers) don't always resolve relative paths.
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://tipwall.vercel.app"),
-  title: "TipWall — Creator Tipping Wall",
+  title: "TipWall - Creator Tipping Wall",
   description: "A living community tipping wall for creators on Nimiq",
   manifest: "/manifest.json",
   // Site-wide social/app-browser preview image (creator walls override this
   // with their own dynamic OG card). A full 1200×630 banner so link unfurls
   // render as a large card, not a small icon tile.
   openGraph: {
-    title: "TipWall — Creator Tipping Wall",
+    title: "TipWall - Creator Tipping Wall",
     description: "A living community tipping wall for creators on Nimiq",
     siteName: "TipWall",
     images: [{ url: "/banner.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "TipWall — Creator Tipping Wall",
+    title: "TipWall - Creator Tipping Wall",
     description: "A living community tipping wall for creators on Nimiq",
     images: ["/banner.png"],
   },
@@ -41,9 +41,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // Pinch-zoom stays enabled (WCAG 1.4.4) — never lock maximumScale/userScalable.
-  // Single dark theme by design (matches Nimiq Pay's in-app look).
-  themeColor: "#0f172a",
+  // Pinch-zoom stays enabled (WCAG 1.4.4) - never lock maximumScale/userScalable.
+  themeColor: "#f4f0e6",
 };
 
 export default function RootLayout({

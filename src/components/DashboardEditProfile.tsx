@@ -24,7 +24,7 @@ export default function DashboardEditProfile({ profile, walletAddress }: Props) 
     setError(null)
     try {
       // Signature-bound edit: prove wallet ownership for this change, same as
-      // the public edit page. The server verifies the signature — the wallet
+      // the public edit page. The server verifies the signature - the wallet
       // address alone is not sufficient authorization.
       const auth = await signProfileAuth({ action: 'update', handle: profile.handle, walletAddress })
       const res = await fetch(`/api/profile/${profile.handle}`, {

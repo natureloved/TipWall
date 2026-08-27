@@ -25,7 +25,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   welcome?: boolean
   /** When this tip fulfils a claim intent, its token (marks the claim claimed). */
   claimToken?: string
-  /** Creator goal — when set, shows a compact progress bar so supporters see the
+  /** Creator goal - when set, shows a compact progress bar so supporters see the
       impact of their tip. Omitted when the creator hasn't set a goal. */
   goal?: { label: string; targetNIM: number }
   /** Verified lifetime total, used with `goal` to draw the progress bar. */
@@ -57,7 +57,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
 
   const finalAmount = Number(amount)
 
-  // Compact goal progress for the modal — only meaningful when the creator set a
+  // Compact goal progress for the modal - only meaningful when the creator set a
   // goal. Mirrors the wall's logic: true % can exceed 100 (label), bar caps at 100.
   const showGoal = !!goal && goal.targetNIM > 0 && typeof totalNIM === 'number'
   const goalPercentTrue = showGoal ? Math.round((totalNIM! / goal!.targetNIM) * 100) : 0
@@ -156,22 +156,22 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end z-50 backdrop-blur-sm animate-slide-up" onClick={onClose}>
+    <div className="tip-modal-overlay fixed inset-0 bg-black/50 flex items-end z-50 backdrop-blur-sm animate-slide-up" onClick={onClose}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Tip @${creatorHandle}`}
         tabIndex={-1}
-        className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl p-6 w-full max-h-[85vh] overflow-y-auto shadow-2xl shadow-amber-400/10 border-t-2 border-amber-400/30 animate-slide-up focus:outline-none"
+        className="tip-modal-sheet relative rounded-t-3xl p-6 w-full max-h-[88vh] overflow-y-auto shadow-2xl border-2 animate-slide-up focus:outline-none"
         onClick={e => e.stopPropagation()}
       >
-        {/* Soft gold glow behind the sheet — depth without leaving the dark theme. */}
+        {/* Soft gold glow behind the sheet - depth without leaving the dark theme. */}
         <div aria-hidden className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-48 bg-gradient-radial from-amber-400/20 to-transparent blur-3xl" />
         <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-6" />
 
         <div className="mb-6">
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent mb-1">
+          <h3 className="tip-modal-title text-2xl font-bold mb-1">
             Tip @{creatorHandle}
           </h3>
           <p className="text-sm text-gray-300">
@@ -185,9 +185,9 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </div>
         )}
 
-        {/* Goal context — shows supporters where their tip lands. Only when a goal exists. */}
+        {/* Goal context - shows supporters where their tip lands. Only when a goal exists. */}
         {showGoal && (
-          <div className="mb-6 rounded-2xl bg-slate-800/60 border border-amber-400/15 px-4 py-3">
+          <div className="tip-goal-panel mb-6 rounded-2xl border px-4 py-3">
             <div className="flex items-center justify-between gap-3 mb-2">
               <span className="text-xs font-semibold text-slate-300 truncate">{goal!.label || t('goalProgress')}</span>
               <span className="text-xs font-bold text-amber-300 shrink-0">{goalPercentTrue}%</span>
@@ -212,13 +212,13 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </div>
         )}
 
-        {/* Amount is the decision — it leads. Everything below is garnish. */}
+        {/* Amount is the decision - it leads. Everything below is garnish. */}
         <div>
           <p className="text-xs font-bold text-amber-300 uppercase tracking-widest mb-3">{t('tipAmount')}</p>
 
-          {/* Prominent, editable amount field — the focal point of the modal.
+          {/* Prominent, editable amount field - the focal point of the modal.
               Prefilled with a default; presets below fill it; users can type any value. */}
-          <div className="mb-4 rounded-2xl bg-amber-400/10 border-2 border-amber-400/40 focus-within:border-amber-400 px-4 py-3 flex items-center gap-3 transition-colors">
+          <div className="tip-amount-panel mb-4 rounded-2xl border-2 focus-within:border-amber-400 px-4 py-3 flex items-center gap-3 transition-colors">
             <input
               type="number"
               inputMode="numeric"
@@ -227,20 +227,20 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
               value={amount}
               onChange={e => setAmount(e.target.value)}
               aria-label={t('tipAmount')}
-              className="flex-1 min-w-0 bg-transparent text-3xl font-bold text-white placeholder-gray-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="tip-modal-amount flex-1 min-w-0 bg-transparent text-3xl font-bold placeholder-gray-500 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-lg font-semibold text-amber-300 shrink-0">NIM</span>
           </div>
 
-          <div className="grid grid-cols-4 gap-2 mb-4">
+          <div className="tip-amount-grid grid grid-cols-4 gap-2 mb-5">
             {PRESET_AMOUNTS.map(amt => (
               <button
                 key={amt}
                 onClick={() => setAmount(String(amt))}
                 className={`py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border-2 hover:-translate-y-0.5 ${
                   Number(amount) === amt
-                    ? 'border-amber-400 bg-gradient-to-br from-amber-400 to-amber-500 text-slate-900 shadow-lg shadow-amber-400/30 hover:shadow-xl'
-                    : 'border-amber-400/20 bg-slate-800/50 text-amber-300 hover:border-amber-400/50 hover:bg-slate-800'
+                    ? 'tip-amount-selected border-amber-400 text-slate-900 shadow-lg hover:shadow-xl'
+                    : 'tip-amount-option border-amber-400/20 hover:border-amber-400/50'
                 }`}
               >
                 {amt}
@@ -257,10 +257,10 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           maxLength={64}
           placeholder={t('sendMessage')}
           rows={2}
-          className="w-full border-2 border-amber-400/20 hover:border-amber-400/40 rounded-xl p-3 text-sm mb-4 bg-slate-800/50 text-white placeholder-gray-400 focus:outline-none focus:border-amber-400/60 transition-colors resize-none"
+          className="tip-modal-message w-full border-2 border-amber-400/20 hover:border-amber-400/40 rounded-xl p-3 text-sm mb-4 placeholder-gray-400 focus:outline-none focus:border-amber-400/60 transition-colors resize-none"
         />
 
-        <label className="flex items-center gap-3 text-sm text-gray-300 mb-4 cursor-pointer hover:text-gray-200 transition-colors">
+        <label className="tip-anonymous-row flex items-center gap-3 text-sm text-gray-300 mb-4 cursor-pointer hover:text-gray-200 transition-colors">
           <input
             type="checkbox"
             checked={anonymous}
@@ -276,10 +276,10 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </div>
         )}
 
-        {/* Sticky action bar — Send is always reachable without scrolling.
+        {/* Sticky action bar - Send is always reachable without scrolling.
             The negative margins let the scrim span the modal's full width and
             sit flush with its rounded bottom; padding restores inner spacing. */}
-        <div className="sticky bottom-0 -mx-6 -mb-6 px-6 pt-4 pb-6 bg-gradient-to-t from-slate-900 via-slate-900/95 to-transparent">
+        <div className="tip-modal-footer sticky bottom-0 -mx-6 -mb-6 px-6 pt-4 pb-6">
           <button
             onClick={handleSendTip}
             disabled={loading || !finalAmount}
@@ -289,7 +289,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
               ? t('waiting')
               : nimiqAvailable === false
                 ? `⚡ Continue in Nimiq Pay`
-                : `💰 ${finalAmount || '?'} NIM — ${t('confirmTip')}`}
+                : `💰 ${finalAmount || '?'} NIM - ${t('confirmTip')}`}
           </button>
           <p className="text-center text-[11px] text-slate-400 mt-2.5">
             ⚡ {t('tipGoesDirectly')}

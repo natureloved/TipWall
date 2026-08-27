@@ -3,8 +3,8 @@ import { DashboardData } from '@/lib/types'
 
 /**
  * Turns the dashboard from a report into a prompt: when the wall is silent,
- * tell the creator the one thing that changes it — putting the link where
- * their audience is — and hand them the Share Kit.
+ * tell the creator the one thing that changes it - putting the link where
+ * their audience is - and hand them the Share Kit.
  *
  * Nudge tiers:
  *  - no tips ever      → strongest push (the wall is invisible)
@@ -21,7 +21,7 @@ export default function DashboardShareNudge({ data }: { data: DashboardData }) {
       <div className="bg-[#1F2348] rounded-xl p-4 text-white">
         <p className="text-sm font-semibold text-[#F6B221]">Your wall hasn&apos;t been discovered yet</p>
         <p className="text-xs text-[#AFA9EC] mt-1">
-          Walls don&apos;t get found on their own — they earn where your audience already is.
+          Walls don&apos;t get found on their own - they earn where your audience already is.
           Grab your link, QR code, and README badge and put them out there.
         </p>
         <a
@@ -37,7 +37,7 @@ export default function DashboardShareNudge({ data }: { data: DashboardData }) {
   if (tipsThisWeek === 0) {
     return (
       <div className="bg-[#FAEEDA] rounded-xl p-4">
-        <p className="text-sm font-semibold text-[#633806]">Quiet week — no tips in the last 7 days</p>
+        <p className="text-sm font-semibold text-[#633806]">Quiet week - no tips in the last 7 days</p>
         <p className="text-xs text-[#8a5a1a] mt-1">
           A reshare, a new video description, or a README badge usually wakes a wall up.
         </p>
@@ -56,7 +56,7 @@ export default function DashboardShareNudge({ data }: { data: DashboardData }) {
       href={shareHref}
       className="block bg-gray-50 hover:bg-gray-100 rounded-xl p-3 text-xs text-gray-500 transition-colors"
     >
-      📣 Share Kit — link, QR poster, README badge, embeds →
+      📣 Share Kit - link, QR poster, README badge, embeds →
     </a>
   )
 }

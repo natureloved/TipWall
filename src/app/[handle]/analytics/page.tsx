@@ -11,5 +11,5 @@ export default async function AnalyticsPage({ params }: { params: Promise<{ hand
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
-  return { title: `Analytics — @${handle} — TipWall`, robots: { index: false } }
+  return { title: `Analytics - @${handle} - TipWall`, robots: { index: false } }
 }

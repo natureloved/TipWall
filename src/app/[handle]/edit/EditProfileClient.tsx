@@ -96,7 +96,7 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
     setDeleting(true)
     try {
       // Deletion is irreversible, so it gets its own explicit `delete`
-      // signature — a stale create/update/view proof can never be repurposed.
+      // signature - a stale create/update/view proof can never be repurposed.
       const auth = await signProfileAuth({ action: 'delete', handle, walletAddress: wallet })
       const res = await fetch(`/api/profile/${handle}`, {
         method: 'DELETE',

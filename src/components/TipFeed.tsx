@@ -6,7 +6,7 @@ import { timeAgo } from '@/lib/time'
 export default function TipFeed({ tips }: { tips: Tip[] }) {
   const t = useTranslations()
   return (
-    <div className="surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay: '0.4s'}} suppressHydrationWarning>
+    <div className="tip-note-board surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay: '0.4s'}} suppressHydrationWarning>
       <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-1">Wall of appreciation</h2>
       <p className="text-xs text-slate-500 mb-4">Messages and reasons from the people your work helped.</p>
       {!tips.length && (
@@ -15,7 +15,7 @@ export default function TipFeed({ tips }: { tips: Tip[] }) {
           <p className="text-sm font-semibold mt-2">{t('noTipsYet')}</p>
         </div>
       )}
-      <div className="space-y-3 divide-y divide-white/10">
+      <div className="tip-note-grid">
         {tips.map((tip) => {
           const reason = tip.reason ? TIP_REASON_LABELS[tip.reason as TipReason] : null
           const reasonLabel = tip.reason ? t(`reason_${tip.reason}`) : ''
@@ -23,7 +23,7 @@ export default function TipFeed({ tips }: { tips: Tip[] }) {
             ? `${tip.senderAddress.slice(0, 6)}…${tip.senderAddress.slice(-4)}`
             : ''
           return (
-            <div key={tip.id} className="py-3 first:pt-0 last:pb-0 hover:bg-white/5 transition-colors duration-200 px-2 rounded-lg">
+            <article key={tip.id} className="tip-note-card">
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold text-white truncate font-mono" title={tip.anonymous ? undefined : tip.senderAddress}>
@@ -52,7 +52,7 @@ export default function TipFeed({ tips }: { tips: Tip[] }) {
                   </div>
                 </div>
               </div>
-            </div>
+            </article>
           )
         })}
       </div>

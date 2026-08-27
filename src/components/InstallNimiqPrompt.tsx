@@ -17,7 +17,7 @@ type Tab = 'install' | 'pay'
  * Onboarding screen shown when a visitor opens a TipWall outside Nimiq Pay.
  * - "Scan to Pay" tab: shows a `nimiq:` payment-request QR the user scans with
  *   the Nimiq Pay app's built-in scanner. Polls /api/tips/detect for the tx,
- *   then submits it via /api/tips/submit — no mini-app context needed.
+ *   then submits it via /api/tips/submit - no mini-app context needed.
  * - "Get Nimiq Pay" tab: original install/deep-link flow.
  */
 export default function InstallNimiqPrompt({
@@ -95,12 +95,12 @@ export default function InstallNimiqPrompt({
         })
         if (!sub.ok) {
           const err = await sub.json()
-          // 409 = already recorded (e.g. duplicate poll hit) — treat as success
+          // 409 = already recorded (e.g. duplicate poll hit) - treat as success
           if (sub.status !== 409) { setPayStatus('error'); setPayError(err.error || 'Failed to record tip'); return }
         }
         setPayStatus('done')
         onTipSuccess?.({ senderAddress: data.senderAddress || '', amountNIM: amountNIM!, txHash: data.txHash })
-      } catch { /* network blip — retry next tick */ }
+      } catch { /* network blip - retry next tick */ }
     }, 5000)
 
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
@@ -158,7 +158,7 @@ export default function InstallNimiqPrompt({
           )}
         </div>
 
-        {/* Tabs — only show when both flows are available */}
+        {/* Tabs - only show when both flows are available */}
         {canPay && (
           <div className="flex rounded-xl overflow-hidden border border-amber-400/20 mb-5">
             {(['pay', 'install'] as Tab[]).map(t => (
@@ -220,7 +220,7 @@ export default function InstallNimiqPrompt({
                 {payStatus === 'submitting' && (
                   <div className="flex items-center justify-center gap-2 text-xs text-emerald-300 mb-4">
                     <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Payment detected — recording…
+                    Payment detected - recording…
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
@@ -290,7 +290,7 @@ export default function InstallNimiqPrompt({
                 ) : (
                   <button type="button" onClick={createPledge} disabled={pledging}
                     className="w-full py-2.5 rounded-xl border border-slate-600 text-slate-200 text-sm font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60">
-                    {pledging ? 'Reserving…' : 'Support Later — get a claim link'}
+                    {pledging ? 'Reserving…' : 'Support Later - get a claim link'}
                   </button>
                 )}
               </div>

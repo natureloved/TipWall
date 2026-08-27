@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 
 // Stable banner asset for listings and submissions (mini-app directories,
-// competition forms, social cards): https://<host>/banner.png — 1200x630 PNG
+// competition forms, social cards): https://<host>/banner.png - 1200x630 PNG
 // composed from the real logo so it never drifts from the icon set.
 
 export const dynamic = 'force-static'

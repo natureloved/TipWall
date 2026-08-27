@@ -102,8 +102,8 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
 
 function Centered({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 flex items-center justify-center p-6">
-      <div className="text-center max-w-md">{children}</div>
+    <div className="editorial-page flex items-center justify-center">
+      <div className="editorial-card text-center max-w-md">{children}</div>
     </div>
   )
 }

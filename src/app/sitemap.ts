@@ -31,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       })
     }
   } catch {
-    // KV unavailable — fall back to just the homepage.
+    // KV unavailable - fall back to just the homepage.
   }
   return entries
 }

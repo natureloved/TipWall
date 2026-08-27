@@ -13,7 +13,7 @@ function avatarIndex(address: string, mod: number): number {
   return hash % mod
 }
 
-// Podium medals for the three biggest supporters — makes the ranking legible at
+// Podium medals for the three biggest supporters - makes the ranking legible at
 // a glance, not just implied by list order. Index 0/1/2 → gold/silver/bronze.
 const RANK_MEDALS = ['🥇', '🥈', '🥉']
 

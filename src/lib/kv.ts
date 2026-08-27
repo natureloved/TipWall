@@ -14,13 +14,13 @@ const OG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 
 /**
  * Distributed fixed-window rate limit backed by KV, so the limit holds across
- * serverless instances (an in-process Map does not — each cold start resets it).
+ * serverless instances (an in-process Map does not - each cold start resets it).
  * Returns true if the request is within `limit` for the current window.
  */
 export async function checkRateLimit(id: string, limit: number, windowMs: number): Promise<boolean> {
   const key = `${PREFIX}ratelimit:${id}`
   // Create the window atomically with its TTL (SET NX PX), so a failure between
-  // INCR and EXPIRE can never leave a counter that lives — and blocks — forever.
+  // INCR and EXPIRE can never leave a counter that lives - and blocks - forever.
   const created = await kv.set(key, 1, { nx: true, px: windowMs })
   if (created === 'OK') return 1 <= limit
   const count = await kv.incr(key)
@@ -53,7 +53,7 @@ function isPrivateHost(hostname: string): boolean {
 /**
  * Atomically consume a one-time authorization nonce (the signature itself).
  * Returns true if this signature has never been seen before (and reserves it
- * for `ttlMs`), or false if it was already used — i.e. a replay attempt.
+ * for `ttlMs`), or false if it was already used - i.e. a replay attempt.
  * Relies on Redis SET NX PX so the check-and-set is a single atomic op.
  */
 export async function consumeAuthNonce(signature: string, ttlMs: number): Promise<boolean> {
@@ -87,7 +87,7 @@ export async function markClaimClaimed(token: string, txHash?: string): Promise<
 /**
  * Record a funnel event. Stores an all-time total plus a per-day count for time
  * series. When `dedupKey` (an anonymous client id) is provided the event is
- * counted at most once per key per day — used for view-type events so bots /
+ * counted at most once per key per day - used for view-type events so bots /
  * refreshes don't inflate the funnel.
  */
 export async function trackEvent(handle: string, event: FunnelEvent, dedupKey?: string): Promise<void> {
@@ -187,7 +187,7 @@ const LUNA_PER_NIM = 100000
 
 /**
  * Atomically record a txHash for a creator. Returns true the first time a hash
- * is seen and false on any repeat — lifetime replay protection that, unlike the
+ * is seen and false on any repeat - lifetime replay protection that, unlike the
  * tip list, never forgets old hashes.
  */
 export async function markTxSeen(handle: string, txHash: string): Promise<boolean> {
@@ -255,7 +255,7 @@ export async function getActiveHandles(limit = 24): Promise<string[]> {
 // Site-wide totals for the home page's "the network is real" strip. Reads the
 // persistent lifetime counters (vtotal / txseen), never the 200-trimmed tip
 // list, so figures stay correct for high-volume walls. Best effort: any read
-// failure yields zeros rather than throwing — this only powers a marketing strip.
+// failure yields zeros rather than throwing - this only powers a marketing strip.
 
 export type EcosystemStats = {
   walls: number
@@ -357,7 +357,7 @@ export async function deleteProfileData(profile: CreatorProfile): Promise<void> 
     const statKeys = await kv.keys(`${PREFIX}stats:${h}:*`)
     if (statKeys.length) await kv.del(...statKeys)
   } catch {
-    // Best effort — orphaned counters carry no PII and reference nothing.
+    // Best effort - orphaned counters carry no PII and reference nothing.
   }
 }
 
@@ -418,7 +418,7 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
   return rebuilt
 }
 
-/** Sum of NIM from verified tips only — unverified/pending tips don't count so a
+/** Sum of NIM from verified tips only - unverified/pending tips don't count so a
  *  fabricated txHash can't inflate headline totals until it confirms on-chain. */
 export function verifiedTotal(tips: Tip[]): number {
   return tips.reduce((sum, t) => sum + (t.verified ? t.amountNIM : 0), 0)
@@ -433,7 +433,7 @@ export const LEADERBOARD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
  * Computed from the tip list rather than a stored counter: the list is the only
  * place tip timestamps live, and it is exact for any wall under the 200-entry
  * ltrim cap. A wall past that cap could under-report inside the window, which is
- * acceptable — this drives a "recent activity" ranking, not an audited total.
+ * acceptable - this drives a "recent activity" ranking, not an audited total.
  * Lifetime figures must still come from getVerifiedTotalNim().
  */
 export async function getRecentVerifiedNim(
@@ -453,7 +453,7 @@ export async function getSupporters(handle: string): Promise<Supporter[]> {
   // Derive supporters from verified, NON-anonymous tips only: pending/forged
   // tips don't appear until they confirm, and an anonymous tipper's address
   // must never surface on the supporters wall or the top-supporter card.
-  // (Derived from the most recent 200 tips — a "recent supporters" view.)
+  // (Derived from the most recent 200 tips - a "recent supporters" view.)
   const tips = (await getTips(handle)).filter(t => t.verified && !t.anonymous)
   const supportersMap = new Map<string, Supporter>()
 

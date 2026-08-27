@@ -5,8 +5,7 @@ import { useTranslations } from '@/lib/i18n'
 
 /**
  * A standalone link that opens the mission overlay on demand. Used on pages
- * without a tipping context (e.g. /explore, home), so it's purely educational —
- * no onStart handler, the overlay just explains and dismisses.
+ * without a tipping context (e.g. /explore, home), so it's purely educational - * no onStart handler, the overlay just explains and dismisses.
  *
  * `labelKey` picks the button text and `variant` picks the overlay copy, so the
  * home hero can read "Learn about TipWall" with a balanced write-up while

@@ -57,7 +57,7 @@ export function wallUrl(handle: string): string {
 /**
  * Env-only wall URL: always derived from `NEXT_PUBLIC_APP_URL`, never from
  * `window`. Use this for the initial render of components that resolve the real
- * origin after mount — it renders identically on the server and during
+ * origin after mount - it renders identically on the server and during
  * hydration, avoiding a text mismatch. The trailing-slash strip keeps
  * `NEXT_PUBLIC_APP_URL=https://tipwall.vercel.app/` from producing `//handle`.
  */
