@@ -44,29 +44,29 @@ export default function SharePrompt({ handle, amountNIM, onClose }: {
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-4 pointer-events-none">
+    <div className="fixed inset-x-0 bottom-0 z-50 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-4 sm:pb-4 pointer-events-none">
       <div
         role="dialog"
         aria-label="Share your support"
-        className="pointer-events-auto mx-auto max-w-md rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-2 border-emerald-400/30 p-5 shadow-2xl animate-slide-up"
+        className="pointer-events-auto mx-auto w-full max-w-md animate-slide-up rounded-2xl border-2 border-[#3f6f4d] bg-[#fffaf0] p-4 text-[#171614] shadow-[0_18px_48px_rgba(23,22,20,0.24)] sm:p-5"
       >
         <div className="flex items-start justify-between gap-3 mb-3">
           <div>
-            <p className="text-sm font-bold text-emerald-300">💚 Thanks for supporting @{handle}!</p>
-            <p className="text-xs text-gray-300 mt-1">
-              Tell others - supporters like you are how creators get found.
+            <p className="text-sm font-bold text-[#315c3b]">💚 Thanks for supporting @{handle}!</p>
+            <p className="mt-1 text-xs text-[#5f574b]">
+              Tell others. Supporters like you are how creators get found.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Dismiss"
-            className="shrink-0 text-slate-400 hover:text-white text-lg leading-none transition-colors"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-lg leading-none text-[#746b5e] transition-colors hover:bg-[#e7f0e7] hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315c3b]"
           >
             ×
           </button>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-center gap-2">
           <PromptBtn label="Post on X" onClick={() => share('x')} />
           <PromptBtn label="Telegram" onClick={() => share('telegram')} />
           <PromptBtn label="WhatsApp" onClick={() => share('whatsapp')} />
@@ -83,7 +83,7 @@ function PromptBtn({ label, onClick }: { label: string; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="px-3.5 py-2 rounded-lg border border-emerald-400/30 bg-slate-900 text-emerald-300 text-xs font-semibold hover:border-emerald-400/60 hover:bg-slate-900/60 transition-colors"
+      className="rounded-lg border border-[#3f6f4d]/55 bg-[#e7f0e7] px-3.5 py-2 text-xs font-semibold text-[#315c3b] transition-colors hover:border-[#315c3b] hover:bg-[#d5e7d8] hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315c3b] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]"
     >
       {label}
     </button>

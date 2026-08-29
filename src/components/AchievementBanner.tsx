@@ -4,11 +4,11 @@ interface Props { achievement: string }
 
 export default function AchievementBanner({ achievement }: Props) {
   return (
-    <div className="flex items-center gap-2 bg-gradient-to-r from-[#1F2348] to-[#2D3270] rounded-xl px-4 py-3 mb-4">
-      <span className="text-lg">🎯</span>
+    <div className="mb-4 flex items-center gap-3 rounded-xl border border-[#171614]/25 bg-[#fff1b8] px-4 py-3 text-[#171614] shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
+      <span className="text-lg" aria-hidden="true">🎯</span>
       <div>
-        <p className="text-[10px] text-[#AFA9EC] uppercase tracking-wide mb-0.5">Currently working on</p>
-        <p className="text-sm text-white font-medium">{achievement}</p>
+        <p className="mb-0.5 text-[10px] font-bold uppercase tracking-wide text-[#746b5e]">Currently working on</p>
+        <p className="text-sm font-semibold text-[#171614]">{achievement}</p>
       </div>
     </div>
   )

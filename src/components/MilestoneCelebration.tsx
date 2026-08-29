@@ -33,7 +33,7 @@ export default function MilestoneCelebration({ previousTotal, newTotal, mileston
         particleCount: 120,
         spread: 70,
         origin: { y: 0.6 },
-        colors: ['#F6B221', '#EF9F27', '#1F2348', '#ffffff'],
+        colors: ['#F6B221', '#F05A3C', '#3F6F4D', '#FFFDF7'],
       })
     }).catch(() => {})
 
@@ -57,19 +57,19 @@ export default function MilestoneCelebration({ previousTotal, newTotal, mileston
 
   return (
     <div className="fixed inset-x-4 top-4 z-50 animate-in slide-in-from-top-2" role="status">
-      <div className="bg-[#1F2348] text-white rounded-2xl p-4 shadow-2xl">
+      <div className="mx-auto max-w-md rounded-2xl border border-[#171614] bg-[#171614] p-4 text-[#fffdf7] shadow-[5px_5px_0_#f05a3c]">
         <p className="text-2xl mb-1">🎉</p>
         <p className="font-medium text-[#F6B221]">
           {milestone.toLocaleString()} NIM Milestone Unlocked!
         </p>
-        <p className="text-sm text-[#AFA9EC] mt-1">
+        <p className="mt-1 text-sm text-[#e9e2d2]">
           The creator just crossed {milestone.toLocaleString()} NIM in tips!
         </p>
         {handle && (
           <button
             type="button"
             onClick={shareMilestone}
-            className="mt-3 px-4 py-2 rounded-lg bg-[#F6B221] hover:bg-amber-300 text-[#1F2348] text-xs font-bold transition-colors"
+            className="mt-3 rounded-lg border border-[#fffdf7] bg-[#F6B221] px-4 py-2 text-xs font-bold text-[#171614] transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-[#ffd05f] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#fffdf7]"
           >
             Share this milestone
           </button>

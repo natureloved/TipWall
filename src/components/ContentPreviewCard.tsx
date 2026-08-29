@@ -62,7 +62,7 @@ export default function ContentPreviewCard({ url, handle }: { url: string; handl
         </div>
       )}
       <div className="p-5">
-        <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-2">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#b9382a]">
           {meta.siteName || (() => {
             try {
               return new URL(url).hostname.replace('www.', '')

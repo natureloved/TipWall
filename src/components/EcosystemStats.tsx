@@ -1,34 +1,27 @@
 'use client'
 import { useEffect, useState } from 'react'
 import AnimatedNumber from './AnimatedNumber'
-
-type EcosystemStats = {
-  walls: number
-  tippedCreators: number
-  totalNIM: number
-  totalTips: number
-}
+import {
+  VERIFIED_ECOSYSTEM_STATS,
+  withVerifiedEcosystemMinimum,
+  type PublicEcosystemStats,
+} from '@/lib/public-snapshot'
 
 /**
- * Live "the network is real" strip for the home page. Fetches site-wide totals
- * once on mount and counts them up. Renders nothing until real data arrives and
- * nothing at all if the ecosystem is empty - a fresh deploy should never greet a
- * first visitor with "0 walls · 0 NIM".
+ * Live "the network is real" strip for the home page. It starts from the last
+ * verified cumulative snapshot, then counts up if the live endpoint is newer.
  */
 export default function EcosystemStats() {
-  const [stats, setStats] = useState<EcosystemStats | null>(null)
+  const [stats, setStats] = useState<PublicEcosystemStats>(VERIFIED_ECOSYSTEM_STATS)
 
   useEffect(() => {
     let alive = true
     fetch('/api/stats/ecosystem')
       .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (alive && d) setStats(d) })
+      .then(d => { if (alive && d) setStats(withVerifiedEcosystemMinimum(d)) })
       .catch(() => { /* social proof is non-critical */ })
     return () => { alive = false }
   }, [])
-
-  // Nothing to brag about yet - stay quiet rather than advertise an empty wall.
-  if (!stats || (stats.walls === 0 && stats.totalTips === 0)) return null
 
   const items: { value: number; label: string; prefix?: string }[] = [
     { value: stats.walls, label: stats.walls === 1 ? 'wall' : 'walls' },
@@ -40,7 +33,7 @@ export default function EcosystemStats() {
 
   return (
     <div
-      className="w-full max-w-md mb-6 animate-slide-up"
+      className="mx-auto mb-10 w-full max-w-3xl animate-slide-up px-4"
       aria-label="TipWall network stats"
     >
       <div className="ecosystem-stats-panel flex items-stretch justify-center divide-x py-3">

@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
     return NextResponse.json({ error: verdict.error || 'Invalid wallet signature' }, { status: 401 })
   }
   if (verdict.signerAddress !== normalizeAddress(profile.walletAddress)) {
-    return NextResponse.json({ error: 'Unauthorized - wallet does not match creator' }, { status: 403 })
+    return NextResponse.json({ error: 'Unauthorized. Wallet does not match creator' }, { status: 403 })
   }
 
   // Re-check pending tips, then report money metrics from verified tips only.

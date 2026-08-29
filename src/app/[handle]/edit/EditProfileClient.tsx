@@ -6,6 +6,9 @@ import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { detectNimiqPay, buildNimiqPayDeepLink, wallUrl, isMobileDevice } from '@/lib/environment'
 
+const fieldClass = 'w-full rounded-lg border border-[#92897b] bg-[#fffdf7] px-4 py-3 text-[#171614] placeholder:text-[#746b5e] transition-colors hover:border-[#746b5e] focus:border-[#f05a3c] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/20 disabled:cursor-not-allowed'
+const labelClass = 'mb-1 block text-xs font-semibold text-[#5f574b]'
+
 export default function EditProfileClient({ handle, profile }: { handle: string; profile: CreatorProfile }) {
   const [wallet, setWallet] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -114,29 +117,29 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white flex items-center justify-center p-4">
-      <form onSubmit={submit} className="w-full max-w-md bg-slate-800 rounded-2xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Edit @{handle}</h1>
-          <a href={`/${handle}`} className="text-xs text-slate-400 hover:text-white underline">View wall</a>
+    <div className="flex min-h-screen items-start justify-center bg-[#f4f0e6] p-4 py-6 text-[#171614] sm:items-center sm:py-10">
+      <form onSubmit={submit} className="w-full max-w-md space-y-4 rounded-2xl border-2 border-[#171614] bg-[#fffaf0] p-4 shadow-[5px_5px_0_#171614] sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h1 className="text-2xl font-bold text-[#171614]">Edit @{handle}</h1>
+          <a href={`/${handle}`} className="rounded text-xs font-semibold text-[#b9382a] underline underline-offset-4 transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">View wall</a>
         </div>
 
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Owner wallet</label>
+          <label className={labelClass}>Owner wallet</label>
           {wallet ? (
-            <div className={`flex items-center justify-between gap-2 rounded-lg px-4 py-3 ${isOwner ? 'bg-slate-900' : 'bg-red-950/50 border border-red-500/40'}`}>
-              <span className={`font-mono text-sm truncate ${isOwner ? 'text-emerald-400' : 'text-red-300'}`} title={wallet}>{wallet}</span>
+            <div className={`flex items-center justify-between gap-2 rounded-lg border px-4 py-3 ${isOwner ? 'border-[#9ab6a2] bg-[#edf5ee]' : 'border-[#d36b61] bg-[#fff0ed]'}`}>
+              <span className={`truncate font-mono text-sm font-semibold ${isOwner ? 'text-[#315c3e]' : 'text-[#8f2923]'}`} title={wallet}>{wallet}</span>
               <span className="text-lg shrink-0">{isOwner ? '✓' : '✗'}</span>
             </div>
           ) : inNimiqPay === false ? (
-            <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 space-y-3">
-              <p className="text-sm text-amber-200">
+            <div className="space-y-3 rounded-xl border border-[#ef9b88] bg-[#fff0eb] p-4">
+              <p className="text-sm leading-relaxed text-[#5f342d]">
                 Editing needs your wallet signature, so it has to happen inside Nimiq Pay.
               </p>
               {isMobileDevice() ? (
                 <a
                   href={editDeepLink}
-                  className="block w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 py-3 text-center font-bold text-slate-900"
+                  className="block min-h-12 w-full rounded-xl bg-[#171614] px-4 py-3 text-center font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all hover:-translate-y-0.5 hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff0eb]"
                 >
                   Open in Nimiq Pay
                 </a>
@@ -144,9 +147,9 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
                 <div className="space-y-2 text-center">
                   {handoffQr && (
                     // eslint-disable-next-line @next/next/no-img-element -- data: URL QR code; nothing to optimize
-                    <img src={handoffQr} alt="Scan to open this editor in Nimiq Pay" className="mx-auto rounded-lg" width={220} height={220} />
+                    <img src={handoffQr} alt="Scan to open this editor in Nimiq Pay" className="mx-auto max-w-full rounded-lg border border-[#cfc2af] bg-white p-2" width={220} height={220} />
                   )}
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-[#5f574b]">
                     Scan with your phone to open this editor in Nimiq Pay.
                   </p>
                 </div>
@@ -157,53 +160,53 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
               type="button"
               onClick={handleConnect}
               disabled={connecting || inNimiqPay === null}
-              className="w-full bg-slate-900 hover:bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-60"
+              className="min-h-12 w-full rounded-lg border border-[#171614] bg-[#171614] px-4 py-3 text-sm font-semibold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {inNimiqPay === null ? 'Checking wallet…' : connecting ? 'Connecting…' : 'Connect Owner Wallet'}
             </button>
           )}
         </div>
 
-        <fieldset disabled={!isOwner} className="space-y-4 disabled:opacity-50">
+        <fieldset disabled={!isOwner} className="space-y-4 disabled:opacity-60">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Display Name</label>
-            <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your Name" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+            <label className={labelClass}>Display Name</label>
+            <input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your Name" className={fieldClass} />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Bio</label>
-            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+            <label className={labelClass}>Bio</label>
+            <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} className={fieldClass} />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Content URL</label>
-            <input value={contentUrl} onChange={e => setContentUrl(e.target.value)} placeholder="https://x.com/yourthread" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm" />
+            <label className={labelClass}>Content URL</label>
+            <input value={contentUrl} onChange={e => setContentUrl(e.target.value)} placeholder="https://x.com/yourthread" className={`${fieldClass} text-sm`} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Goal (NIM)</label>
-              <input type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+              <label className={labelClass}>Goal (NIM)</label>
+              <input type="number" value={goalTarget} onChange={e => setGoalTarget(e.target.value)} className={fieldClass} />
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Goal Label</label>
-              <input value={goalLabel} onChange={e => setGoalLabel(e.target.value)} placeholder="Next article" className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white" />
+              <label className={labelClass}>Goal Label</label>
+              <input value={goalLabel} onChange={e => setGoalLabel(e.target.value)} placeholder="Next article" className={fieldClass} />
             </div>
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">What are you currently working on?</label>
-            <input value={achievement} onChange={e => setAchievement(e.target.value)} maxLength={80} className="w-full bg-slate-900 rounded-lg px-4 py-3 text-white text-sm" />
+            <label className={labelClass}>What are you currently working on?</label>
+            <input value={achievement} onChange={e => setAchievement(e.target.value)} maxLength={80} className={`${fieldClass} text-sm`} />
           </div>
         </fieldset>
 
-        {error && <div className="text-red-400 text-sm">{error}</div>}
-        {saved && <div className="text-emerald-400 text-sm">Saved! Redirecting…</div>}
-        <button type="submit" disabled={submitting || !isOwner} className="w-full bg-yellow-400 hover:bg-yellow-300 disabled:opacity-50 text-slate-900 font-bold py-3 rounded-full">
+        {error && <div className="rounded-xl border border-[#d36b61] bg-[#fff0ed] p-3 text-sm font-medium text-[#8f2923]" role="alert">{error}</div>}
+        {saved && <div className="rounded-xl border border-[#9ab6a2] bg-[#edf5ee] p-3 text-sm font-medium text-[#315c3e]" role="status">Saved! Redirecting…</div>}
+        <button type="submit" disabled={submitting || !isOwner} className="min-h-12 w-full rounded-xl bg-[#171614] py-3 font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all hover:-translate-y-0.5 hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#171614]">
           {submitting ? 'Sign in wallet…' : 'Save Changes'}
         </button>
 
         {/* Danger zone: permanent wall deletion (owner wallet only) */}
         {isOwner && (
-          <div className="mt-2 rounded-xl border border-red-500/40 bg-red-950/30 p-4 space-y-3">
-            <p className="text-sm font-bold text-red-300">Danger zone</p>
-            <p className="text-xs text-red-200/80">
+          <div className="mt-2 space-y-3 rounded-xl border border-[#c9463c] bg-[#fff0ed] p-4">
+            <p className="text-sm font-bold text-[#8f2923]">Danger zone</p>
+            <p className="text-xs leading-relaxed text-[#6f2824]">
               Deleting your wall permanently removes your profile, tip history, milestones, and
               analytics. The handle <strong>@{handle}</strong> can never be registered again
               (by you or anyone else). This cannot be undone.
@@ -212,14 +215,14 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
               value={deleteConfirm}
               onChange={e => setDeleteConfirm(e.target.value)}
               placeholder={`Type "${handle}" to confirm`}
-              className="w-full bg-slate-900 border border-red-500/30 rounded-lg px-4 py-3 text-white text-sm"
+              className="w-full rounded-lg border border-[#c9463c] bg-[#fffdf7] px-4 py-3 text-sm text-[#171614] placeholder:text-[#746b5e] focus:border-[#8f2923] focus:outline-none focus:ring-2 focus:ring-[#c9463c]/20"
               autoComplete="off"
             />
             <button
               type="button"
               onClick={handleDelete}
               disabled={deleteConfirm !== handle || deleting}
-              className="w-full py-3 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm transition-colors"
+              className="min-h-12 w-full rounded-xl bg-[#8f2923] py-3 text-sm font-bold text-[#fffdf7] transition-colors hover:bg-[#6f1f1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8f2923] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fff0ed] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {deleting ? 'Sign in wallet…' : 'Delete this wall forever'}
             </button>

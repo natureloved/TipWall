@@ -30,7 +30,7 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
 
   return (
     <div className="surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay: '0.4s'}}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <p className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{t('supporters')} ({supporters.length})</p>
       </div>
 
@@ -81,9 +81,9 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
       {supporters[0] && (
         <div className="rounded-xl p-4 flex items-start gap-3 bg-amber-400/10 border border-amber-400/25 transition-all cursor-pointer">
           <span className="text-3xl animate-bounce-custom">🏆</span>
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-bold text-amber-200 uppercase tracking-wide">{t('topSupporter')}</p>
-            <p className="text-sm font-semibold text-white mt-1">
+            <p className="text-sm font-semibold text-white mt-1 truncate">
               {supporters[0].address.slice(0, 6)}…{supporters[0].address.slice(-4)}
             </p>
             <p className="text-xs text-amber-200/70 mt-0.5">

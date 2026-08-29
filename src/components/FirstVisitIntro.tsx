@@ -27,6 +27,13 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
 
   useFocusTrap(dialogRef, show)
 
+  useEffect(() => {
+    if (!show) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [show])
+
   /* eslint-disable react-hooks/set-state-in-effect */
   // setState-in-effect is intentional: we must read localStorage after mount
   // to avoid a server/client hydration mismatch (server always renders false).
@@ -68,36 +75,36 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
   const points = [t(k.p1), t(k.p2), t(k.p3)]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={dismiss}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={dismiss}>
       <div
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={t(k.title)}
         tabIndex={-1}
-        className="w-full sm:max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl border-t-2 sm:border-2 border-amber-400/20 animate-slide-up focus:outline-none"
+        className="w-full max-h-[96dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t-2 border-[#f05a3c] bg-[#fffaf0] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-[#171614] shadow-[0_-10px_40px_rgba(23,22,20,0.22)] animate-slide-up focus:outline-none sm:max-w-md sm:rounded-2xl sm:border-2 sm:p-6 sm:pb-6 sm:shadow-[7px_7px_0_#171614]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-6 sm:hidden" />
+        <div className="mx-auto mb-6 h-1 w-12 rounded-full bg-[#f05a3c] sm:hidden" />
 
         <div className="text-center mb-5">
           <div className="text-4xl mb-2">⚡</div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-bold text-[#b9382a]">
             {t(k.title)}
           </h2>
-          <p className="text-sm text-gray-300 mt-2">{t(k.body)}</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#5f574b]">{t(k.body)}</p>
         </div>
 
         {/* Mission - the "why" behind TipWall, front and centre */}
-        <div className="mb-5 rounded-xl bg-amber-400/10 border border-amber-400/25 px-4 py-3">
-          <p className="text-[11px] font-bold text-amber-300 uppercase tracking-widest mb-1.5">Our mission</p>
-          <p className="text-sm text-gray-200 leading-relaxed">{t(k.mission)}</p>
+        <div className="mb-5 rounded-xl border border-[#ef9b88] bg-[#fff0eb] px-4 py-3">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-widest text-[#b9382a]">Our mission</p>
+          <p className="text-sm leading-relaxed text-[#171614]">{t(k.mission)}</p>
         </div>
 
         <ul className="space-y-2 mb-6">
           {points.map((p) => (
-            <li key={p} className="flex items-center gap-2 text-sm text-gray-200">
-              <span className="text-emerald-400">✓</span>
+            <li key={p} className="flex items-start gap-2 text-sm leading-relaxed text-[#171614]">
+              <span className="mt-0.5 shrink-0 font-bold text-[#3f6f4d]">✓</span>
               {p}
             </li>
           ))}
@@ -107,13 +114,13 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
           <div className="space-y-2">
             <button
               onClick={startTipping}
-              className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
+              className="min-h-12 w-full rounded-xl bg-[#171614] px-4 py-3.5 font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] hover:shadow-[4px_4px_0_#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]"
             >
               💸 {t('sendTip')}
             </button>
             <button
               onClick={dismiss}
-              className="w-full py-2.5 text-sm font-semibold text-gray-300 hover:text-white transition-colors"
+              className="min-h-11 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-[#5f574b] transition-colors hover:bg-[#f4f0e6] hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]"
             >
               {t('introGotIt')}
             </button>
@@ -121,7 +128,7 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
         ) : (
           <button
             onClick={dismiss}
-            className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300"
+            className="min-h-12 w-full rounded-xl bg-[#171614] px-4 py-3.5 font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] hover:shadow-[4px_4px_0_#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]"
           >
             {t('introGotIt')}
           </button>

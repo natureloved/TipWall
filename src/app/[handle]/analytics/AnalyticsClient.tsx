@@ -66,26 +66,26 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
   const maxVal = funnel.reduce((m, f) => Math.max(m, f.value), 0) || 1
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 text-white p-4 sm:p-8">
+    <div className="min-h-screen bg-[#f4f0e6] p-4 text-[#171614] sm:p-8">
       <div className="max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">@{handle} Analytics</h1>
-          <a href={`/${handle}`} className="text-xs text-slate-400 hover:text-white underline">View wall</a>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+          <h1 className="text-2xl font-bold text-[#171614]">@{handle} Analytics</h1>
+          <a href={`/${handle}`} className="rounded text-xs font-semibold text-[#b9382a] underline underline-offset-4 transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">View wall</a>
         </div>
 
         {!data && (
-          <div className="rounded-2xl bg-slate-800 p-6 text-center">
-            <p className="text-sm text-slate-300 mb-4">
+          <div className="rounded-2xl border-2 border-[#171614] bg-[#fffaf0] p-6 text-center shadow-[5px_5px_0_#171614]">
+            <p className="mb-4 text-sm leading-relaxed text-[#5f574b]">
               Connect your owner wallet and sign to view your private conversion analytics.
             </p>
             <button
               onClick={loadAnalytics}
               disabled={loading}
-              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold text-sm disabled:opacity-60"
+              className="min-h-11 rounded-xl bg-[#171614] px-5 py-2.5 text-sm font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all hover:-translate-y-0.5 hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-[#171614]"
             >
               {loading ? 'Sign in wallet…' : 'Unlock analytics'}
             </button>
-            {error && <p className="text-red-400 text-sm mt-4">{error}</p>}
+            {error && <p className="mt-4 rounded-xl border border-[#d36b61] bg-[#fff0ed] p-3 text-sm font-medium text-[#8f2923]" role="alert">{error}</p>}
           </div>
         )}
 
@@ -98,17 +98,17 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
               <Card label="Lost supporters" value={d.lostSupporters} />
             </div>
 
-            <div className="rounded-2xl bg-slate-800 p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-1">What your audience values</h2>
-              <p className="text-xs text-slate-500 mb-4">Supporters tag the work they appreciate, so every tip becomes useful feedback.</p>
-              {d.reasonStats.length === 0 ? <p className="text-sm text-slate-400">Reason data will appear as supporters leave feedback.</p> : (
+            <div className="rounded-2xl border border-[#cfc2af] bg-[#fffaf0] p-5 shadow-[4px_4px_0_rgba(23,22,20,0.16)] sm:p-6">
+              <h2 className="mb-1 text-sm font-semibold uppercase tracking-wide text-[#b9382a]">What your audience values</h2>
+              <p className="mb-4 text-xs leading-relaxed text-[#5f574b]">Supporters tag the work they appreciate, so every tip becomes useful feedback.</p>
+              {d.reasonStats.length === 0 ? <p className="text-sm text-[#746b5e]">Reason data will appear as supporters leave feedback.</p> : (
                 <div className="space-y-3">
                   {d.reasonStats.map((item, index) => {
                     const label = TIP_REASON_LABELS[item.reason].label
                     const max = d.reasonStats[0].tips || 1
                     return <div key={item.reason}>
-                      <div className="flex items-center justify-between text-sm mb-1"><span className="text-slate-200">{TIP_REASON_LABELS[item.reason].emoji} {label}</span><span className="text-slate-400">{item.tips} tips · {item.nim} NIM</span></div>
-                      <div className="h-2 rounded-full bg-slate-700 overflow-hidden"><div className={`h-full rounded-full ${index === 0 ? 'bg-amber-400' : 'bg-sky-400/70'}`} style={{ width: `${(item.tips / max) * 100}%` }} /></div>
+                      <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"><span className="font-medium text-[#171614]">{TIP_REASON_LABELS[item.reason].emoji} {label}</span><span className="text-[#5f574b]">{item.tips} tips, {item.nim} NIM</span></div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[#e0d6c7]"><div className={`h-full rounded-full ${index === 0 ? 'bg-[#f05a3c]' : 'bg-[#5c99a9]'}`} style={{ width: `${(item.tips / max) * 100}%` }} /></div>
                     </div>
                   })}
                 </div>
@@ -116,17 +116,17 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
             </div>
 
             {/* Funnel */}
-            <div className="rounded-2xl bg-slate-800 p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-4">Conversion funnel</h2>
+            <div className="rounded-2xl border border-[#cfc2af] bg-[#fffaf0] p-5 shadow-[4px_4px_0_rgba(23,22,20,0.16)] sm:p-6">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#b9382a]">Conversion funnel</h2>
               <div className="space-y-3">
                 {funnel.map((f) => (
                   <div key={f.label}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="text-slate-300">{f.label}</span>
-                      <span className="font-semibold">{f.value}</span>
+                      <span className="text-[#5f574b]">{f.label}</span>
+                      <span className="font-semibold text-[#171614]">{f.value}</span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-700 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full" style={{ width: `${(f.value / maxVal) * 100}%` }} />
+                    <div className="h-2 overflow-hidden rounded-full bg-[#e0d6c7]">
+                      <div className="h-full rounded-full bg-[#f05a3c]" style={{ width: `${(f.value / maxVal) * 100}%` }} />
                     </div>
                   </div>
                 ))}
@@ -134,19 +134,19 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
             </div>
 
             {/* Lost vs Recovered */}
-            <div className="rounded-2xl bg-slate-800 p-6">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-4">Lost vs Recovered Supporters</h2>
-              <div className="flex h-4 rounded-full overflow-hidden bg-slate-700">
-                <div className="bg-emerald-500 h-full" style={{ width: `${pct(d.recoveredSupporters, d.recoveredSupporters + d.lostSupporters)}%` }} />
-                <div className="bg-red-500/70 h-full" style={{ width: `${pct(d.lostSupporters, d.recoveredSupporters + d.lostSupporters)}%` }} />
+            <div className="rounded-2xl border border-[#cfc2af] bg-[#fffaf0] p-5 shadow-[4px_4px_0_rgba(23,22,20,0.16)] sm:p-6">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-[#b9382a]">Lost vs Recovered Supporters</h2>
+              <div className="flex h-4 overflow-hidden rounded-full bg-[#e0d6c7]">
+                <div className="h-full bg-[#3f6f4d]" style={{ width: `${pct(d.recoveredSupporters, d.recoveredSupporters + d.lostSupporters)}%` }} />
+                <div className="h-full bg-[#b9473f]" style={{ width: `${pct(d.lostSupporters, d.recoveredSupporters + d.lostSupporters)}%` }} />
               </div>
-              <div className="flex justify-between text-xs text-slate-400 mt-2">
-                <span className="text-emerald-400">● Recovered: {d.recoveredSupporters}</span>
-                <span className="text-red-400">● Lost: {d.lostSupporters}</span>
+              <div className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs font-semibold">
+                <span className="text-[#315c3e]">● Recovered: {d.recoveredSupporters}</span>
+                <span className="text-[#8f2923]">● Lost: {d.lostSupporters}</span>
               </div>
             </div>
 
-            <button onClick={loadAnalytics} disabled={loading} className="text-xs text-slate-400 hover:text-white underline">
+            <button onClick={loadAnalytics} disabled={loading} className="min-h-10 rounded px-2 text-xs font-semibold text-[#b9382a] underline underline-offset-4 transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] disabled:cursor-not-allowed disabled:opacity-60">
               {loading ? 'Refreshing…' : 'Refresh'}
             </button>
           </div>
@@ -163,9 +163,9 @@ function pct(part: number, total: number): number {
 
 function Card({ label, value, accent = false }: { label: string; value: string | number; accent?: boolean }) {
   return (
-    <div className="rounded-2xl bg-slate-800 p-5">
-      <div className={`text-3xl font-bold ${accent ? 'bg-gradient-to-r from-amber-400 to-amber-500 bg-clip-text text-transparent' : 'text-white'}`}>{value}</div>
-      <div className="text-xs text-slate-400 uppercase tracking-wide mt-1">{label}</div>
+    <div className="rounded-2xl border border-[#cfc2af] bg-[#fffaf0] p-5 shadow-[4px_4px_0_rgba(23,22,20,0.16)]">
+      <div className={`text-3xl font-bold ${accent ? 'text-[#b9382a]' : 'text-[#171614]'}`}>{value}</div>
+      <div className="mt-1 text-xs font-semibold uppercase tracking-wide text-[#5f574b]">{label}</div>
     </div>
   )
 }

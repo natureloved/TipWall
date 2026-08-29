@@ -54,6 +54,12 @@ export default function InstallNimiqPrompt({
   const [payError, setPayError] = useState('')
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previousOverflow }
+  }, [])
+
   // Build install QR (deep link into mini-app)
   useEffect(() => {
     QRCode.toDataURL(deepLink, { width: 220, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
@@ -138,21 +144,21 @@ export default function InstallNimiqPrompt({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
         role="dialog" aria-modal="true" aria-label={`Support @${creatorHandle}`}
-        className="w-full sm:max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-t-3xl sm:rounded-3xl p-6 max-h-[90vh] overflow-y-auto shadow-2xl border-t-2 sm:border-2 border-amber-400/20 animate-slide-up"
+        className="w-full max-h-[96dvh] overflow-y-auto overscroll-contain rounded-t-3xl border-t-2 border-[#f05a3c] bg-[#fffaf0] p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] text-[#171614] shadow-[0_-10px_40px_rgba(23,22,20,0.22)] animate-slide-up sm:max-w-md sm:rounded-2xl sm:border-2 sm:p-6 sm:pb-6 sm:shadow-[7px_7px_0_#171614]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="w-12 h-1 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-auto mb-5 sm:hidden" />
+        <div className="mx-auto mb-5 h-1 w-12 rounded-full bg-[#f05a3c] sm:hidden" />
 
         <div className="text-center mb-5">
           <div className="text-4xl mb-2">⚡</div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-300 to-yellow-200 bg-clip-text text-transparent">
+          <h2 className="text-2xl font-bold text-[#b9382a]">
             Support @{creatorHandle}
           </h2>
           {amountNIM && (
-            <p className="text-sm text-gray-300 mt-1">
+            <p className="mt-1 text-sm text-[#5f574b]">
               {amountNIM} NIM tip
             </p>
           )}
@@ -160,15 +166,15 @@ export default function InstallNimiqPrompt({
 
         {/* Tabs - only show when both flows are available */}
         {canPay && (
-          <div className="flex rounded-xl overflow-hidden border border-amber-400/20 mb-5">
+          <div className="mb-5 flex overflow-hidden rounded-xl border border-[#92897b] bg-[#f4f0e6] p-1">
             {(['pay', 'install'] as Tab[]).map(t => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                className={`min-h-10 flex-1 rounded-lg px-2 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] ${
                   tab === t
-                    ? 'bg-amber-400 text-slate-900'
-                    : 'text-amber-300 hover:bg-slate-800'
+                    ? 'bg-[#171614] text-[#fffdf7] shadow-sm'
+                    : 'text-[#5f574b] hover:bg-[#fffdf7] hover:text-[#b9382a]'
                 }`}
               >
                 {t === 'pay' ? '📷 Scan to Pay' : '📱 Get Nimiq Pay'}
@@ -183,18 +189,18 @@ export default function InstallNimiqPrompt({
             {payStatus === 'done' ? (
               <div className="text-center py-6">
                 <div className="text-5xl mb-3">🎉</div>
-                <p className="text-lg font-bold text-emerald-300">Tip sent!</p>
-                <p className="text-sm text-gray-300 mt-1">Thank you for supporting @{creatorHandle}.</p>
+                <p className="text-lg font-bold text-[#3f6f4d]">Tip sent!</p>
+                <p className="mt-1 text-sm text-[#5f574b]">Thank you for supporting @{creatorHandle}.</p>
                 {onClose && (
-                  <button onClick={onClose} className="mt-4 px-5 py-2 rounded-xl bg-amber-400 text-slate-900 font-bold text-sm">
+                  <button onClick={onClose} className="mt-4 min-h-11 rounded-xl bg-[#171614] px-5 py-2 text-sm font-bold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]">
                     Close
                   </button>
                 )}
               </div>
             ) : payStatus === 'error' ? (
               <div className="text-center py-4">
-                <p className="text-red-400 text-sm mb-3">{payError}</p>
-                <button onClick={() => { setPayStatus('waiting'); setPayError('') }} className="text-xs text-amber-300 underline">
+                <p className="mb-3 rounded-xl border border-[#d36b61] bg-[#fff0ed] p-3 text-sm font-medium text-[#8f2923]">{payError}</p>
+                <button onClick={() => { setPayStatus('waiting'); setPayError('') }} className="min-h-10 rounded-lg px-3 text-xs font-semibold text-[#b9382a] underline underline-offset-4 hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
                   Try again
                 </button>
               </div>
@@ -203,33 +209,33 @@ export default function InstallNimiqPrompt({
                 <div className="flex flex-col items-center gap-3 mb-4">
                   {payQr ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={payQr} alt="Scan to pay with Nimiq Pay" className="rounded-xl bg-white p-2" width={240} height={240} />
+                    <img src={payQr} alt="Scan to pay with Nimiq Pay" className="max-w-full rounded-xl border border-[#cfc2af] bg-white p-2 shadow-sm" width={240} height={240} />
                   ) : (
-                    <div className="w-[240px] h-[240px] rounded-xl bg-slate-700/40 animate-pulse" />
+                    <div className="h-[240px] w-[240px] max-w-full animate-pulse rounded-xl border border-[#d8cdbb] bg-[#e9e2d2]" />
                   )}
-                  <p className="text-xs text-gray-300 text-center">
+                  <p className="text-center text-xs leading-relaxed text-[#5f574b]">
                     Open Nimiq Pay → tap the scanner → scan this code to send {amountNIM} NIM directly.
                   </p>
                 </div>
                 {(payStatus === 'waiting') && (
-                  <div className="flex items-center justify-center gap-2 text-xs text-gray-400 mb-4">
-                    <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  <div className="mb-4 flex items-center justify-center gap-2 text-xs font-medium text-[#746b5e]">
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[#f05a3c]" />
                     Waiting for payment…
                   </div>
                 )}
                 {payStatus === 'submitting' && (
-                  <div className="flex items-center justify-center gap-2 text-xs text-emerald-300 mb-4">
-                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Payment detected - recording…
+                  <div className="mb-4 flex items-center justify-center gap-2 text-xs font-medium text-[#3f6f4d]">
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[#3f6f4d]" />
+                    Payment detected. Recording…
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <a href={NIMIQ_PAY_IOS_URL} target="_blank" rel="noopener noreferrer"
-                    className="text-center py-2.5 rounded-xl border-2 border-amber-400/20 bg-slate-800/50 text-amber-300 text-sm font-semibold hover:border-amber-400/40 transition-all">
+                    className="min-h-11 rounded-xl border border-[#92897b] bg-[#fffdf7] px-2 py-2.5 text-center text-sm font-semibold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
                      App Store
                   </a>
                   <a href={NIMIQ_PAY_ANDROID_URL} target="_blank" rel="noopener noreferrer"
-                    className="text-center py-2.5 rounded-xl border-2 border-amber-400/20 bg-slate-800/50 text-amber-300 text-sm font-semibold hover:border-amber-400/40 transition-all">
+                    className="min-h-11 rounded-xl border border-[#92897b] bg-[#fffdf7] px-2 py-2.5 text-center text-sm font-semibold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
                     ▶ Google Play
                   </a>
                 </div>
@@ -241,23 +247,23 @@ export default function InstallNimiqPrompt({
         {/* ── Install tab (original flow) ── */}
         {tab === 'install' && (
           <>
-            <p className="text-xs text-gray-400 text-center mb-4">
+            <p className="mb-4 text-center text-xs text-[#746b5e]">
               To send NIM tips, open this wall in Nimiq Pay.
             </p>
             {mobile ? (
               <a href={deepLink}
-                className="block w-full text-center py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 font-bold rounded-xl shadow-lg hover:shadow-xl hover:from-amber-500 hover:to-amber-600 transition-all duration-300 mb-3">
+                className="mb-3 block min-h-12 w-full rounded-xl bg-[#171614] px-4 py-3.5 text-center font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] hover:shadow-[4px_4px_0_#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]">
                 ⚡ Open in Nimiq Pay
               </a>
             ) : (
               <div className="flex flex-col items-center gap-3 mb-4">
                 {installQr ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={installQr} alt="Scan to open in Nimiq Pay" className="rounded-xl bg-white p-2 max-w-full h-auto" width={220} height={220} />
+                  <img src={installQr} alt="Scan to open in Nimiq Pay" className="h-auto max-w-full rounded-xl border border-[#cfc2af] bg-white p-2 shadow-sm" width={220} height={220} />
                 ) : (
-                  <div className="w-[220px] h-[220px] rounded-xl bg-slate-700/40 animate-pulse" />
+                  <div className="h-[220px] w-[220px] max-w-full animate-pulse rounded-xl border border-[#d8cdbb] bg-[#e9e2d2]" />
                 )}
-                <p className="text-xs text-gray-300 text-center">
+                <p className="text-center text-xs text-[#5f574b]">
                   Scan with your phone to open this wall inside Nimiq Pay
                 </p>
               </div>
@@ -265,11 +271,11 @@ export default function InstallNimiqPrompt({
 
             <div className="grid grid-cols-2 gap-3 mb-5">
               <a href={NIMIQ_PAY_IOS_URL} target="_blank" rel="noopener noreferrer"
-                className="text-center py-2.5 rounded-xl border-2 border-amber-400/20 bg-slate-800/50 text-amber-300 text-sm font-semibold hover:border-amber-400/40 hover:bg-slate-800 transition-all">
+                className="min-h-11 rounded-xl border border-[#92897b] bg-[#fffdf7] px-2 py-2.5 text-center text-sm font-semibold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
                  App Store
               </a>
               <a href={NIMIQ_PAY_ANDROID_URL} target="_blank" rel="noopener noreferrer"
-                className="text-center py-2.5 rounded-xl border-2 border-amber-400/20 bg-slate-800/50 text-amber-300 text-sm font-semibold hover:border-amber-400/40 hover:bg-slate-800 transition-all">
+                className="min-h-11 rounded-xl border border-[#92897b] bg-[#fffdf7] px-2 py-2.5 text-center text-sm font-semibold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
                 ▶ Google Play
               </a>
             </div>
@@ -277,20 +283,20 @@ export default function InstallNimiqPrompt({
             {amountNIM && (
               <div className="mb-5">
                 {pledgeUrl ? (
-                  <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-3">
-                    <p className="text-sm text-emerald-200 font-semibold mb-1">Your support has been reserved.</p>
-                    <p className="text-[11px] text-gray-300 mb-2">Open this link in Nimiq Pay anytime to finish.</p>
-                    <div className="flex items-center gap-2">
-                      <input readOnly value={pledgeUrl} className="flex-1 bg-slate-900 rounded-lg px-3 py-2 text-xs text-gray-200 font-mono truncate" />
-                      <button type="button" onClick={copyPledge} className="shrink-0 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-xs font-semibold transition-colors">
+                  <div className="rounded-xl border border-[#9ab6a2] bg-[#edf5ee] p-3">
+                    <p className="mb-1 text-sm font-semibold text-[#315c3e]">Your support has been reserved.</p>
+                    <p className="mb-2 text-[11px] text-[#5f574b]">Open this link in Nimiq Pay anytime to finish.</p>
+                    <div className="flex flex-col sm:flex-row items-stretch gap-2">
+                      <input readOnly value={pledgeUrl} className="min-w-0 flex-1 truncate rounded-lg border border-[#92897b] bg-[#fffdf7] px-3 py-2 font-mono text-xs text-[#171614] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]" />
+                      <button type="button" onClick={copyPledge} className="min-h-10 w-full shrink-0 rounded-lg bg-[#171614] px-3 py-2 text-xs font-semibold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] sm:w-auto">
                         {copied ? '✓' : 'Copy'}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <button type="button" onClick={createPledge} disabled={pledging}
-                    className="w-full py-2.5 rounded-xl border border-slate-600 text-slate-200 text-sm font-semibold hover:bg-slate-800 transition-colors disabled:opacity-60">
-                    {pledging ? 'Reserving…' : 'Support Later - get a claim link'}
+                    className="min-h-11 w-full rounded-xl border border-[#746b5e] bg-[#fffdf7] px-3 py-2.5 text-sm font-semibold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] disabled:cursor-not-allowed disabled:opacity-60">
+                    {pledging ? 'Reserving…' : 'Support Later: get a claim link'}
                   </button>
                 )}
               </div>
@@ -298,11 +304,11 @@ export default function InstallNimiqPrompt({
 
             <div className="flex items-center justify-between gap-3">
               <a href={NIMIQ_PAY_LANDING_URL} target="_blank" rel="noopener noreferrer"
-                className="text-xs text-slate-400 hover:text-amber-300 underline underline-offset-4 transition-colors">
+                className="rounded text-xs font-semibold text-[#b9382a] underline underline-offset-4 transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
                 Learn more
               </a>
               {onClose && (
-                <button onClick={onClose} className="text-xs text-slate-400 hover:text-white transition-colors">
+                <button onClick={onClose} className="min-h-10 rounded px-2 text-xs font-semibold text-[#5f574b] transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
                   Maybe later
                 </button>
               )}

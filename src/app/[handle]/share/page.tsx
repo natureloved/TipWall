@@ -17,7 +17,7 @@ export default async function SharePage({ params, searchParams }: {
   if (!profile) notFound()
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 px-4 py-10">
+    <div className="min-h-screen bg-[#f4f0e6] px-4 py-10 text-[#171614]">
       <ShareKit handle={profile.handle} displayName={profile.displayName} isNew={isNew === '1'} />
     </div>
   )
@@ -26,7 +26,7 @@ export default async function SharePage({ params, searchParams }: {
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
   return {
-    title: `TipWall - Share @${handle}`,
+    title: `TipWall | Share @${handle}`,
     description: `Share kit for @${handle}'s TipWall: link, QR code, badge, and embeds.`,
     robots: { index: false },
   }

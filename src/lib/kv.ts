@@ -251,6 +251,62 @@ export async function getActiveHandles(limit = 24): Promise<string[]> {
   }
 }
 
+/**
+ * Discovery candidates ordered by recent activity, then completed from every
+ * durable profile index. The limit only caps the recent-activity read; durable
+ * candidates remain available for callers to validate before applying their
+ * display limit. An outage must not look like a genuinely empty community.
+ */
+export async function getDiscoveryHandles(recentLimit = 24): Promise<string[]> {
+  const handles: string[] = []
+  const seen = new Set<string>()
+  let lastError: unknown = null
+
+  const append = (values: unknown[]) => {
+    for (const value of values) {
+      const handle = String(value || '').trim().toLowerCase()
+      if (!handle || seen.has(handle)) continue
+      seen.add(handle)
+      handles.push(handle)
+    }
+  }
+
+  const recordFailure = (error: unknown) => {
+    lastError = error
+  }
+
+  const [activityResult, registryResult] = await Promise.allSettled([
+    kv.zrange<string[]>(ACTIVITY_KEY, 0, Math.max(1, recentLimit) - 1, { rev: true }),
+    kv.smembers<string[]>(`${PREFIX}profiles`),
+  ])
+
+  if (activityResult.status === 'fulfilled') append(activityResult.value || [])
+  else recordFailure(activityResult.reason)
+
+  const registered = registryResult.status === 'fulfilled' ? registryResult.value || [] : []
+  if (registryResult.status === 'fulfilled') append(registered)
+  else recordFailure(registryResult.reason)
+
+  // New profiles always enter the registry. KEYS remains only as a migration
+  // fallback for older deployments or a registry read failure.
+  let durableIndexAvailable = registryResult.status === 'fulfilled' && registered.length > 0
+  if (!durableIndexAvailable) {
+    try {
+      const keys = await kv.keys(`${PREFIX}profile:*`)
+      append(keys.map(key => key.slice(`${PREFIX}profile:`.length)))
+      durableIndexAvailable = true
+    } catch (error) {
+      recordFailure(error)
+    }
+  }
+
+  if (!durableIndexAvailable) {
+    throw lastError instanceof Error ? lastError : new Error('Creator discovery is unavailable')
+  }
+
+  return handles
+}
+
 // --- Ecosystem aggregates (site-wide social proof) --------------------------
 // Site-wide totals for the home page's "the network is real" strip. Reads the
 // persistent lifetime counters (vtotal / txseen), never the 200-trimmed tip
@@ -265,40 +321,36 @@ export type EcosystemStats = {
 }
 
 export async function getEcosystemStats(): Promise<EcosystemStats> {
-  try {
-    let handles = await kv.smembers<string[]>(`${PREFIX}profiles`)
-    if (!handles?.length) {
-      const keys = await kv.keys(`${PREFIX}profile:*`)
-      handles = keys.map(k => k.slice(`${PREFIX}profile:`.length)).filter(Boolean)
-      for (const handle of handles) await kv.sadd(`${PREFIX}profiles`, handle)
-    }
+  let handles = await kv.smembers<string[]>(`${PREFIX}profiles`)
+  if (!handles?.length) {
+    const keys = await kv.keys(`${PREFIX}profile:*`)
+    handles = keys.map(k => k.slice(`${PREFIX}profile:`.length)).filter(Boolean)
+    for (const handle of handles) await kv.sadd(`${PREFIX}profiles`, handle)
+  }
 
-    let tippedCreators = 0
-    let totalLuna = 0
-    let totalTips = 0
+  let tippedCreators = 0
+  let totalLuna = 0
+  let totalTips = 0
 
-    // Per-wall reads run in parallel; each wall contributes its lifetime luna
-    // total and its distinct verified-txHash count.
-    await Promise.all(
-      handles.map(async (h) => {
-        const [luna, txCount] = await Promise.all([
-          kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
-          kv.scard(`${PREFIX}txseen:${h}`).then(n => Number(n ?? 0) || 0).catch(() => 0),
-        ])
-        totalLuna += luna
-        totalTips += txCount
-        if (luna > 0 || txCount > 0) tippedCreators++
-      }),
-    )
+  // Per-wall reads run in parallel; each wall contributes its lifetime luna
+  // total and its distinct verified-txHash count.
+  await Promise.all(
+    handles.map(async (h) => {
+      const [luna, txCount] = await Promise.all([
+        kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
+        kv.scard(`${PREFIX}txseen:${h}`).then(n => Number(n ?? 0) || 0).catch(() => 0),
+      ])
+      totalLuna += luna
+      totalTips += txCount
+      if (luna > 0 || txCount > 0) tippedCreators++
+    }),
+  )
 
-    return {
-      walls: handles.length,
-      tippedCreators,
-      totalNIM: totalLuna / LUNA_PER_NIM,
-      totalTips,
-    }
-  } catch {
-    return { walls: 0, tippedCreators: 0, totalNIM: 0, totalTips: 0 }
+  return {
+    walls: handles.length,
+    tippedCreators,
+    totalNIM: totalLuna / LUNA_PER_NIM,
+    totalTips,
   }
 }
 

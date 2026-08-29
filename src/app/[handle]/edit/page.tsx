@@ -12,5 +12,5 @@ export default async function EditProfilePage({ params }: { params: Promise<{ ha
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
-  return { title: `Edit @${handle} - TipWall`, robots: { index: false } }
+  return { title: `Edit @${handle} | TipWall`, robots: { index: false } }
 }

@@ -1,8 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { kv } from '@vercel/kv'
 import {
-  getActiveHandles,
+  getDiscoveryHandles,
   getProfile,
   getVerifiedTotalNim,
   getTips,
@@ -15,7 +14,7 @@ import { timeAgo } from '@/lib/time'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'TipWall - Most tipped creators this week',
+  title: 'TipWall | Most tipped creators this week',
   description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
   openGraph: {
     title: 'Most tipped creators this week',
@@ -32,7 +31,6 @@ export const metadata = {
 }
 
 const MAX_WALLS = 24
-const PROFILE_PREFIX = 'tipwall:profile:'
 
 /**
  * New walls are surfaced for their first 48h even with no tips - a creator who
@@ -56,55 +54,53 @@ type ExploreWall = {
 }
 
 async function loadWalls(): Promise<ExploreWall[]> {
-  let handles = await getActiveHandles(MAX_WALLS)
-
-  if (handles.length < MAX_WALLS) {
-    try {
-      const keys = await kv.keys(`${PROFILE_PREFIX}*`)
-      const allHandles = keys.map(k => k.slice(PROFILE_PREFIX.length))
-      const seen = new Set(handles)
-      const legacy = allHandles.filter(h => !seen.has(h))
-      handles = [...handles, ...legacy.slice(0, MAX_WALLS - handles.length)]
-    } catch {
-      // Best effort - if KV keys() fails, just use the active set.
-    }
-  }
+  const handles = await getDiscoveryHandles(MAX_WALLS)
 
   const cutoff = Date.now() - LEADERBOARD_WINDOW_MS
 
   // Parallel: one Promise per wall, each fetching profile + tips in parallel.
   // getTips() is called once per wall; totalNIM and recentNIM both derive from it.
   const results = await Promise.all(
-    handles.slice(0, MAX_WALLS).map(async (handle): Promise<ExploreWall | null> => {
-      const [profile, tips] = await Promise.all([
-        getProfile(handle),
-        getTips(handle),
-      ])
-      if (!profile) return null
-      const totalNIM = await getVerifiedTotalNim(handle)
-      const isNew = Date.now() - profile.createdAt < NEW_WALL_GRACE_MS
-      if (totalNIM <= 0 && !isNew) return null
-      const recentNIM = tips.reduce(
-        (sum: number, t: Tip) => (t.verified && t.timestamp >= cutoff ? sum + (t.amountNIM || 0) : sum),
-        0,
-      )
-      const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
-      const reasons = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: tips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
-      const topReason = reasons[0]?.count ? reasons[0].reason : null
-      // Most recent verified tip overall - powers the "last tipped Xm ago" line.
-      const lastTipAt = tips.reduce<number | null>(
-        (latest, t) => (t.verified && (latest === null || t.timestamp > latest) ? t.timestamp : latest),
-        null,
-      )
-      return { profile, totalNIM, recentNIM, recentTips, isNew, lastTipAt, topReason }
+    handles.map(async (handle): Promise<{ wall: ExploreWall | null; failed: boolean }> => {
+      try {
+        const [profile, tips] = await Promise.all([
+          getProfile(handle),
+          getTips(handle),
+        ])
+        if (!profile) return { wall: null, failed: false }
+        const totalNIM = await getVerifiedTotalNim(handle).catch(() => tips.reduce(
+          (sum, tip) => sum + (tip.verified ? tip.amountNIM || 0 : 0),
+          0,
+        ))
+        const isNew = Date.now() - profile.createdAt < NEW_WALL_GRACE_MS
+        if (totalNIM <= 0 && !isNew) return { wall: null, failed: false }
+        const recentNIM = tips.reduce(
+          (sum: number, t: Tip) => (t.verified && t.timestamp >= cutoff ? sum + (t.amountNIM || 0) : sum),
+          0,
+        )
+        const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
+        const reasons = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: tips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
+        const topReason = reasons[0]?.count ? reasons[0].reason : null
+        // Most recent verified tip overall powers the activity line.
+        const lastTipAt = tips.reduce<number | null>(
+          (latest, t) => (t.verified && (latest === null || t.timestamp > latest) ? t.timestamp : latest),
+          null,
+        )
+        return { wall: { profile, totalNIM, recentNIM, recentTips, isNew, lastTipAt, topReason }, failed: false }
+      } catch {
+        return { wall: null, failed: true }
+      }
     }),
   )
 
-  const walls = results.filter((w): w is ExploreWall => w !== null)
+  const walls = results.flatMap(result => result.wall ? [result.wall] : [])
+  if (walls.length === 0 && results.some(result => result.failed)) {
+    throw new Error('Creator directory data is unavailable')
+  }
 
   // Sort: recentNIM desc, tiebreak by totalNIM desc
   walls.sort((a, b) => b.recentNIM - a.recentNIM || b.totalNIM - a.totalNIM)
-  return walls
+  return walls.slice(0, MAX_WALLS)
 }
 
 const RANK_BADGE = [
@@ -113,13 +109,20 @@ const RANK_BADGE = [
   // 2nd - silver/slate
   'bg-slate-300 text-slate-900',
   // 3rd - bronze
-  'bg-[#CD7F32] text-amber-50',
+  'bg-[#CD7F32] text-slate-900',
 ]
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
   const requestedReason = (await searchParams).reason
   const activeReason = (Object.keys(TIP_REASON_LABELS) as TipReason[]).includes(requestedReason as TipReason) ? requestedReason as TipReason : null
-  const allWalls = await loadWalls()
+  let allWalls: ExploreWall[] = []
+  let directoryUnavailable = false
+  try {
+    allWalls = await loadWalls()
+  } catch (error) {
+    directoryUnavailable = true
+    console.error('Explore directory unavailable:', error)
+  }
   const walls = activeReason ? allWalls.filter(w => w.topReason === activeReason) : allWalls
 
   const trending = walls.filter(w => w.recentNIM > 0).slice(0, 3)
@@ -143,38 +146,50 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const weekNIM = walls.reduce((sum, w) => sum + w.recentNIM, 0)
 
   return (
-    <div className="app-shell min-h-screen text-white px-4 py-10">
+    <div className="app-shell explore-page min-h-screen text-white px-4 py-10">
       <div className="w-full max-w-6xl mx-auto">
-        <header className="flex items-center justify-between mb-10 border-b border-slate-700 pb-4">
+        <header className="explore-header explore-reveal flex flex-wrap items-center justify-between gap-3 mb-10 border-b border-slate-700 pb-4">
           <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
-          <Link href="/?create=1" className="rounded-full border border-slate-700 bg-white/5 px-4 py-2 text-sm font-bold">Create a wall</Link>
+          <Link href="/?create=1" className="explore-create-link rounded-full border px-4 py-2 text-sm font-bold">Create a wall</Link>
         </header>
-        <div className="text-center mb-8">
+        <div className="explore-hero explore-reveal text-center mb-8" style={{ animationDelay: '60ms' }}>
           <p className="landing-section-kicker mb-3">Creator discovery</p>
           <h1 className="font-serif text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900">
             Find creators worth <span className="text-amber-300 italic">supporting.</span>
           </h1>
           <p className="max-w-xl mx-auto mt-3 text-sm text-slate-400">Browse by the kind of work people value, not just the amount raised.</p>
           {wallCount > 0 && (
-            <p className="inline-flex mt-4 rounded-full border border-slate-700 bg-white/5 px-4 py-2 text-xs font-semibold text-slate-400">
+            <p className="explore-stats-pill inline-flex mt-4 rounded-full border px-4 py-2 text-xs font-semibold">
               {wallCount.toLocaleString()} creator {wallCount === 1 ? 'wall' : 'walls'}
               {' · '}
               {Math.round(weekNIM).toLocaleString()} NIM tipped this week
             </p>
           )}
           <div className="mt-3">
-            <MissionLink />
+            <MissionLink className="explore-mission-link" />
           </div>
           <div className="mt-5 flex flex-wrap gap-2 justify-center pb-1">
-            <Link href="/explore" className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'border-amber-400 bg-amber-400/15 text-amber-200' : 'border-slate-700 bg-white/5 text-slate-400 hover:text-white'}`}>All creators</Link>
-            {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'border-sky-400 bg-sky-400/15 text-sky-200' : 'border-slate-700 bg-white/5 text-slate-400 hover:text-white'}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
+            <Link href="/explore" aria-current={!activeReason ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'explore-filter-active' : ''}`}>All creators</Link>
+            {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} aria-current={activeReason === reason ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'explore-filter-active' : ''}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
           </div>
         </div>
 
-        {walls.length === 0 ? (
-          <div className="text-center rounded-2xl bg-slate-800 p-10">
+        {directoryUnavailable ? (
+          <div className="explore-empty explore-reveal mx-auto max-w-2xl rounded-2xl p-8 text-center sm:p-10" role="status" style={{ animationDelay: '120ms' }}>
+            <h2 className="text-xl font-bold text-[#171614]">Creator walls are temporarily unavailable</h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">
+              Your walls and tips are safe. The creator directory could not reach its data service.
+            </p>
+            <form action="/explore" className="mt-5">
+              <button type="submit" className="explore-bottom-cta rounded-xl px-5 py-2.5 text-sm font-bold">
+                Try again
+              </button>
+            </form>
+          </div>
+        ) : walls.length === 0 ? (
+          <div className="explore-empty explore-reveal text-center rounded-2xl p-10" style={{ animationDelay: '120ms' }}>
             <p className="text-4xl mb-3">🌱</p>
-            <p className="text-slate-300 font-semibold">No walls yet - yours could be the first.</p>
+            <p className="text-slate-300 font-semibold">No walls yet. Yours could be the first.</p>
           </div>
         ) : (
           <>
@@ -182,18 +197,19 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 Until tips start landing, this is empty and the flat grid below
                 carries the page. */}
             {trending.length > 0 && (
-              <section className="mb-8">
-                <h2 className="text-lg font-bold text-white">🔥 Most tipped this week</h2>
+              <section className="explore-section explore-reveal mb-8" style={{ animationDelay: '120ms' }}>
+                <h2 className="flex items-center gap-2 text-lg font-bold text-white"><span className="explore-live-dot" aria-hidden="true" /> Most tipped this week</h2>
                 <p className="text-xs text-slate-500 mb-3">Updated live · last 7 days</p>
                 <div className="space-y-3">
                   {trending.map(({ profile, totalNIM, recentNIM, isNew, lastTipAt, topReason }, i) => (
-                    <a
+                    <Link
                       key={profile.handle}
                       href={`/${profile.handle}`}
-                      className="surface flex items-center gap-3 rounded-2xl hover:border-amber-400/50 p-4 sm:p-5 transition-colors"
+                      className="surface explore-card flex items-center gap-3 rounded-2xl hover:border-amber-400/50 p-4 sm:p-5"
+                      style={{ animationDelay: `${180 + i * 70}ms` }}
                     >
                       <div
-                        className={`flex-none flex items-center justify-center w-9 h-9 rounded-full font-bold text-base ${RANK_BADGE[i]}`}
+                        className={`explore-rank-badge flex-none flex items-center justify-center w-9 h-9 rounded-full font-bold text-base ${RANK_BADGE[i]}`}
                         aria-label={`Rank ${i + 1}`}
                       >
                         {i + 1}
@@ -222,7 +238,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         </p>
                         <p className="text-xs text-slate-500">this week</p>
                         {lastTipAt !== null && (
-                          <p className="text-xs text-emerald-400/80 mt-1 whitespace-nowrap">
+                          <p className="mt-1 whitespace-nowrap text-xs text-[#3f6f4d]">
                             ● tipped {timeAgo(lastTipAt)}
                           </p>
                         )}
@@ -230,25 +246,26 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                           {Math.round(totalNIM).toLocaleString()} NIM all time
                         </p>
                       </div>
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </section>
             )}
 
             {rest.length > 0 && (
-              <section>
+              <section className="explore-section explore-reveal" style={{ animationDelay: '150ms' }}>
                 {trending.length > 0 && (
                   <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
                     More creator walls
                   </h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rest.map(({ profile, totalNIM, topReason }) => (
-                    <a
+                  {rest.map(({ profile, totalNIM, topReason }, i) => (
+                    <Link
                       key={profile.handle}
                       href={`/${profile.handle}`}
-                      className="surface block rounded-2xl hover:border-amber-400/50 p-5 transition-colors"
+                      className="surface explore-card block rounded-2xl hover:border-amber-400/50 p-5"
+                      style={{ animationDelay: `${220 + Math.min(i, 8) * 65}ms` }}
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="font-bold text-amber-300 truncate">
@@ -266,22 +283,23 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
                       )}
                       {topReason && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </section>
             )}
 
             {justJoined.length > 0 && (
-              <section className="mt-8">
+              <section className="explore-section explore-reveal mt-8" style={{ animationDelay: '180ms' }}>
                 <h2 className="text-lg font-bold text-white">🌱 Just joined</h2>
                 <p className="text-xs text-slate-500 mb-3">Be their first supporter</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {justJoined.map(({ profile }) => (
-                    <a
+                  {justJoined.map(({ profile }, i) => (
+                    <Link
                       key={profile.handle}
                       href={`/${profile.handle}`}
-                      className="surface block rounded-2xl hover:border-emerald-400/50 p-5 transition-colors"
+                      className="surface explore-card block rounded-2xl hover:border-emerald-400/50 p-5"
+                      style={{ animationDelay: `${250 + i * 65}ms` }}
                     >
                       <div className="flex items-baseline justify-between gap-3">
                         <p className="font-bold text-amber-300 truncate">
@@ -293,7 +311,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       {profile.bio && (
                         <p className="text-sm text-slate-300 mt-2 line-clamp-2">{profile.bio}</p>
                       )}
-                    </a>
+                    </Link>
                   ))}
                 </div>
               </section>
@@ -304,7 +322,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
         <div className="text-center mt-10">
           <Link
             href="/?create=1"
-            className="inline-block px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 font-bold text-sm transition-all"
+            className="explore-bottom-cta inline-block px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 font-bold text-sm transition-all"
           >
             Create your own TipWall
           </Link>

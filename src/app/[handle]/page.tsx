@@ -12,8 +12,8 @@ export default async function CreatorWallPage({ params }: { params: Promise<{ ha
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
   const profile = await getProfile(handle)
-  if (!profile) return { title: 'TipWall - Creator not found' }
-  const title = `TipWall - @${profile.handle}`
+  if (!profile) return { title: 'TipWall | Creator not found' }
+  const title = `TipWall | @${profile.handle}`
   const description = profile.bio || `Send NIM tips to @${profile.handle}`
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://tipwall.vercel.app').replace(/\/+$/, '')
   // og:image / twitter:image come from the opengraph-image.tsx file convention.

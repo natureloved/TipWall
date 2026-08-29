@@ -57,33 +57,53 @@ export default function DashboardPage() {
   }, [handle, router])
 
   if (loading) return (
-    <div className="p-6 text-center text-gray-400 text-sm">Loading your dashboard...</div>
+    <main className="flex min-h-screen items-center justify-center bg-[#f4f0e6] px-4 py-12">
+      <p className="rounded-lg border border-[#171614]/25 bg-[#fffaf0] px-5 py-4 text-center text-sm font-medium text-[#5f574b] shadow-[3px_3px_0_rgba(23,22,20,0.12)]" role="status">
+        Loading your dashboard...
+      </p>
+    </main>
   )
   if (error) return (
-    <div className="p-6 text-center text-red-500 text-sm">{error}</div>
+    <main className="flex min-h-screen items-center justify-center bg-[#f4f0e6] px-4 py-12">
+      <p className="max-w-md rounded-lg border border-[#9d2c21]/35 bg-[#fffaf0] px-5 py-4 text-center text-sm font-medium text-[#9d2c21] shadow-[3px_3px_0_rgba(23,22,20,0.12)]" role="alert">
+        {error}
+      </p>
+    </main>
   )
   if (!data) return null
 
   return (
-    <div className="min-h-screen bg-white">
-      <div className="bg-[#1F2348] p-4 flex items-center justify-between">
-        <div>
-          <p className="text-[#F6B221] font-medium">Your Dashboard</p>
-          <p className="text-[#AFA9EC] text-xs">@{data.profile.handle}</p>
+    <main className="min-h-screen bg-[#f4f0e6] text-[#171614]">
+      <header className="border-b border-[#171614]/25 bg-[#fffaf0] px-4 py-4">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-serif text-xl font-semibold text-[#171614]">Your dashboard</p>
+            <p className="mt-0.5 text-xs font-medium text-[#746b5e]">@{data.profile.handle}</p>
+          </div>
+          <nav className="flex flex-wrap items-center gap-2" aria-label="Dashboard links">
+            <a
+              href={`/${handle}/share`}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#171614] bg-[#f05a3c] px-4 py-2 text-xs font-bold text-[#171614] shadow-[3px_3px_0_#171614] transition-[transform,box-shadow,background-color] hover:-translate-y-0.5 hover:bg-[#e85236] hover:shadow-[4px_4px_0_#171614] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b9382a]"
+            >
+              Share kit
+            </a>
+            <a
+              href={`/${handle}`}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#171614]/35 bg-[#f4f0e6] px-4 py-2 text-xs font-bold text-[#171614] transition-colors hover:border-[#b9382a] hover:bg-[#fffdf7] hover:text-[#b9382a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b9382a]"
+            >
+              View public wall
+            </a>
+          </nav>
         </div>
-        <div className="flex items-center gap-3">
-          <a href={`/${handle}/share`} className="text-xs text-[#F6B221] underline">Share Kit</a>
-          <a href={`/${handle}`} className="text-xs text-[#AFA9EC] underline">View public wall</a>
-        </div>
-      </div>
+      </header>
 
-      <div className="p-4 space-y-5">
+      <div className="mx-auto w-full max-w-4xl space-y-5 p-4 sm:py-6">
         <DashboardShareNudge data={data} />
         <DashboardStats data={data} />
         <DashboardMilestones data={data} />
         <DashboardSupporters supporters={data.supporters} />
         <DashboardEditProfile profile={data.profile} walletAddress={walletAddress} />
       </div>
-    </div>
+    </main>
   )
 }

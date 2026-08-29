@@ -140,7 +140,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         {/* Owner-only management controls - hidden from supporters so the hero
             stays clean and no admin surface is advertised to visitors. */}
         {isOwner && (
-          <div className="fixed bottom-4 right-4 z-30 flex flex-col items-end gap-2">
+          <div className="fixed bottom-24 right-4 z-30 flex flex-col items-end gap-2 sm:bottom-4">
             {manageOpen && (
               <div className="flex flex-col gap-1.5 rounded-2xl bg-slate-800/90 backdrop-blur border border-white/10 p-2 shadow-2xl animate-slide-up">
                 <a href={`/${handle}/dashboard`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">📊 Dashboard</a>
@@ -159,16 +159,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         )}
 
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
-          <header className="flex items-center justify-between border-b border-slate-700 pb-4">
+          <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 pb-4">
             <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
-            <Link href="/explore" className="text-sm font-semibold text-slate-400">Explore creators →</Link>
+            <Link href="/explore" className="text-sm font-semibold text-slate-400">Explore creators</Link>
           </header>
           {/* Hero Section */}
-          <div className="creator-wall-hero animate-glow rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 sm:p-8 text-white overflow-hidden relative">
-            {/* Animated background orbs */}
-            <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-radial from-amber-400/20 to-transparent rounded-full animate-float blur-3xl" />
-            <div className="absolute bottom-0 left-0 w-80 h-80 bg-gradient-radial from-purple-400/10 to-transparent rounded-full animate-float" style={{animationDelay: '2s', animationDirection: 'reverse'}} />
-
+          <div className="creator-wall-hero animate-glow relative overflow-hidden rounded-3xl bg-[#fffaf0] p-6 text-[#171614] sm:p-8">
             <div className="relative z-10 flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
 
               {/* Identity */}
@@ -267,7 +263,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           ) : (
             <>
               {/* Stats Grid */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                 <StatCard value={<AnimatedNumber value={totalNIM} />} label={t('totalTipped')} index={0} />
                 <StatCard value={<AnimatedNumber value={tips.length} />} label={t('tipsSent')} index={1} />
                 <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : 'No tips yet'} label={t('lastTip')} index={2} suppressHydrationWarning />
@@ -314,7 +310,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               {/* Milestones */}
               <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
                 <div className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">{t('milestones')}</div>
-                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${goalMilestones.length}, minmax(0, 1fr))` }}>
+                <div className="milestone-grid grid gap-2">
                   {goalMilestones.map((m, idx) => (
                     <div
                       key={m}
