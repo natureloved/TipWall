@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TipWall">
+  <!-- full-bleed paper so launcher masks never reveal transparency -->
+  <rect width="64" height="64" fill="#F4F0E6"/>
+  <!-- mark scaled into the 80% maskable safe zone -->
+  <g transform="translate(9.6 9.6) scale(0.7)">
+    <g fill="#E9E2D2" stroke="#171614" stroke-width="2">
+      <rect x="9" y="40" width="22" height="9" rx="2"/>
+      <rect x="33" y="40" width="22" height="9" rx="2"/>
+      <rect x="9" y="51" width="10" height="9" rx="2"/>
+      <rect x="21" y="51" width="22" height="9" rx="2"/>
+      <rect x="45" y="51" width="10" height="9" rx="2"/>
+    </g>
+    <g transform="rotate(-6 32 26)">
+      <circle cx="32" cy="26" r="13" fill="#F6B221" stroke="#171614" stroke-width="2.5"/>
+      <path d="M32 31.2c-3.6-2.7-5.8-4.6-5.8-7.1a3.1 3.1 0 0 1 5.8-1.7 3.1 3.1 0 0 1 5.8 1.7c0 2.5-2.2 4.4-5.8 7.1z" fill="#171614"/>
+      <rect x="24" y="9.5" width="16" height="6.5" fill="#F05A3C" opacity="0.55" transform="rotate(-4 32 12.75)"/>
+    </g>
+  </g>
+</svg>

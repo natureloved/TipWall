@@ -24,31 +24,44 @@ export async function GET() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 72,
-          background: 'linear-gradient(135deg, #0f172a 0%, #1F2348 55%, #0f172a 100%)',
+          gap: 64,
+          padding: 64,
+          background: '#F4F0E6',
           fontFamily: 'sans-serif',
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={logoSrc} width={340} height={340} style={{ borderRadius: 48 }} alt="" />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ fontSize: 96, fontWeight: 800, color: '#F6B221' }}>TipWall</div>
-          <div style={{ fontSize: 36, color: '#e2e8f0', maxWidth: 560 }}>
-            The wall of creators support.
+        <img
+          src={logoSrc}
+          width={300}
+          height={300}
+          style={{ borderRadius: 44, border: '5px solid #171614', boxShadow: '12px 12px 0 #F05A3C' }}
+          alt=""
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 4, color: '#746B5E', fontFamily: 'monospace' }}>
+            CREATOR APPRECIATION WALL
           </div>
-          <div style={{ fontSize: 30, color: '#94a3b8' }}>
-            Tip the creator. Not the platform.
+          <div style={{ fontSize: 82, fontWeight: 800, color: '#171614', lineHeight: 1.05 }}>
+            Tip the creator,
+          </div>
+          <div style={{ fontSize: 82, fontWeight: 800, color: '#B9382A', fontStyle: 'italic', lineHeight: 1.05 }}>
+            not the platform.
+          </div>
+          <div style={{ fontSize: 32, color: '#5F574B', marginTop: 8, maxWidth: 560 }}>
+            Every fan leaves a mark. On-chain, 0% fee.
           </div>
           <div
             style={{
-              marginTop: 14,
+              marginTop: 18,
               fontSize: 26,
-              color: '#0f172a',
-              background: '#F6B221',
-              padding: '10px 22px',
-              borderRadius: 12,
+              color: '#FBF7EE',
+              background: '#171614',
+              padding: '10px 26px',
+              borderRadius: 999,
               fontWeight: 700,
               alignSelf: 'flex-start',
+              boxShadow: '5px 5px 0 #F05A3C',
             }}
           >
             tipwall.vercel.app
