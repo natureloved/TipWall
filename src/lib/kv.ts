@@ -4,6 +4,7 @@ import { FUNNEL_EVENTS, type FunnelEvent } from './events'
 import { verifyTxDetails } from './verify-tx'
 import { normalizeAddress } from './profile-auth'
 import { checkMilestone } from './milestones'
+import { weekIndex, streakWeeks } from './time'
 
 const PREFIX = 'tipwall:'
 
@@ -82,6 +83,21 @@ export async function markClaimClaimed(token: string, txHash?: string): Promise<
   return Number(result) === 1
 }
 
+/** Index a pledge under its creator so the dashboard can list them. */
+export async function addPledgeToken(handle: string, token: string): Promise<void> {
+  await kv.sadd(`${PREFIX}pledges:${handle.toLowerCase()}`, token)
+}
+
+/** Surviving pledge records for a creator, newest first. */
+export async function getPledges(handle: string): Promise<ClaimIntent[]> {
+  const tokens = (await kv.smembers<string[]>(`${PREFIX}pledges:${handle.toLowerCase()}`)) || []
+  if (!tokens.length) return []
+  const claims = await Promise.all(tokens.map(t => getClaim(t)))
+  return claims
+    .filter((c): c is ClaimIntent => !!c && c.source === 'pledge')
+    .sort((a, b) => b.createdAt - a.createdAt)
+}
+
 // --- Conversion funnel counters (Phase 3) ----------------------------------
 
 /**
@@ -109,6 +125,23 @@ export async function getStats(handle: string): Promise<Record<FunnelEvent, numb
   const out = {} as Record<FunnelEvent, number>
   FUNNEL_EVENTS.forEach((e, i) => { out[e] = Number(values?.[i] ?? 0) })
   return out
+}
+
+/** Increment a per-referrer counter for a funnel event. */
+export async function trackRef(handle: string, event: FunnelEvent, ref: string): Promise<void> {
+  await kv.incr(`${PREFIX}stats:${handle.toLowerCase()}:${event}:ref:${ref}`)
+}
+
+/** Top referrers for a funnel event, highest count first. */
+export async function getTopRefs(handle: string, event: FunnelEvent, limit = 8): Promise<{ ref: string; count: number }[]> {
+  const h = handle.toLowerCase()
+  const keys = await kv.keys(`${PREFIX}stats:${h}:${event}:ref:*`)
+  if (!keys.length) return []
+  const values = await kv.mget<(number | null)[]>(...keys)
+  return keys
+    .map((k, i) => ({ ref: k.split(':ref:')[1] || 'other', count: Number(values?.[i] ?? 0) }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit)
 }
 
 export async function getProfile(handle: string): Promise<CreatorProfile | null> {
@@ -223,7 +256,18 @@ export async function addVerifiedNim(handle: string, amountNIM: number): Promise
  * exposed through any API response when the tipper chose to stay anonymous.
  */
 export function sanitizeTips(tips: Tip[]): Tip[] {
-  return tips.map(t => (t.anonymous ? { ...t, senderAddress: '' } : t))
+  return tips.map(t => (t.anonymous ? { ...t, senderAddress: '', senderName: undefined } : t))
+}
+
+/**
+ * Owner-private fields must never reach public readers (wall page props,
+ * public JSON API, share kit). The dashboard/edit owner flows read the raw
+ * profile instead.
+ */
+export function stripSensitiveProfileFields(profile: CreatorProfile): CreatorProfile {
+  const publicProfile = { ...profile }
+  delete publicProfile.notifyTelegram
+  return publicProfile
 }
 
 // --- Discovery: recently-active walls ---------------------------------------
@@ -476,6 +520,22 @@ export function verifiedTotal(tips: Tip[]): number {
   return tips.reduce((sum, t) => sum + (t.verified ? t.amountNIM : 0), 0)
 }
 
+/**
+ * Attach (or replace) the creator's thank-you reply on a single tip record.
+ * Same atomic LSET-by-id pattern as reverifyPendingTips so a concurrent tip
+ * push can't be clobbered. Returns false when the tip id no longer exists
+ * (e.g. trimmed past 200 entries).
+ */
+export async function setTipReply(handle: string, tipId: string, reply: { message: string; at: number }): Promise<boolean> {
+  const key = `${PREFIX}tips:${handle.toLowerCase()}`
+  const result = await kv.eval(
+    `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then item.reply=cjson.decode(ARGV[2]); redis.call('LSET',KEYS[1],i-1,cjson.encode(item)); return 1 end end; return 0`,
+    [key],
+    [tipId, JSON.stringify(reply)],
+  )
+  return Number(result) === 1
+}
+
 /** Rolling window for the /explore leaderboard. */
 export const LEADERBOARD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -508,6 +568,7 @@ export async function getSupporters(handle: string): Promise<Supporter[]> {
   // (Derived from the most recent 200 tips - a "recent supporters" view.)
   const tips = (await getTips(handle)).filter(t => t.verified && !t.anonymous)
   const supportersMap = new Map<string, Supporter>()
+  const weeksByAddress = new Map<string, number[]>()
 
   tips.forEach(tip => {
     const existing = supportersMap.get(tip.senderAddress)
@@ -522,8 +583,22 @@ export async function getSupporters(handle: string): Promise<Supporter[]> {
         tipCount: 1,
         firstTipAt: tip.timestamp,
       })
+      weeksByAddress.set(tip.senderAddress, [])
     }
+    weeksByAddress.get(tip.senderAddress)!.push(weekIndex(tip.timestamp))
   })
+
+  // Tips are stored newest-first: the first tip carrying a senderName per
+  // address is the supporter's latest self-reported name.
+  for (const tip of tips) {
+    if (!tip.senderName) continue
+    const s = supportersMap.get(tip.senderAddress)
+    if (s && !s.name) s.name = tip.senderName
+  }
+
+  for (const s of supportersMap.values()) {
+    s.streakWeeks = streakWeeks(weeksByAddress.get(s.address) || [])
+  }
 
   return Array.from(supportersMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
 }

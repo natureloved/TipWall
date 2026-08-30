@@ -32,20 +32,40 @@ export async function POST(req: NextRequest) {
     const verification = await verifyTxDetails(txHash, profile.walletAddress, Math.round(amountNIM * 100000))
     if (verification.result === 'mismatch') return NextResponse.json({ error: 'transaction does not match this tip' }, { status: 402 })
     const verified = verification.result === 'verified'
+    const anonymous = body.anonymous === true
+    // Self-reported display name is garnish, never identity: capped, trimmed,
+    // and dropped entirely for anonymous tips.
+    const senderName = anonymous ? undefined : (typeof body.senderName === 'string' ? body.senderName.trim().slice(0, 24) : '') || undefined
     const tip: Tip = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
       handle,
       senderAddress: verification.senderAddress || '',
+      senderName,
       amountNIM,
       txHash,
       verified,
       timestamp: Date.now(),
       reason: ['helpful_content', 'open_source', 'tutorial', 'great_idea', 'just_support'].includes(String(body.reason || '')) ? body.reason as Tip['reason'] : undefined,
       message: typeof body.message === 'string' ? body.message.slice(0, 64) : '',
-      anonymous: body.anonymous === true,
+      anonymous,
     }
     if (!await recordTipAtomically(handle, txHash, tip)) return NextResponse.json({ error: 'tip already recorded for this transaction' }, { status: 409 })
     await touchActivity(handle)
+    // Owner opt-in notification. Fire-and-forget: a slow or dead webhook must
+    // never delay or fail the tip response.
+    if (verified && profile.notifyTelegram) {
+      const webhook = profile.notifyTelegram
+      const who = tip.anonymous ? 'Someone' : tip.senderName || 'A supporter'
+      const text = `💸 ${who} tipped you ${amountNIM} NIM${tip.message ? ` — “${tip.message}”` : ''}`
+      Promise.resolve()
+        .then(() => fetch(webhook, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+          signal: AbortSignal.timeout(3000),
+        }))
+        .catch(() => {})
+    }
     const previousTotal = await getVerifiedTotalNim(handle)
     const newTotal = verified ? await addVerifiedNim(handle, amountNIM) : previousTotal
     let milestone: MilestoneEvent | null = null

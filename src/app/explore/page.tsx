@@ -112,8 +112,11 @@ const RANK_BADGE = [
   'bg-[#CD7F32] text-slate-900',
 ]
 
-export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
-  const requestedReason = (await searchParams).reason
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ reason?: string; q?: string; tag?: string }> }) {
+  const params = await searchParams
+  const requestedReason = params.reason
+  const query = String(params.q || '').trim().toLowerCase()
+  const activeTag = String(params.tag || '').trim().toLowerCase()
   const activeReason = (Object.keys(TIP_REASON_LABELS) as TipReason[]).includes(requestedReason as TipReason) ? requestedReason as TipReason : null
   let allWalls: ExploreWall[] = []
   let directoryUnavailable = false
@@ -123,7 +126,23 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     directoryUnavailable = true
     console.error('Explore directory unavailable:', error)
   }
-  const walls = activeReason ? allWalls.filter(w => w.topReason === activeReason) : allWalls
+  const reasonWalls = activeReason ? allWalls.filter(w => w.topReason === activeReason) : allWalls
+  const walls = reasonWalls.filter(w => {
+    if (query) {
+      const haystack = `${w.profile.displayName || ''} ${w.profile.handle} ${w.profile.bio || ''}`.toLowerCase()
+      if (!haystack.includes(query)) return false
+    }
+    if (activeTag && !(w.profile.tags || []).some(t => t.toLowerCase() === activeTag)) return false
+    return true
+  })
+
+  // Most-used tags across the directory power the filter chips.
+  const tagCounts = new Map<string, number>()
+  for (const w of allWalls) for (const t of w.profile.tags || []) {
+    const key = t.toLowerCase()
+    tagCounts.set(key, (tagCounts.get(key) || 0) + 1)
+  }
+  const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t)
 
   const trending = walls.filter(w => w.recentNIM > 0).slice(0, 3)
   const trendingHandles = new Set(trending.map(w => w.profile.handle))
@@ -172,6 +191,31 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             <Link href="/explore" aria-current={!activeReason ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'explore-filter-active' : ''}`}>All creators</Link>
             {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} aria-current={activeReason === reason ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'explore-filter-active' : ''}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
           </div>
+          <form action="/explore" className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {activeReason && <input type="hidden" name="reason" value={activeReason} />}
+            <input
+              name="q"
+              defaultValue={query || ''}
+              placeholder="Search creators…"
+              aria-label="Search creators"
+              className="w-56 rounded-full border px-4 py-1.5 text-xs font-semibold"
+            />
+            <button type="submit" className="explore-filter shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold explore-filter-active">Search</button>
+          </form>
+          {topTags.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2 justify-center">
+              {topTags.map(tag => (
+                <Link
+                  key={tag}
+                  href={`/explore?tag=${encodeURIComponent(tag)}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
+                  aria-current={activeTag === tag ? 'page' : undefined}
+                  className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeTag === tag ? 'explore-filter-active' : ''}`}
+                >
+                  #{tag}
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
         {directoryUnavailable ? (
@@ -231,6 +275,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                           <p className="text-xs text-amber-200/80 mt-1 truncate">🏆 {profile.achievement}</p>
                         )}
                         {topReason && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
+                        {!!profile.tags?.length && (
+                          <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
+                            {profile.tags.map(tag => (
+                              <span key={tag} className="text-[10px] font-semibold text-[#5f574b] bg-[#e9e2d2] border border-[#171614]/20 rounded-full px-2 py-0.5">#{tag}</span>
+                            ))}
+                          </span>
+                        )}
                       </div>
                       <div className="flex-none text-right">
                         <p className="text-lg font-bold text-amber-300 whitespace-nowrap">
@@ -283,6 +334,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
                       )}
                       {topReason && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
+                        {!!profile.tags?.length && (
+                          <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
+                            {profile.tags.map(tag => (
+                              <span key={tag} className="text-[10px] font-semibold text-[#5f574b] bg-[#e9e2d2] border border-[#171614]/20 rounded-full px-2 py-0.5">#{tag}</span>
+                            ))}
+                          </span>
+                        )}
                     </Link>
                   ))}
                 </div>

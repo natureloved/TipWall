@@ -17,7 +17,7 @@ function avatarIndex(address: string, mod: number): number {
 // a glance, not just implied by list order. Index 0/1/2 → gold/silver/bronze.
 const RANK_MEDALS = ['🥇', '🥈', '🥉']
 
-export default function SupportersWall({ supporters }: { supporters: { address: string; totalNIM: number; tipCount: number }[] }) {
+export default function SupportersWall({ supporters }: { supporters: { address: string; totalNIM: number; tipCount: number; name?: string; streakWeeks?: number }[] }) {
   const t = useTranslations()
   const colors = [
     'from-blue-400 to-blue-600',
@@ -54,7 +54,7 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
                 className="relative"
               >
                 <div
-                  title={`${s.address.slice(0, 6)}…${s.address.slice(-4)} · ${s.totalNIM} NIM`}
+                  title={`${s.name || `${s.address.slice(0, 6)}…${s.address.slice(-4)}`} · ${s.totalNIM} NIM`}
                   className={`w-12 h-12 rounded-full flex items-center justify-center text-xl flex-shrink-0 shadow-md border-2 border-white/20 bg-gradient-to-br ${color}`}
                 >
                   {emoji}
@@ -65,6 +65,15 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
                     aria-label={`Rank ${idx + 1}`}
                   >
                     {medal}
+                  </div>
+                )}
+                {(s.streakWeeks ?? 0) >= 2 && (
+                  <div
+                    className="absolute -bottom-1.5 -right-1 rounded-full bg-[#fffdf7] border border-[#171614]/40 px-1 text-[10px] font-bold text-[#171614]"
+                    title={`${s.streakWeeks} weeks in a row`}
+                    aria-label={`${s.streakWeeks} week streak`}
+                  >
+                    🔥{s.streakWeeks}
                   </div>
                 )}
               </div>
@@ -84,7 +93,7 @@ export default function SupportersWall({ supporters }: { supporters: { address: 
           <div className="min-w-0">
             <p className="text-xs font-bold text-amber-200 uppercase tracking-wide">{t('topSupporter')}</p>
             <p className="text-sm font-semibold text-white mt-1 truncate">
-              {supporters[0].address.slice(0, 6)}…{supporters[0].address.slice(-4)}
+              {supporters[0].name || `${supporters[0].address.slice(0, 6)}…${supporters[0].address.slice(-4)}`}
             </p>
             <p className="text-xs text-amber-200/70 mt-0.5">
               {t(supporters[0].tipCount === 1 ? 'nimAcrossTip' : 'nimAcrossTips', { n: supporters[0].totalNIM, k: supporters[0].tipCount })}

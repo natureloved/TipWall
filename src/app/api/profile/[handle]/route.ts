@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
-import { getProfile, setProfile, consumeAuthNonce, deleteProfileData, touchActivity } from '@/lib/kv'
+import { getProfile, setProfile, consumeAuthNonce, deleteProfileData, touchActivity, stripSensitiveProfileFields } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
-import { validateContentUrl, clampProfileFields, CONTENT_URL_MAX } from '@/lib/validate-profile'
+import { validateContentUrl, validateNotifyTelegram, normalizeTags, clampProfileFields, CONTENT_URL_MAX } from '@/lib/validate-profile'
 
 export async function GET(request: Request, { params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
@@ -11,7 +11,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
   if (!profile) {
     return NextResponse.json({ error: 'not found' }, { status: 404 })
   }
-  return NextResponse.json(profile)
+  return NextResponse.json(stripSensitiveProfileFields(profile))
 }
 
 /**
@@ -31,7 +31,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     }
 
     const body = await request.json()
-    const { displayName, bio, contentUrl, goal, achievement, auth } = body as Record<string, unknown>
+    const { displayName, bio, contentUrl, goal, achievement, theme, notifyTelegram, tags, auth } = body as Record<string, unknown>
 
     // --- Signature-bound authorization ----------------------------------
     const proof = auth as ProfileAuthProof | undefined
@@ -72,7 +72,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
       if (urlError) return NextResponse.json({ error: urlError }, { status: 400 })
     }
 
-    const clamped = clampProfileFields({ displayName, bio, achievement, goal })
+    const newNotify = notifyTelegram !== undefined ? String(notifyTelegram).trim() : undefined
+    if (newNotify !== undefined) {
+      const notifyError = validateNotifyTelegram(newNotify)
+      if (notifyError) return NextResponse.json({ error: notifyError }, { status: 400 })
+    }
+
+    const normalizedTags = normalizeTags(tags)
+    if (normalizedTags.error) return NextResponse.json({ error: normalizedTags.error }, { status: 400 })
+
+    const clamped = clampProfileFields({ displayName, bio, achievement, goal, theme })
     const updated: CreatorProfile = {
       ...existing,
       // Backfill owner key for legacy profiles created before this field existed.
@@ -81,6 +90,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
       bio: bio !== undefined ? clamped.bio ?? existing.bio : existing.bio,
       contentUrl: newContentUrl !== undefined ? newContentUrl : existing.contentUrl,
       achievement: achievement !== undefined ? clamped.achievement : existing.achievement,
+      theme: theme !== undefined ? clamped.theme as CreatorProfile['theme'] : existing.theme,
+      notifyTelegram: newNotify !== undefined ? (newNotify || undefined) : existing.notifyTelegram,
+      tags: tags !== undefined ? normalizedTags.tags : existing.tags,
       goal: goal !== undefined ? clamped.goal : existing.goal,
       // Invalidate any cached OG metadata if the content URL changed.
       ogCache: newContentUrl !== undefined && newContentUrl !== existing.contentUrl ? undefined : existing.ogCache,

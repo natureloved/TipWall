@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { getProfile } from '@/lib/kv'
+import { getProfile, stripSensitiveProfileFields } from '@/lib/kv'
 import EditProfileClient from './EditProfileClient'
 
 export default async function EditProfilePage({ params }: { params: Promise<{ handle: string }> }) {
@@ -7,7 +7,7 @@ export default async function EditProfilePage({ params }: { params: Promise<{ ha
   const profile = await getProfile(handle)
   if (!profile) notFound()
   // Never ship secrets to the client; the public profile fields are fine.
-  return <EditProfileClient handle={profile.handle} profile={profile} />
+  return <EditProfileClient handle={profile.handle} profile={stripSensitiveProfileFields(profile)} />
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {

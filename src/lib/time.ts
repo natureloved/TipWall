@@ -18,3 +18,30 @@ export function timeAgo(ts: number, now: number = Date.now()): string {
   if (d < 7) return `${d}d ago`
   return `${Math.floor(d / 7)}w ago`
 }
+
+const DAY_MS = 86400000
+
+/**
+ * Monday-aligned, consecutive week number for a timestamp (UTC). Day 0 of the
+ * epoch was a Thursday, so shifting by 3 lands on that week's Monday; any two
+ * timestamps in consecutive ISO weeks yield consecutive indices.
+ */
+export function weekIndex(ts: number): number {
+  return Math.floor((Math.floor(ts / DAY_MS) + 3) / 7)
+}
+
+/**
+ * Consecutive-week streak ending at the current week - or the previous one, so
+ * a supporter's streak stays visible until they miss a full week.
+ */
+export function streakWeeks(weeks: number[], now: number = Date.now()): number {
+  const present = new Set(weeks)
+  let cursor = weekIndex(now)
+  if (!present.has(cursor)) cursor -= 1
+  let streak = 0
+  while (present.has(cursor)) {
+    streak += 1
+    cursor -= 1
+  }
+  return streak
+}

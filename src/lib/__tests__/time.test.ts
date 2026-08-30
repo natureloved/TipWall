@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { timeAgo } from '../time'
+import { timeAgo, weekIndex, streakWeeks } from '../time'
 
 describe('timeAgo', () => {
   const now = 1_700_000_000_000 // fixed reference so tests are deterministic
@@ -34,5 +34,29 @@ describe('timeAgo', () => {
   it('shows weeks beyond a week', () => {
     expect(ago(WEEK)).toBe('1w ago')
     expect(ago(3 * WEEK)).toBe('3w ago')
+  })
+})
+
+describe('streaks', () => {
+  const now = 1_700_000_000_000
+  const thisWeek = weekIndex(now)
+  const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
+  it('maps timestamps a week apart to consecutive indices', () => {
+    expect(weekIndex(now) - weekIndex(now - WEEK_MS)).toBe(1)
+    expect(weekIndex(now) - weekIndex(now - 3 * WEEK_MS)).toBe(3)
+  })
+
+  it('counts consecutive weeks ending now', () => {
+    expect(streakWeeks([thisWeek, thisWeek - 1, thisWeek - 2], now)).toBe(3)
+  })
+
+  it('keeps the streak visible until a full week is missed', () => {
+    expect(streakWeeks([thisWeek - 1, thisWeek - 2], now)).toBe(2)
+  })
+
+  it('breaks on gaps and returns 0 for empty history', () => {
+    expect(streakWeeks([thisWeek, thisWeek - 2], now)).toBe(1)
+    expect(streakWeeks([], now)).toBe(0)
   })
 })

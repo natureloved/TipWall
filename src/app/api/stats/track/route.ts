@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { trackEvent, checkRateLimit } from '@/lib/kv'
+import { trackEvent, trackRef, checkRateLimit } from '@/lib/kv'
 import { normalizeHandle } from '@/lib/profile-auth'
 import { isFunnelEvent } from '@/lib/events'
 
@@ -25,6 +25,12 @@ export async function POST(req: NextRequest) {
     // Dedupe only view-type events; actions should always count.
     const dedupKey = event === 'TIP_WALL_VIEWED' && body.cid ? String(body.cid).slice(0, 64) : undefined
     await trackEvent(handle, event, dedupKey)
+    // Referrer breakdown for the two events creators act on. The ref is
+    // client-normalized; re-validate charset + length before it touches a key.
+    const ref = String(body.ref || '').toLowerCase()
+    if ((event === 'TIP_WALL_VIEWED' || event === 'TIP_COMPLETED') && /^[a-z0-9.-]{1,24}$/.test(ref)) {
+      await trackRef(handle, event, ref).catch(() => {})
+    }
     return NextResponse.json({ ok: true })
   } catch {
     // Tracking must never surface errors to the user.

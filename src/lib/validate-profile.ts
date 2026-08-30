@@ -19,7 +19,7 @@ const RESERVED_HANDLES = new Set([
   'static', 'assets', 'public', 'images', 'fonts',
   '_next', 'next', 'vercel', 'www', 'app', 'about', 'terms', 'privacy',
   'support', 'help', 'new', 'create', 'official', 'tipwall', 'nimiq',
-  'share', 'explore', 'badge',
+  'share', 'explore', 'badge', 'overlay', 'embed', 's',
 ])
 
 export function isReservedHandle(handle: string): boolean {
@@ -49,7 +49,31 @@ export function validateContentUrl(url: string): string | null {
   return null
 }
 
+/** Owner-private Telegram bot webhook: only Telegram's bot API is acceptable. */
+export function validateNotifyTelegram(url: string): string | null {
+  if (!url) return null
+  if (url.length > 200) return 'Telegram webhook is too long'
+  if (!url.startsWith('https://api.telegram.org/bot')) return 'Must be a https://api.telegram.org/bot… webhook URL'
+  return null
+}
+
+export const TAG_MAX = 3
+export const TAG_LEN_MAX = 20
+
+/** Normalize + validate creator tags: ≤3 unique non-empty tags of ≤20 chars. */
+export function normalizeTags(input: unknown): { tags?: string[]; error?: string } {
+  if (input === undefined) return {}
+  if (!Array.isArray(input)) return { error: 'Tags must be a list' }
+  const tags = [...new Set(
+    input.map(t => String(t || '').trim().slice(0, TAG_LEN_MAX)).filter(Boolean),
+  )]
+  if (tags.length > TAG_MAX) return { error: `At most ${TAG_MAX} tags` }
+  return { tags }
+}
+
 export interface GoalInput { label: string; targetNIM: number }
+
+export const VALID_THEMES = new Set(['paper', 'mint', 'blush', 'sky', 'sun'])
 
 /** Clamp/normalize the mutable presentation fields to their caps. */
 export function clampProfileFields(fields: {
@@ -57,8 +81,9 @@ export function clampProfileFields(fields: {
   bio?: unknown
   achievement?: unknown
   goal?: unknown
-}): { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput } {
-  const out: { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput } = {}
+  theme?: unknown
+}): { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string } {
+  const out: { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string } = {}
   if (fields.displayName !== undefined) {
     out.displayName = String(fields.displayName).slice(0, DISPLAY_NAME_MAX)
   }
@@ -75,6 +100,10 @@ export function clampProfileFields(fields: {
       label: String(g.label || 'Goal').slice(0, GOAL_LABEL_MAX),
       targetNIM: Math.min(GOAL_TARGET_MAX, Math.max(GOAL_TARGET_MIN, Number.isFinite(target) ? target : 1000)),
     }
+  }
+  if (fields.theme !== undefined) {
+    const theme = String(fields.theme)
+    out.theme = VALID_THEMES.has(theme) ? theme : 'paper'
   }
   return out
 }

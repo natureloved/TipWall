@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, createClaim, trackEvent, checkRateLimit } from '@/lib/kv'
+import { getProfile, createClaim, addPledgeToken, trackEvent, checkRateLimit } from '@/lib/kv'
 import { normalizeHandle } from '@/lib/profile-auth'
 import { type ClaimIntent, type TipReason } from '@/lib/types'
 
@@ -45,13 +45,16 @@ export async function POST(req: NextRequest) {
       amountNIM,
       message: body.message ? String(body.message).slice(0, 64) : undefined,
       reason,
-      // Email intentionally deferred for v1 (privacy). Field kept for forward-compat.
+      // Email is optional contact info for pledge reminders; never published.
+      email: source === 'pledge' && typeof body.email === 'string' ? body.email.trim().slice(0, 120) || undefined : undefined,
+      recurrence: source === 'pledge' && body.recurrence === 'monthly' ? 'monthly' : undefined,
       source,
       claimed: false,
       createdAt: Date.now(),
     }
 
     await createClaim(claim)
+    if (source === 'pledge') await addPledgeToken(handle, token)
     await trackEvent(handle, 'CLAIM_LINK_CREATED')
 
     return NextResponse.json({ success: true, token, claimUrl: `/claim/${token}` })

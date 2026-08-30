@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, getStats, getTips } from '@/lib/kv'
+import { getProfile, getStats, getTips, getTopRefs } from '@/lib/kv'
 import type { TipReason } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ han
 
     return NextResponse.json({
       stats,
+      topRefs: await getTopRefs(handleStr, 'TIP_WALL_VIEWED').catch(() => []),
       derived: {
         completedTips: completed,
         conversionRate,

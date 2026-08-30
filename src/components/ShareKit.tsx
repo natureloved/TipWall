@@ -33,6 +33,7 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
   const badgeUrl = `${origin}/api/badge/${handle}`
   const badgeMarkdown = `[![Tip me on TipWall](${badgeUrl})](${url})`
   const embedHtml = `<a href="${url}" target="_blank" rel="noopener">⚡ Tip ${displayName || `@${handle}`} in NIM on TipWall</a>`
+  const fabScript = `<script src="${origin}/embed/${handle}" defer></script>`
 
   useEffect(() => {
     // Origin and Web Share availability are browser-only; resolve after mount.
@@ -179,6 +180,15 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
           For blog posts, YouTube descriptions, and link-in-bio pages:
         </p>
         <CodeSnippet value={embedHtml} copied={copied === 'embed'} onCopy={() => copy('embed', embedHtml)} />
+      </section>
+
+      {/* 6. Floating tip button for own sites */}
+      <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Floating tip button</h2>
+        <p className="mb-2 text-xs text-[#746b5e]">
+          One line on your own site adds a “Tip @handle” button in the corner that opens your wall:
+        </p>
+        <CodeSnippet value={fabScript} copied={copied === 'fab'} onCopy={() => copy('fab', fabScript)} />
       </section>
 
       <div className="flex items-center justify-center gap-4 pb-8 text-xs text-[#746b5e]">

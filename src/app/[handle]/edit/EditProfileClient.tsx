@@ -1,13 +1,22 @@
 'use client'
 import { useState, useEffect } from 'react'
 import QRCode from 'qrcode'
-import { type CreatorProfile } from '@/lib/types'
+import { type CreatorProfile, type WallTheme } from '@/lib/types'
+import { VALID_THEMES } from '@/lib/validate-profile'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { detectNimiqPay, buildNimiqPayDeepLink, wallUrl, isMobileDevice } from '@/lib/environment'
 
 const fieldClass = 'w-full rounded-lg border border-[#92897b] bg-[#fffdf7] px-4 py-3 text-[#171614] placeholder:text-[#746b5e] transition-colors hover:border-[#746b5e] focus:border-[#f05a3c] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/20 disabled:cursor-not-allowed'
 const labelClass = 'mb-1 block text-xs font-semibold text-[#5f574b]'
+
+const THEME_SWATCHES: { id: WallTheme; label: string; paper: string; accent: string }[] = [
+  { id: 'paper', label: 'Paper', paper: '#f4f0e6', accent: '#f05a3c' },
+  { id: 'mint', label: 'Mint', paper: '#eef3ea', accent: '#4c8f63' },
+  { id: 'blush', label: 'Blush', paper: '#f8eeee', accent: '#e0708f' },
+  { id: 'sky', label: 'Sky', paper: '#edf2f5', accent: '#4a89a0' },
+  { id: 'sun', label: 'Sun', paper: '#f8ecd7', accent: '#e0862f' },
+]
 
 export default function EditProfileClient({ handle, profile }: { handle: string; profile: CreatorProfile }) {
   const [wallet, setWallet] = useState('')
@@ -18,6 +27,10 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
   const [goalLabel, setGoalLabel] = useState(profile.goal?.label || 'Goal')
   const [goalTarget, setGoalTarget] = useState(String(profile.goal?.targetNIM ?? 1000))
   const [achievement, setAchievement] = useState(profile.achievement || '')
+  const [theme, setTheme] = useState<WallTheme>(profile.theme && VALID_THEMES.has(profile.theme) ? profile.theme : 'paper')
+  const [notifyTelegram, setNotifyTelegram] = useState(profile.notifyTelegram || '')
+  const [notifyClear, setNotifyClear] = useState(false)
+  const [tagsInput, setTagsInput] = useState((profile.tags || []).join(', '))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -78,6 +91,9 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
           contentUrl,
           goal: { label: goalLabel, targetNIM: parseInt(goalTarget) || 1000 },
           achievement: achievement || undefined,
+          theme,
+          notifyTelegram: notifyClear ? '' : notifyTelegram.trim() || undefined,
+          tags: tagsInput.split(',').map(s => s.trim()).filter(Boolean),
           auth,
         }),
       })
@@ -193,6 +209,51 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
           <div>
             <label className={labelClass}>What are you currently working on?</label>
             <input value={achievement} onChange={e => setAchievement(e.target.value)} maxLength={80} className={`${fieldClass} text-sm`} />
+          </div>
+          <div>
+            <label className={labelClass}>Telegram tip alert (private)</label>
+            <input
+              value={notifyTelegram}
+              onChange={e => setNotifyTelegram(e.target.value)}
+              placeholder="https://api.telegram.org/bot<TOKEN>/sendMessage?chat_id=…"
+              className={`${fieldClass} text-xs`}
+            />
+            <label className="mt-2 flex items-center gap-2 text-xs text-[#5f574b]">
+              <input type="checkbox" checked={notifyClear} onChange={e => setNotifyClear(e.target.checked)} className="h-3.5 w-3.5 accent-[#f05a3c]" />
+              Remove my webhook
+            </label>
+            <p className="mt-1 text-[11px] text-[#746b5e]">
+              Get a Telegram message when a tip lands. Your existing webhook is never shown here; saving a new one replaces it.
+            </p>
+          </div>
+          <div>
+            <label className={labelClass}>Tags (up to 3, comma-separated)</label>
+            <input
+              value={tagsInput}
+              onChange={e => setTagsInput(e.target.value)}
+              placeholder="tutorials, open-source, music"
+              className={`${fieldClass} text-sm`}
+            />
+            <p className="mt-1 text-[11px] text-[#746b5e]">Shown on /explore so supporters can find you by kind of work.</p>
+          </div>
+          <div>
+            <label className={labelClass}>Wall theme</label>
+            <div className="flex flex-wrap gap-2">
+              {THEME_SWATCHES.map(s => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setTheme(s.id)}
+                  aria-pressed={theme === s.id}
+                  title={s.label}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${theme === s.id ? 'border-[#171614] shadow-[2px_2px_0_#171614]' : 'border-[#92897b] opacity-70 hover:opacity-100'}`}
+                  style={{ background: s.paper, color: '#171614' }}
+                >
+                  <span className="h-3.5 w-3.5 rounded-full border border-[#171614]/40" style={{ background: s.accent }} aria-hidden />
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
         </fieldset>
 

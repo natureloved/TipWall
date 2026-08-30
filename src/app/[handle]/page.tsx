@@ -1,12 +1,12 @@
 import { notFound } from 'next/navigation'
 import TipWallClient from './TipWallClient'
-import { getProfile } from '@/lib/kv'
+import { getProfile, stripSensitiveProfileFields } from '@/lib/kv'
 
 export default async function CreatorWallPage({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
   const profile = await getProfile(handle)
   if (!profile) notFound()
-  return <TipWallClient handle={handle} initialProfile={profile} />
+  return <TipWallClient handle={handle} initialProfile={stripSensitiveProfileFields(profile)} />
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {

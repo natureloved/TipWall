@@ -69,4 +69,11 @@ describe('clampProfileFields', () => {
     const out = clampProfileFields({ goal: { label: 'Goal', targetNIM: 'NaNaNaN' } })
     expect(out.goal!.targetNIM).toBe(1000)
   })
+
+  it('passes valid themes through and clamps unknown ones to paper', () => {
+    expect(clampProfileFields({ theme: 'mint' }).theme).toBe('mint')
+    expect(clampProfileFields({ theme: 'noir' }).theme).toBe('paper')
+    expect(clampProfileFields({ theme: 42 }).theme).toBe('paper')
+    expect(clampProfileFields({}).theme).toBeUndefined()
+  })
 })

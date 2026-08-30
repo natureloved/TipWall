@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGoalMilestones } from '@/lib/types'
-import { getProfile, reverifyPendingTips, getSupporters, getVerifiedTotalNim, getMilestones, sanitizeTips } from '@/lib/kv'
+import { getProfile, reverifyPendingTips, getSupporters, getVerifiedTotalNim, getMilestones, sanitizeTips, getPledges } from '@/lib/kv'
 import { normalizeAddress, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
 
@@ -71,6 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
     // Anonymous tippers stay anonymous even to the creator.
     tips: sanitizeTips(allTips),
     supporters,
+    pledges: await getPledges(handle).catch(() => []),
     totalNIM,
     totalTips: tips.length,
     // Milestones live under their own KV key, not on the profile object.

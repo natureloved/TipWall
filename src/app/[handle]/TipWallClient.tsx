@@ -10,6 +10,7 @@ import SupportersWall from '@/components/SupportersWall'
 import TipFeed from '@/components/TipFeed'
 import FloatingTips from '@/components/FloatingTips'
 import AnimatedNumber from '@/components/AnimatedNumber'
+import FiatHint from '@/components/FiatHint'
 import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
 import SharePrompt from '@/components/SharePrompt'
 import FirstVisitIntro from '@/components/FirstVisitIntro'
@@ -61,6 +62,32 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   useEffect(() => {
     loadTips()
   }, [loadTips])
+
+  // Live wall: a cheap head-id poll detects new tips; only then do we pay for
+  // the full reload. Paused while the tab is hidden to save KV reads.
+  useEffect(() => {
+    let cancelled = false
+    let lastHead: string | null = null
+    const poll = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
+      try {
+        const res = await fetch(`/api/tips/${handle}/live`)
+        if (!res.ok || cancelled) return
+        const data = (await res.json()) as { headTipId: string | null }
+        if (cancelled) return
+        if (lastHead === null) { lastHead = data.headTipId; return }
+        if (data.headTipId && data.headTipId !== lastHead) {
+          lastHead = data.headTipId
+          setFloatingTipTrigger(t => t + 1)
+          await loadTips()
+        }
+      } catch {
+        // A missed poll just retries on the next interval.
+      }
+    }
+    const interval = setInterval(poll, 15000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [handle, loadTips])
 
   // Weekly leaderboard rank drives the growth loop: a ranked creator sees their
   // rank on their own wall and shares it. Fail silently - a leaderboard outage
@@ -132,7 +159,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   return (
     <>
       <FloatingTips trigger={floatingTipTrigger} />
-      <div className="tw-wall min-h-screen relative">
+      <div className="tw-wall min-h-screen relative" data-theme={profile.theme || 'paper'}>
         {/* Fixed, opaque wall backdrop - painted from first frame (see .tw-wall
             in globals.css) so translucent cards never flash washed-out. */}
         <div className="tw-wall fixed inset-0 z-0" />
@@ -146,6 +173,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 <a href={`/${handle}/dashboard`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">📊 Dashboard</a>
                 <a href={`/${handle}/analytics`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">📈 Analytics</a>
                 <a href={`/${handle}/edit`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">✏️ Edit wall</a>
+                <a href={`/${handle}/overlay`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">🎥 Stream overlay</a>
               </div>
             )}
             <button
@@ -264,7 +292,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             <>
               {/* Stats Grid */}
               <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                <StatCard value={<AnimatedNumber value={totalNIM} />} label={t('totalTipped')} index={0} />
+                <StatCard value={<><AnimatedNumber value={totalNIM} /><FiatHint nim={totalNIM} className="ml-1.5 align-middle text-[10px] min-[375px]:text-xs sm:text-base font-semibold text-slate-500" /></>} label={t('totalTipped')} index={0} />
                 <StatCard value={<AnimatedNumber value={tips.length} />} label={t('tipsSent')} index={1} />
                 <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : 'No tips yet'} label={t('lastTip')} index={2} suppressHydrationWarning />
               </div>

@@ -163,7 +163,7 @@ body {
 /* Cross-product brand layer: legacy utility classes remain available to the
    feature code, while every non-landing route inherits the editorial paper /
    ink system. This keeps wallet and data logic untouched during the redesign. */
-:root { --tw-paper: #f4f0e6; --tw-paper-2: #e9e2d2; --tw-ink: #171614; --tw-ink-soft: #5f574b; --tw-muted: #746b5e; --tw-coral: #f05a3c; --tw-coral-text: #b9382a; --tw-gold: #f6b221; --tw-sky-text: #2d697c; --tw-sage: #3f6f4d; }
+:root { --tw-paper: #f4f0e6; --tw-paper-2: #e9e2d2; --tw-ink: #171614; --tw-ink-soft: #5f574b; --tw-muted: #746b5e; --tw-coral: #f05a3c; --tw-coral-text: #b9382a; --tw-gold: #f6b221; --tw-sky-text: #2d697c; --tw-sage: #3f6f4d; --tw-note-1: #fff1b8; --tw-note-2: #ffd5c8; --tw-note-3: #d8e9dd; }
 body { background: var(--tw-paper); color: var(--tw-ink); }
 .app-shell, .tw-wall { background: var(--tw-paper) !important; color: var(--tw-ink) !important; }
 .tw-wall .tw-wall { background: var(--tw-paper) !important; }
@@ -214,15 +214,25 @@ input::placeholder, textarea::placeholder { color: var(--tw-muted); opacity:1; }
 .empty-appreciation-board { background-color:#fffaf0 !important; background-image:radial-gradient(rgba(23,22,20,.09) 1px,transparent 1.3px) !important; background-size:18px 18px !important; border-color:var(--tw-coral) !important; box-shadow:5px 5px 0 rgba(23,22,20,.18); }
 .appreciation-prompts { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:0 auto 22px; max-width:540px; }
 .appreciation-prompts span { padding:7px 11px; border:1px solid rgba(23,22,20,.25); border-radius:999px; background:var(--tw-paper); color:var(--tw-ink-soft); font-size:.72rem; font-weight:700; }
-.tip-note-board { background:#e9e2d2 !important; }
+.tip-note-board { background:var(--tw-paper-2) !important; }
 .tip-note-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
-.tip-note-card { position:relative; padding:15px 14px 12px; background:#fff1b8; border:1px solid rgba(23,22,20,.25); border-radius:4px; box-shadow:3px 4px 0 rgba(23,22,20,.13); transform:rotate(-1deg); }
-.tip-note-card:nth-child(even) { background:#ffd5c8; transform:rotate(1deg); }
-.tip-note-card:nth-child(3n) { background:#d8e9dd; transform:rotate(-2deg); }
+.tip-note-card { position:relative; padding:15px 14px 12px; background:var(--tw-note-1); border:1px solid rgba(23,22,20,.25); border-radius:4px; box-shadow:3px 4px 0 rgba(23,22,20,.13); transform:rotate(-1deg); }
+.tip-note-card:nth-child(even) { background:var(--tw-note-2); transform:rotate(1deg); }
+.tip-note-card:nth-child(3n) { background:var(--tw-note-3); transform:rotate(-2deg); }
+
+/* Per-wall themes: curated palettes applied via data-theme on the wall root.
+   Only variables change - layout, ink strokes and shadows stay identical. */
+[data-theme="mint"] { --tw-paper:#eef3ea; --tw-paper-2:#dfe9da; --tw-coral:#4c8f63; --tw-coral-text:#315c3b; --tw-note-1:#e2f0cf; --tw-note-2:#d8e9dd; --tw-note-3:#fff1b8; }
+[data-theme="blush"] { --tw-paper:#f8eeee; --tw-paper-2:#efdfe0; --tw-coral:#e0708f; --tw-coral-text:#a83a63; --tw-note-1:#ffe0ea; --tw-note-2:#ffd5c8; --tw-note-3:#fff6d8; }
+[data-theme="sky"] { --tw-paper:#edf2f5; --tw-paper-2:#dee8ee; --tw-coral:#4a89a0; --tw-coral-text:#2d697c; --tw-note-1:#d8e9f3; --tw-note-2:#d8e9dd; --tw-note-3:#fff1b8; }
+[data-theme="sun"] { --tw-paper:#f8ecd7; --tw-paper-2:#efdfc0; --tw-coral:#e0862f; --tw-coral-text:#b45309; --tw-note-1:#ffe9a8; --tw-note-2:#ffd9a0; --tw-note-3:#e8f0d4; }
 .tip-note-card::before { content:""; position:absolute; top:-8px; left:50%; width:48px; height:14px; transform:translateX(-50%) rotate(-2deg); background:rgba(246,178,33,.55); }
 .tip-note-card .text-white, .tip-note-card .text-slate-300 { color:var(--tw-ink) !important; }
 .tip-note-board .text-slate-500, .tip-note-card .text-slate-500 { color:var(--tw-ink-soft) !important; }
 .tip-note-card .bg-white\/10 { background:rgba(23,22,20,.08) !important; }
+.tip-reply-note { background:#fffdf7; border:1px dashed rgba(23,22,20,.45); color:var(--tw-ink-soft); }
+.overlay-note { animation:overlay-note-life 8s ease forwards; }
+@keyframes overlay-note-life { 0% { opacity:0; transform:translateY(24px) rotate(-4deg) scale(.9); } 6% { opacity:1; transform:translateY(0) rotate(-1deg) scale(1); } 88% { opacity:1; } 100% { opacity:0; transform:translateY(-12px) rotate(1deg); } }
 .creator-sticky-tip { background:rgba(244,240,230,.96); border-color:rgba(23,22,20,.25); }
 .tip-modal-sheet { background:#fffaf0 !important; color:var(--tw-ink) !important; border-color:var(--tw-coral) !important; }
 .tip-modal-sheet { width:min(100%,760px) !important; overscroll-behavior:contain; scrollbar-gutter:stable; }

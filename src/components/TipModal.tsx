@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import TipReasonPicker from './TipReasonPicker'
+import FiatHint from './FiatHint'
 import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
 import { savePendingTipIntent } from '@/lib/tip-intent'
@@ -39,6 +40,14 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   const [reason, setReason] = useState<TipReason>('just_support')
   const [message, setMessage] = useState(initialMessage || '')
   const [anonymous, setAnonymous] = useState(false)
+  // Remembered display name so repeat supporters keep their identity without
+  // retyping. Read lazily; never touched during SSR.
+  const [senderName, setSenderName] = useState<string>(() => {
+    if (typeof window === 'undefined') return ''
+    try { return window.localStorage.getItem('tipwall:senderName') || '' } catch { return '' }
+  })
+  const [pledgeMonthly, setPledgeMonthly] = useState(false)
+  const [pledgeEmail, setPledgeEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const sendingRef = useRef(false)
@@ -136,6 +145,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         body: JSON.stringify({
           handle: creatorHandle,
           senderAddress,
+          senderName: senderName.trim() || undefined,
           reason,
           message: message.trim() || undefined,
           amountNIM: finalAmount,
@@ -146,6 +156,24 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to record tip')
+      if (senderName.trim()) {
+        try { window.localStorage.setItem('tipwall:senderName', senderName.trim()) } catch { /* private mode */ }
+      }
+      if (pledgeMonthly) {
+        fetch('/api/claim/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            creatorHandle,
+            amountNIM: finalAmount,
+            source: 'pledge',
+            recurrence: 'monthly',
+            email: pledgeEmail.trim() || undefined,
+            reason,
+            message: message.trim() || undefined,
+          }),
+        }).catch(() => {})
+      }
       onTipSuccess({
         senderAddress,
         amountNIM: finalAmount,
@@ -238,6 +266,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
               className="tip-modal-amount min-w-0 flex-1 bg-transparent text-3xl font-bold placeholder:text-[#746b5e] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
             <span className="shrink-0 text-lg font-semibold text-[#b9382a]">NIM</span>
+            <FiatHint nim={finalAmount} className="shrink-0 text-xs font-semibold text-[#746b5e]" />
           </div>
 
           <div className="tip-amount-grid grid grid-cols-4 gap-2 mb-5">
@@ -268,6 +297,17 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           className="mb-[10px] min-h-[60px] w-full resize-none rounded-xl border-2 border-[#92897b] bg-[#fffdf7] p-[10px] text-sm text-[#171614] placeholder:text-[#746b5e] transition-colors hover:border-[#746b5e] focus:border-[#f05a3c] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/20 sm:mb-4 sm:min-h-[74px] sm:p-3"
         />
 
+        {!anonymous && (
+          <input
+            value={senderName}
+            onChange={e => setSenderName(e.target.value)}
+            maxLength={24}
+            placeholder={t('senderNamePlaceholder')}
+            aria-label={t('senderNameLabel')}
+            className="mb-[10px] w-full rounded-xl border-2 border-[#92897b] bg-[#fffdf7] px-3 py-2 text-sm text-[#171614] placeholder:text-[#746b5e] transition-colors hover:border-[#746b5e] focus:border-[#f05a3c] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/20 sm:mb-3"
+          />
+        )}
+
         <label className="tip-anonymous-row mb-4 flex cursor-pointer items-center gap-3 text-sm text-[#5f574b] transition-colors hover:text-[#171614]">
           <input
             type="checkbox"
@@ -277,6 +317,26 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           />
           {t('anonymous')}
         </label>
+
+        <label className="mb-2 flex cursor-pointer items-center gap-3 text-sm text-[#5f574b] transition-colors hover:text-[#171614]">
+          <input
+            type="checkbox"
+            checked={pledgeMonthly}
+            onChange={e => setPledgeMonthly(e.target.checked)}
+            className="h-4 w-4 cursor-pointer rounded border-2 border-[#746b5e] accent-[#f05a3c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2"
+          />
+          🔁 {t('pledgeMonthly')}
+        </label>
+        {pledgeMonthly && (
+          <input
+            type="email"
+            value={pledgeEmail}
+            onChange={e => setPledgeEmail(e.target.value)}
+            placeholder={t('pledgeEmailPlaceholder')}
+            aria-label={t('pledgeEmailPlaceholder')}
+            className="mb-3 w-full rounded-xl border-2 border-[#92897b] bg-[#fffdf7] px-3 py-2 text-sm text-[#171614] placeholder:text-[#746b5e] focus:border-[#f05a3c] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/20"
+          />
+        )}
 
         {error && (
           <div className="mb-4 rounded-xl border border-[#d36b61] bg-[#fff0ed] p-3 text-sm font-medium text-[#8f2923]" role="alert">

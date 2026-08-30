@@ -1,18 +1,20 @@
 import { DashboardData, TIP_REASON_LABELS } from '@/lib/types'
+import { useTranslations } from '@/lib/i18n'
 
 export default function DashboardStats({ data }: { data: DashboardData }) {
+  const t = useTranslations()
   const lastSevenDaysNIM = data.tipsLast7Days.reduce((sum, day) => sum + day.nim, 0)
   const stats = [
-    { value: data.totalNIM.toLocaleString(), label: 'Total NIM earned' },
-    { value: data.totalTips.toLocaleString(), label: 'Total tips' },
-    { value: (data.supporters?.length ?? 0).toLocaleString(), label: 'Unique supporters' },
-    { value: lastSevenDaysNIM.toLocaleString(), label: 'NIM in the last 7 days' },
+    { value: data.totalNIM.toLocaleString(), label: t('statsTotalNim') },
+    { value: data.totalTips.toLocaleString(), label: t('statsTotalTips') },
+    { value: (data.supporters?.length ?? 0).toLocaleString(), label: t('statsSupporters') },
+    { value: lastSevenDaysNIM.toLocaleString(), label: t('statsLast7') },
   ]
 
   return (
     <section aria-labelledby="dashboard-overview-heading">
       <h2 id="dashboard-overview-heading" className="mb-2 text-xs font-bold uppercase tracking-wide text-[#5f574b]">
-        Overview
+        {t('statsOverview')}
       </h2>
       <div className="mb-3 grid grid-cols-2 gap-3">
         {stats.map((stat) => (
@@ -25,13 +27,13 @@ export default function DashboardStats({ data }: { data: DashboardData }) {
 
       {data.topReason && (
         <div className="rounded-lg border border-[#b9382a]/30 bg-[#fbd8cf] p-3 text-sm leading-relaxed text-[#5c1f17]">
-          Most common reason: <strong className="font-bold">{TIP_REASON_LABELS[data.topReason].emoji} {TIP_REASON_LABELS[data.topReason].label}</strong>
+          {t('statsTopReason')} <strong className="font-bold">{TIP_REASON_LABELS[data.topReason].emoji} {TIP_REASON_LABELS[data.topReason].label}</strong>
         </div>
       )}
 
       {data.nextMilestone && (
         <p className="mt-3 text-xs font-medium leading-relaxed text-[#5f574b]">
-          {(data.nextMilestone - data.totalNIM).toLocaleString()} NIM to your next milestone ({data.nextMilestone.toLocaleString()} NIM)
+          {t('statsNextMilestone', { n: (data.nextMilestone - data.totalNIM).toLocaleString(), m: data.nextMilestone.toLocaleString() })}
         </p>
       )}
     </section>

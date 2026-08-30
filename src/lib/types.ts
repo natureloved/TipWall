@@ -23,6 +23,9 @@ export type OGMetadata = {
   author?: string
 }
 
+/** Curated wall palettes. 'paper' is the default editorial identity. */
+export type WallTheme = 'paper' | 'mint' | 'blush' | 'sky' | 'sun'
+
 // Milestones are derived from a creator's goal rather than a fixed ladder, so the
 // row always builds up to - and ends exactly at - the goal (the goal is the final
 // rung, lining up with the progress bar hitting full). Even quarter-steps give a
@@ -73,6 +76,14 @@ export interface CreatorProfile {
   ogCache?: OGMetadata
   ogCachedAt?: number
   achievement?: string
+  /**
+   * Owner-private Telegram bot webhook (https://api.telegram.org/bot…).
+   * Stripped from every public profile read - see stripSensitiveProfileFields.
+   */
+  notifyTelegram?: string
+  theme?: WallTheme
+  /** Self-described categories for explore filtering (max 3, ≤20 chars each). */
+  tags?: string[]
   goal?: {
     label: string
     targetNIM: number
@@ -86,6 +97,8 @@ export interface Tip {
   id: string
   handle: string
   senderAddress: string
+  /** Self-reported display name (optional). Stripped for anonymous tips. */
+  senderName?: string
   reason?: TipReason
   message?: string
   amountNIM: number
@@ -93,6 +106,8 @@ export interface Tip {
   verified: boolean
   anonymous: boolean
   timestamp: number
+  /** Creator's thank-you reply, pinned to this tip. */
+  reply?: { message: string; at: number }
 }
 
 export interface Supporter {
@@ -100,6 +115,10 @@ export interface Supporter {
   totalNIM: number
   tipCount: number
   firstTipAt: number
+  /** Latest self-reported display name for this address, if any. */
+  name?: string
+  /** Consecutive ISO weeks with at least one verified tip (≥2 = streak). */
+  streakWeeks?: number
 }
 
 /**
@@ -117,6 +136,8 @@ export interface ClaimIntent {
   reason?: TipReason
   email?: string
   source: 'redirect' | 'pledge'
+  /** Pledges only: the supporter asked to repeat this tip on a schedule. */
+  recurrence?: 'monthly'
   claimed: boolean
   createdAt: number
   claimedAt?: number
@@ -127,6 +148,7 @@ export type DashboardData = {
   profile: CreatorProfile
   tips: Tip[]
   supporters: Supporter[]
+  pledges?: ClaimIntent[]
   totalNIM: number
   totalTips: number
   milestonesUnlocked: MilestoneEvent[]
