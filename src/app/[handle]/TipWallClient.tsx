@@ -260,13 +260,6 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             </div>
           </div>
 
-          {hasTips && topReason && (
-            <div className="surface-soft rounded-2xl px-5 py-4 flex items-center gap-3 animate-slide-up">
-              <span className="text-2xl">{TIP_REASON_LABELS[topReason.reason].emoji}</span>
-              <div className="min-w-0"><p className="text-[11px] uppercase tracking-wide font-bold text-sky-300">What your audience values</p><p className="text-sm text-slate-200 mt-0.5">Supporters most often come for <strong>{TIP_REASON_LABELS[topReason.reason].label.toLowerCase()}</strong>.</p></div>
-            </div>
-          )}
-
           {tipsLoading ? (
             <div className="wall-content-loading" role="status" aria-live="polite"><span className="wall-loading-spinner" /><p>Opening the appreciation wall...</p></div>
           ) : !hasTips ? (
@@ -297,65 +290,33 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : 'No tips yet'} label={t('lastTip')} index={2} suppressHydrationWarning />
               </div>
 
-              {/* Supporters - prominently displayed for community recognition */}
-              <SupportersWall supporters={supporters} />
+              {/* The feed is the heart of the wall - it leads, right after stats. */}
+              <TipFeed tips={tips} />
 
-              {/* Goal + milestones only render when the creator has set a goal. */}
+              {/* Goal + milestones share one compact card (only when a goal exists). */}
               {profile.goal && (
-                <>
-              {/* Goal Progress */}
-              <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{profile.goal?.label || 'Goal'}</span>
-                  <span className="text-xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
-                    {goalPercentTrue}%{goalSmashed && <span className="ml-1 text-sm font-semibold text-amber-300">· goal smashed 🎉</span>}
-                  </span>
-                </div>
-                <div
-                  className="relative w-full h-3 rounded-full overflow-hidden bg-white/10"
-                  role="progressbar"
-                  aria-valuenow={goalPercent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={profile.goal?.label || 'Goal'}
-                >
-                  <div
-                    className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700 relative"
-                    style={{ width: `${goalPercent}%` }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Milestones */}
-              <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg border-2 border-amber-400/10 animate-slide-up" style={{animationDelay: '0.5s'}}>
-                <div className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-4">{t('milestones')}</div>
-                <div className="milestone-grid grid gap-2">
-                  {goalMilestones.map((m, idx) => (
-                    <div
-                      key={m}
-                      className={`py-3 px-2 rounded-xl text-center font-semibold text-sm transition-all duration-300 ${
-                        unlockedMilestones.includes(m)
-                          ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 shadow-lg animate-bounce-custom'
-                          : 'bg-white/5 text-slate-500 border-2 border-white/10'
-                      }`}
-                      style={{animationDelay: `${0.5 + idx * 0.03}s`}}
-                    >
-                      {unlockedMilestones.includes(m) && <span className="text-xs mr-1" aria-label="unlocked">✓</span>}
-                      {m >= 1000 ? `${(m / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k` : m}
-                    </div>
-                  ))}
-                </div>
-              </div>
-                </>
+                <GoalCard
+                  label={profile.goal.label || 'Goal'}
+                  percentTrue={goalPercentTrue}
+                  percent={goalPercent}
+                  smashed={goalSmashed}
+                  milestones={goalMilestones}
+                  unlocked={unlockedMilestones}
+                />
               )}
+
+              {/* Supporters collapse to a count row - full grid one tap away. */}
+              <SupportersWall supporters={supporters} collapsible />
 
               {/* Content Preview */}
               {profile.contentUrl && <ContentPreviewCard url={profile.contentUrl} handle={handle} />}
 
-              {/* Live Feed */}
-              <TipFeed tips={tips} />
+              {topReason && (
+                <div className="surface-soft rounded-2xl px-5 py-4 flex items-center gap-3 animate-slide-up">
+                  <span className="text-2xl">{TIP_REASON_LABELS[topReason.reason].emoji}</span>
+                  <div className="min-w-0"><p className="text-[11px] uppercase tracking-wide font-bold text-sky-300">What your audience values</p><p className="text-sm text-slate-200 mt-0.5">Supporters most often come for <strong>{TIP_REASON_LABELS[topReason.reason].label.toLowerCase()}</strong>.</p></div>
+                </div>
+              )}
             </>
           )}
 
@@ -393,6 +354,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           onClose={() => { setShowTipModal(false); setResume(null) }}
           creatorHandle={handle}
           creatorWalletAddress={profile.walletAddress}
+          creatorDisplayName={profile.displayName}
           nimiqAvailable={nimiqAvailable}
           goal={profile.goal}
           totalNIM={totalNIM}
@@ -476,6 +438,57 @@ function StatCard({ value, label, index, suppressHydrationWarning }: { value: Re
           {value}
         </div>
         <div className="mt-1.5 whitespace-nowrap text-[9px] min-[375px]:text-[10px] sm:mt-2 sm:text-sm font-semibold leading-tight text-slate-400 uppercase">{label}</div>
+      </div>
+    </div>
+  )
+}
+
+function GoalCard({ label, percentTrue, percent, smashed, milestones, unlocked }: {
+  label: string
+  percentTrue: number
+  percent: number
+  smashed: boolean
+  milestones: number[]
+  unlocked: number[]
+}) {
+  const t = useTranslations()
+  return (
+    <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{label}</span>
+        <span className="text-xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
+          {percentTrue}%{smashed && <span className="ml-1 text-sm font-semibold text-amber-300">· goal smashed 🎉</span>}
+        </span>
+      </div>
+      <div
+        className="relative w-full h-3 rounded-full overflow-hidden bg-white/10"
+        role="progressbar"
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+      >
+        <div
+          className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700 relative"
+          style={{ width: `${percent}%` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-1.5" aria-label={t('milestones')}>
+        {milestones.map(m => (
+          <span
+            key={m}
+            className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-300 ${
+              unlocked.includes(m)
+                ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-900 shadow'
+                : 'bg-white/5 text-slate-500 border border-white/10'
+            }`}
+          >
+            {unlocked.includes(m) && <span className="mr-0.5" aria-label="unlocked">✓</span>}
+            {m >= 1000 ? `${(m / 1000).toLocaleString(undefined, { maximumFractionDigits: 1 })}k` : m}
+          </span>
+        ))}
       </div>
     </div>
   )

@@ -3,17 +3,21 @@ import TipReasonPicker from './TipReasonPicker'
 import FiatHint from './FiatHint'
 import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
+import { tipViaHub } from '@/lib/hub'
+import { isMobileDevice } from '@/lib/environment'
 import { savePendingTipIntent } from '@/lib/tip-intent'
 import { useTranslations } from '@/lib/i18n'
 import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
-export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken, goal, totalNIM }: {
+export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, creatorDisplayName, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken, goal, totalNIM }: {
   isOpen: boolean
   onClose: () => void
   creatorHandle: string
   creatorWalletAddress: string
+  /** Shown in the Nimiq Hub payment popup so supporters know who they pay. */
+  creatorDisplayName?: string
   onTipSuccess: (tip: { senderAddress: string; amountNIM: number; message?: string; txHash: string; milestone?: number | null }) => void
   /** null = unknown/checking, true = inside Nimiq Pay, false = outside. */
   nimiqAvailable?: boolean | null
@@ -90,6 +94,66 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     return parts.join(' | ').slice(0, 64) || undefined
   }
 
+  // Shared tail of every successful payment: record the tip server-side,
+  // remember the display name, optionally log the pledge, then report success.
+  const recordTip = async (txHash: string, senderAddress: string) => {
+    const res = await fetch('/api/tips/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        handle: creatorHandle,
+        senderAddress,
+        senderName: senderName.trim() || undefined,
+        reason,
+        message: message.trim() || undefined,
+        amountNIM: finalAmount,
+        txHash,
+        anonymous,
+        claimToken,
+      }),
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to record tip')
+    if (senderName.trim()) {
+      try { window.localStorage.setItem('tipwall:senderName', senderName.trim()) } catch { /* private mode */ }
+    }
+    if (pledgeMonthly) {
+      fetch('/api/claim/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          creatorHandle,
+          amountNIM: finalAmount,
+          source: 'pledge',
+          recurrence: 'monthly',
+          email: pledgeEmail.trim() || undefined,
+          reason,
+          message: message.trim() || undefined,
+        }),
+      }).catch(() => {})
+    }
+    onTipSuccess({
+      senderAddress,
+      amountNIM: finalAmount,
+      message: message.trim() || undefined,
+      txHash,
+      milestone: data.milestone?.threshold ?? data.milestoneReached ?? null,
+    })
+    onClose()
+  }
+
+  // Preserve the intent and hand the user to the Nimiq Pay onboarding flow.
+  const fallbackToInstall = () => {
+    savePendingTipIntent({
+      creatorHandle,
+      amountNIM: finalAmount,
+      message: message.trim() || undefined,
+      reason: reason || undefined,
+      createdAt: Date.now(),
+    })
+    onNeedsInstall?.(finalAmount)
+  }
+
   const handleSendTip = async () => {
     if (sendingRef.current) return
     if (!finalAmount || finalAmount < 1) return setError('Minimum tip is 1 NIM')
@@ -98,17 +162,29 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     const reset = () => { sendingRef.current = false }
 
     try {
-      // Outside Nimiq Pay: a payment can't complete here. Preserve the intent and
-      // route the user into the onboarding flow instead of failing.
+      // Outside Nimiq Pay: on phones we hand off to the Nimiq Pay app; on
+      // desktop the tip completes right here via the Nimiq Hub popup.
       if (nimiqAvailable === false) {
-        savePendingTipIntent({
-          creatorHandle,
-          amountNIM: finalAmount,
-          message: message.trim() || undefined,
-          reason: reason || undefined,
-          createdAt: Date.now(),
-        })
-        onNeedsInstall?.(finalAmount)
+        if (isMobileDevice()) {
+          fallbackToInstall()
+          reset()
+          return
+        }
+        setLoading(true)
+        setError('')
+        try {
+          const { txHash, senderAddress } = await tipViaHub({
+            creatorHandle,
+            creatorDisplayName,
+            creatorWalletAddress,
+            amountNim: finalAmount,
+            tipMessage: buildExtraData(),
+          })
+          await recordTip(txHash, senderAddress)
+        } catch (e) {
+          setError((e as Error).message || 'The payment could not be completed.')
+          setLoading(false)
+        }
         reset()
         return
       }
@@ -139,49 +215,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         return
       }
       const senderAddress = await getSenderAddress() || ''
-      const res = await fetch('/api/tips/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          handle: creatorHandle,
-          senderAddress,
-          senderName: senderName.trim() || undefined,
-          reason,
-          message: message.trim() || undefined,
-          amountNIM: finalAmount,
-          txHash: result.txHash,
-          anonymous,
-          claimToken,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to record tip')
-      if (senderName.trim()) {
-        try { window.localStorage.setItem('tipwall:senderName', senderName.trim()) } catch { /* private mode */ }
-      }
-      if (pledgeMonthly) {
-        fetch('/api/claim/create', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            creatorHandle,
-            amountNIM: finalAmount,
-            source: 'pledge',
-            recurrence: 'monthly',
-            email: pledgeEmail.trim() || undefined,
-            reason,
-            message: message.trim() || undefined,
-          }),
-        }).catch(() => {})
-      }
-      onTipSuccess({
-        senderAddress,
-        amountNIM: finalAmount,
-        message: message.trim() || undefined,
-        txHash: result.txHash,
-        milestone: data.milestone?.threshold ?? data.milestoneReached ?? null,
-      })
-      onClose()
+      await recordTip(result.txHash, senderAddress)
     } catch (e) {
       const error = e as Error
       setError(error.message || 'Something went wrong. Please try again.')
@@ -354,11 +388,20 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
             className="w-full transform rounded-xl bg-[#171614] py-3.5 text-sm font-bold text-[#fffdf7] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#171614]"
           >
             {loading
-              ? t('waiting')
+              ? (nimiqAvailable === false ? '⏳ Waiting for wallet confirmation...' : t('waiting'))
               : nimiqAvailable === false
-                ? `⚡ Continue in Nimiq Pay`
+                ? (isMobileDevice() ? '⚡ Continue in Nimiq Pay' : `💳 ${finalAmount || '?'} NIM: Pay via Nimiq Hub`)
                 : `💰 ${finalAmount || '?'} NIM: ${t('confirmTip')}`}
           </button>
+          {nimiqAvailable === false && !isMobileDevice() && (
+            <button
+              type="button"
+              onClick={fallbackToInstall}
+              className="mt-2.5 w-full text-center text-xs font-semibold text-[#746b5e] underline underline-offset-4 transition-colors hover:text-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]"
+            >
+              Prefer Nimiq Pay on your phone?
+            </button>
+          )}
           <p className="mt-2.5 text-center text-[11px] text-[#746b5e]">
             ⚡ {t('tipGoesDirectly')}
           </p>
