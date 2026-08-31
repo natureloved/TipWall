@@ -34,7 +34,7 @@ export default function FiatHint({ nim, className }: { nim: number; className?: 
   const rate = useEur ? rates.eur : rates.usd
   if (!rate) return null
   const fiat = nim * rate
-  const label = fiat < 1 ? fiat.toFixed(2) : Math.round(fiat).toLocaleString()
+  const label = fiat < 0.01 ? Number(fiat.toPrecision(2)).toString() : fiat < 1 ? fiat.toFixed(2) : Math.round(fiat).toLocaleString()
   return (
     <span className={className} title="Approximate fiat value">
       ≈ {useEur ? '€' : '$'}{label}

@@ -1,8 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react'
 import QRCode from 'qrcode'
-import { type CreatorProfile, type WallTheme } from '@/lib/types'
-import { VALID_THEMES } from '@/lib/validate-profile'
+import { type CreatorProfile, type WallTheme, type CreatorCategory, CREATOR_CATEGORIES } from '@/lib/types'
+import { VALID_THEMES, VALID_CATEGORIES } from '@/lib/validate-profile'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { detectNimiqPay, buildNimiqPayDeepLink, wallUrl, isMobileDevice } from '@/lib/environment'
@@ -28,6 +28,7 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
   const [goalTarget, setGoalTarget] = useState(String(profile.goal?.targetNIM ?? 1000))
   const [achievement, setAchievement] = useState(profile.achievement || '')
   const [theme, setTheme] = useState<WallTheme>(profile.theme && VALID_THEMES.has(profile.theme) ? profile.theme : 'paper')
+  const [category, setCategory] = useState<CreatorCategory | ''>(profile.category && VALID_CATEGORIES.has(profile.category) ? profile.category : '')
   const [notifyTelegram, setNotifyTelegram] = useState(profile.notifyTelegram || '')
   const [notifyClear, setNotifyClear] = useState(false)
   const [tagsInput, setTagsInput] = useState((profile.tags || []).join(', '))
@@ -92,6 +93,7 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
           goal: { label: goalLabel, targetNIM: parseInt(goalTarget) || 1000 },
           achievement: achievement || undefined,
           theme,
+          category,
           notifyTelegram: notifyClear ? '' : notifyTelegram.trim() || undefined,
           tags: tagsInput.split(',').map(s => s.trim()).filter(Boolean),
           auth,
@@ -234,7 +236,17 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
               placeholder="tutorials, open-source, music"
               className={`${fieldClass} text-sm`}
             />
-            <p className="mt-1 text-[11px] text-[#746b5e]">Shown on /explore so supporters can find you by kind of work.</p>
+            <p className="mt-1 text-[11px] text-[#746b5e]">Free-form keywords shown on your explore card.</p>
+          </div>
+          <div>
+            <label className={labelClass}>Category</label>
+            <select value={category} onChange={e => setCategory(e.target.value as CreatorCategory | '')} className={fieldClass}>
+              <option value="">No category</option>
+              {(Object.keys(CREATOR_CATEGORIES) as CreatorCategory[]).map(c => (
+                <option key={c} value={c}>{CREATOR_CATEGORIES[c].emoji} {CREATOR_CATEGORIES[c].label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-[11px] text-[#746b5e]">Used as your filter on /explore so supporters can find you by kind of work.</p>
           </div>
           <div>
             <label className={labelClass}>Wall theme</label>

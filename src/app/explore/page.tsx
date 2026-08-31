@@ -7,7 +7,7 @@ import {
   getTips,
   LEADERBOARD_WINDOW_MS,
 } from '@/lib/kv'
-import { TIP_REASON_LABELS, type CreatorProfile, type Tip, type TipReason } from '@/lib/types'
+import { TIP_REASON_LABELS, CREATOR_CATEGORIES, type CreatorProfile, type Tip, type TipReason, type CreatorCategory } from '@/lib/types'
 import MissionLink from '@/components/MissionLink'
 import { timeAgo } from '@/lib/time'
 
@@ -112,12 +112,11 @@ const RANK_BADGE = [
   'bg-[#CD7F32] text-slate-900',
 ]
 
-export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ reason?: string; q?: string; tag?: string }> }) {
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ cat?: string; q?: string; tag?: string }> }) {
   const params = await searchParams
-  const requestedReason = params.reason
   const query = String(params.q || '').trim().toLowerCase()
   const activeTag = String(params.tag || '').trim().toLowerCase()
-  const activeReason = (Object.keys(TIP_REASON_LABELS) as TipReason[]).includes(requestedReason as TipReason) ? requestedReason as TipReason : null
+  const activeCategory = (Object.keys(CREATOR_CATEGORIES) as CreatorCategory[]).includes(params.cat as CreatorCategory) ? params.cat as CreatorCategory : null
   let allWalls: ExploreWall[] = []
   let directoryUnavailable = false
   try {
@@ -126,8 +125,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     directoryUnavailable = true
     console.error('Explore directory unavailable:', error)
   }
-  const reasonWalls = activeReason ? allWalls.filter(w => w.topReason === activeReason) : allWalls
-  const walls = reasonWalls.filter(w => {
+  const categoryWalls = activeCategory ? allWalls.filter(w => w.profile.category === activeCategory) : allWalls
+  const walls = categoryWalls.filter(w => {
     if (query) {
       const haystack = `${w.profile.displayName || ''} ${w.profile.handle} ${w.profile.bio || ''}`.toLowerCase()
       if (!haystack.includes(query)) return false
@@ -135,6 +134,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     if (activeTag && !(w.profile.tags || []).some(t => t.toLowerCase() === activeTag)) return false
     return true
   })
+
+  // Categories present in the directory power the filter chips (most walls first).
+  const categoryCounts = new Map<CreatorCategory, number>()
+  for (const w of allWalls) if (w.profile.category) {
+    categoryCounts.set(w.profile.category, (categoryCounts.get(w.profile.category) || 0) + 1)
+  }
+  const categoryChips = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
 
   // Most-used tags across the directory power the filter chips.
   const tagCounts = new Map<string, number>()
@@ -176,7 +182,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <h1 className="font-serif text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900">
             Find creators worth <span className="text-amber-300 italic">supporting.</span>
           </h1>
-          <p className="max-w-xl mx-auto mt-3 text-sm text-slate-400">Browse by the kind of work people value, not just the amount raised.</p>
+          <p className="max-w-xl mx-auto mt-3 text-sm text-slate-400">Browse by the kind of work creators make, not just the amount raised.</p>
           {wallCount > 0 && (
             <p className="explore-stats-pill inline-flex mt-4 rounded-full border px-4 py-2 text-xs font-semibold">
               {wallCount.toLocaleString()} creator {wallCount === 1 ? 'wall' : 'walls'}
@@ -188,11 +194,11 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             <MissionLink className="explore-mission-link" />
           </div>
           <div className="mt-5 flex flex-wrap gap-2 justify-center pb-1">
-            <Link href="/explore" aria-current={!activeReason ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeReason ? 'explore-filter-active' : ''}`}>All creators</Link>
-            {(Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => <Link key={reason} href={`/explore?reason=${reason}`} aria-current={activeReason === reason ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeReason === reason ? 'explore-filter-active' : ''}`}>{TIP_REASON_LABELS[reason].emoji} {TIP_REASON_LABELS[reason].label}</Link>)}
+            <Link href="/explore" aria-current={!activeCategory ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeCategory ? 'explore-filter-active' : ''}`}>All creators</Link>
+            {categoryChips.map(cat => <Link key={cat} href={`/explore?cat=${cat}`} aria-current={activeCategory === cat ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeCategory === cat ? 'explore-filter-active' : ''}`}>{CREATOR_CATEGORIES[cat].emoji} {CREATOR_CATEGORIES[cat].label}</Link>)}
           </div>
           <form action="/explore" className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {activeReason && <input type="hidden" name="reason" value={activeReason} />}
+            {activeCategory && <input type="hidden" name="cat" value={activeCategory} />}
             <input
               name="q"
               defaultValue={query || ''}
@@ -207,7 +213,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               {topTags.map(tag => (
                 <Link
                   key={tag}
-                  href={`/explore?tag=${encodeURIComponent(tag)}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
+                  href={`/explore?tag=${encodeURIComponent(tag)}${activeCategory ? `&cat=${activeCategory}` : ''}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
                   aria-current={activeTag === tag ? 'page' : undefined}
                   className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeTag === tag ? 'explore-filter-active' : ''}`}
                 >
@@ -274,7 +280,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         {profile.achievement && (
                           <p className="text-xs text-amber-200/80 mt-1 truncate">🏆 {profile.achievement}</p>
                         )}
-                        {topReason && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
+                        {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {CREATOR_CATEGORIES[profile.category].label}</span>}
+                        {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
                         {!!profile.tags?.length && (
                           <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
                             {profile.tags.map(tag => (
@@ -333,7 +340,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       {profile.achievement && (
                         <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
                       )}
-                      {topReason && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
+                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {CREATOR_CATEGORIES[profile.category].label}</span>}
+                      {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
                         {!!profile.tags?.length && (
                           <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
                             {profile.tags.map(tag => (

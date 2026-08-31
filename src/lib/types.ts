@@ -21,10 +21,24 @@ export type OGMetadata = {
   siteName?: string
   stars?: number
   author?: string
+  /** Negative-cache marker: upstream fetch failed, fail fast for a while. */
+  neg?: boolean
 }
 
 /** Curated wall palettes. 'paper' is the default editorial identity. */
 export type WallTheme = 'paper' | 'mint' | 'blush' | 'sky' | 'sun'
+
+/** Curated discovery categories - the explore filter axis (what the creator makes). */
+export type CreatorCategory = 'art' | 'code' | 'education' | 'music' | 'video' | 'community'
+
+export const CREATOR_CATEGORIES: Record<CreatorCategory, { emoji: string; label: string }> = {
+  art: { emoji: '🎨', label: 'Art & Design' },
+  code: { emoji: '💻', label: 'Code & Open Source' },
+  education: { emoji: '📚', label: 'Writing & Education' },
+  music: { emoji: '🎵', label: 'Music & Audio' },
+  video: { emoji: '🎬', label: 'Streaming & Video' },
+  community: { emoji: '🌱', label: 'Community & Other' },
+}
 
 // Milestones are derived from a creator's goal rather than a fixed ladder, so the
 // row always builds up to - and ends exactly at - the goal (the goal is the final
@@ -82,7 +96,9 @@ export interface CreatorProfile {
    */
   notifyTelegram?: string
   theme?: WallTheme
-  /** Self-described categories for explore filtering (max 3, ≤20 chars each). */
+  /** Curated discovery category (explore filter axis). */
+  category?: CreatorCategory
+  /** Free-form self-described tags (max 3, ≤20 chars each). */
   tags?: string[]
   goal?: {
     label: string

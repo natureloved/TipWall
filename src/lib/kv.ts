@@ -635,7 +635,11 @@ export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
     // render (ContentPreviewCard mounts on each wall view).
     const cacheKey = `${PREFIX}og:${parsed.href}`
     const cached = await kv.get<OGMetadata>(cacheKey)
-    if (cached) return cached
+    if (cached) return cached.neg ? null : cached
+
+    // Failed upstream fetches are cached briefly too, so a dead contentUrl
+    // fails fast instead of hanging every wall view until the abort timer.
+    const cacheFailure = () => kv.set(cacheKey, { neg: true } as OGMetadata, { px: 5 * 60 * 1000 }).catch(() => {})
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 5000)
@@ -648,7 +652,10 @@ export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
     clearTimeout(timeout)
 
     if (resp.status >= 300 && resp.status < 400) return null
-    if (!resp.ok) return null
+    if (!resp.ok) {
+      await cacheFailure()
+      return null
+    }
 
     const contentLength = Number(resp.headers.get('content-length') || 0)
     if (contentLength > 512_000) return null
@@ -674,6 +681,7 @@ export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
   } catch (err) {
     // Log error for debugging but don't break the flow
     console.warn('Failed to fetch OG metadata:', err)
+    await kv.set(`${PREFIX}og:${url}`, { neg: true } as OGMetadata, { px: 5 * 60 * 1000 }).catch(() => {})
     return null
   }
 }

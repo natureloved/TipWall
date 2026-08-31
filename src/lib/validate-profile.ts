@@ -75,6 +75,8 @@ export interface GoalInput { label: string; targetNIM: number }
 
 export const VALID_THEMES = new Set(['paper', 'mint', 'blush', 'sky', 'sun'])
 
+export const VALID_CATEGORIES = new Set(['art', 'code', 'education', 'music', 'video', 'community'])
+
 /** Clamp/normalize the mutable presentation fields to their caps. */
 export function clampProfileFields(fields: {
   displayName?: unknown
@@ -82,8 +84,9 @@ export function clampProfileFields(fields: {
   achievement?: unknown
   goal?: unknown
   theme?: unknown
-}): { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string } {
-  const out: { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string } = {}
+  category?: unknown
+}): { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string; category?: string } {
+  const out: { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string; category?: string } = {}
   if (fields.displayName !== undefined) {
     out.displayName = String(fields.displayName).slice(0, DISPLAY_NAME_MAX)
   }
@@ -104,6 +107,10 @@ export function clampProfileFields(fields: {
   if (fields.theme !== undefined) {
     const theme = String(fields.theme)
     out.theme = VALID_THEMES.has(theme) ? theme : 'paper'
+  }
+  if (fields.category !== undefined) {
+    const category = String(fields.category)
+    out.category = VALID_CATEGORIES.has(category) ? category : undefined
   }
   return out
 }

@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
       walletAddress,
       goal,
       achievement,
+      category,
       auth,
     } = body as Record<string, unknown>
 
@@ -67,7 +68,7 @@ export async function POST(req: NextRequest) {
     // --------------------------------------------------------------------
 
     const now = Date.now()
-    const clamped = clampProfileFields({ displayName, bio, achievement, goal })
+    const clamped = clampProfileFields({ displayName, bio, achievement, goal, category })
     const profile: CreatorProfile = {
       handle: handleStr,
       displayName: clamped.displayName || handleStr,
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
       ownerPublicKey: proof.publicKey,
       goal: clamped.goal,
       achievement: clamped.achievement,
+      category: clamped.category as CreatorProfile['category'],
       milestones: [],
       createdAt: now,
       updatedAt: now,

@@ -297,13 +297,6 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 <StatCard value={lastTipAt ? timeAgo(lastTipAt).replace(' ago', '').replace('just now', 'now') : 'No tips yet'} label={t('lastTip')} index={2} suppressHydrationWarning />
               </div>
 
-              {topReason && (
-                <div className="rounded-2xl bg-sky-400/10 border border-sky-400/25 px-5 py-4 flex items-center gap-3">
-                  <span className="text-2xl">{TIP_REASON_LABELS[topReason.reason].emoji}</span>
-                  <div><p className="text-xs uppercase tracking-wide font-bold text-sky-300">Audience signal</p><p className="text-sm text-slate-200 mt-0.5">Your supporters most often come for <strong>{TIP_REASON_LABELS[topReason.reason].label.toLowerCase()}</strong>.</p></div>
-                </div>
-              )}
-
               {/* Supporters - prominently displayed for community recognition */}
               <SupportersWall supporters={supporters} />
 

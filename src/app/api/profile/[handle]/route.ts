@@ -31,7 +31,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     }
 
     const body = await request.json()
-    const { displayName, bio, contentUrl, goal, achievement, theme, notifyTelegram, tags, auth } = body as Record<string, unknown>
+    const { displayName, bio, contentUrl, goal, achievement, theme, category, notifyTelegram, tags, auth } = body as Record<string, unknown>
 
     // --- Signature-bound authorization ----------------------------------
     const proof = auth as ProfileAuthProof | undefined
@@ -81,7 +81,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     const normalizedTags = normalizeTags(tags)
     if (normalizedTags.error) return NextResponse.json({ error: normalizedTags.error }, { status: 400 })
 
-    const clamped = clampProfileFields({ displayName, bio, achievement, goal, theme })
+    const clamped = clampProfileFields({ displayName, bio, achievement, goal, theme, category })
     const updated: CreatorProfile = {
       ...existing,
       // Backfill owner key for legacy profiles created before this field existed.
@@ -91,6 +91,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
       contentUrl: newContentUrl !== undefined ? newContentUrl : existing.contentUrl,
       achievement: achievement !== undefined ? clamped.achievement : existing.achievement,
       theme: theme !== undefined ? clamped.theme as CreatorProfile['theme'] : existing.theme,
+      category: category !== undefined ? clamped.category as CreatorProfile['category'] : existing.category,
       notifyTelegram: newNotify !== undefined ? (newNotify || undefined) : existing.notifyTelegram,
       tags: tags !== undefined ? normalizedTags.tags : existing.tags,
       goal: goal !== undefined ? clamped.goal : existing.goal,
