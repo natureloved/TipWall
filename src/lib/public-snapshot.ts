@@ -8,7 +8,7 @@ export type PublicEcosystemStats = {
 // Last verified public totals. These cumulative values are a safe floor while
 // the live KV endpoint reconnects or a cached response is refreshing.
 export const VERIFIED_ECOSYSTEM_STATS: PublicEcosystemStats = {
-  walls: 32,
+  walls: 8,
   tippedCreators: 8,
   totalNIM: 18_855,
   totalTips: 0,

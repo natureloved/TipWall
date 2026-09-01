@@ -128,6 +128,7 @@ body {
 .landing-btn-light { background:var(--cream); box-shadow:4px 4px 0 var(--ink); }
 .landing-trust { display:flex; flex-wrap:wrap; gap:0; color:var(--muted); font-family:ui-monospace,SFMono-Regular,monospace; font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; }
 .landing-trust span { padding:0 13px; border-left:1px solid rgba(23,22,20,.3); }.landing-trust span:first-child{padding-left:0;border:0}
+.landing-nim-note { max-width:470px; margin-top:18px; color:var(--muted); font-size:.88rem; line-height:1.6; }.landing-nim-note strong{color:var(--ink);font-weight:700}
 .landing-board-wrap { position:relative; padding-bottom:38px; }
 .landing-board { position:relative; height:500px; overflow:hidden; border:1.5px solid var(--ink); border-radius:14px; background:var(--paper-2); box-shadow:9px 9px 0 var(--ink); background-image:radial-gradient(rgba(23,22,20,.12) 1px,transparent 1.5px); background-size:19px 19px; }
 .landing-board-strip { display:flex; justify-content:space-between; padding:12px 17px; border-bottom:1.5px dashed rgba(23,22,20,.35); font:700 .67rem ui-monospace,SFMono-Regular,monospace; letter-spacing:.12em; text-transform:uppercase; }.landing-board-strip span{display:flex;align-items:center;gap:8px}.landing-board-strip b{font-size:1rem}.board-title{position:absolute;right:18px;bottom:20px;max-width:46%;text-align:right;font:600 clamp(1.15rem,1.8vw,1.55rem)/1.2 Georgia,serif}.board-title em{color:var(--coral-text)}

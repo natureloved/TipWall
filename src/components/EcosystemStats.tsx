@@ -16,10 +16,21 @@ export default function EcosystemStats() {
 
   useEffect(() => {
     let alive = true
-    fetch('/api/stats/ecosystem')
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (alive && d) setStats(withVerifiedEcosystemMinimum(d)) })
-      .catch(() => { /* social proof is non-critical */ })
+    // A stale:true response is the route's fallback floor after a transient KV
+    // error - retry briefly so one hiccup can't pin the strip on floor values.
+    const load = async (remaining: number) => {
+      try {
+        const r = await fetch('/api/stats/ecosystem')
+        const d = r.ok ? await r.json() : null
+        if (!alive) return
+        if (d && !d.stale) {
+          setStats(withVerifiedEcosystemMinimum(d))
+          return
+        }
+      } catch { /* social proof is non-critical */ }
+      if (alive && remaining > 1) setTimeout(() => load(remaining - 1), 2500)
+    }
+    load(3)
     return () => { alive = false }
   }, [])
 

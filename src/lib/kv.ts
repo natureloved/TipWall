@@ -5,6 +5,7 @@ import { verifyTxDetails } from './verify-tx'
 import { normalizeAddress } from './profile-auth'
 import { checkMilestone } from './milestones'
 import { weekIndex, streakWeeks } from './time'
+import { NEW_WALL_GRACE_MS } from './explore'
 
 const PREFIX = 'tipwall:'
 
@@ -372,26 +373,44 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
     for (const handle of handles) await kv.sadd(`${PREFIX}profiles`, handle)
   }
 
+  const now = Date.now()
+
+  // Per-wall reads run in parallel; each wall contributes its lifetime luna
+  // total, its distinct verified-txHash count, and its creation time. A flaky
+  // read degrades that wall to zeros instead of sinking the whole call.
+  const perWall = await Promise.all(
+    handles.map(async (h) => {
+      try {
+        const [luna, txCount, profile] = await Promise.all([
+          kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
+          kv.scard(`${PREFIX}txseen:${h}`).then(n => Number(n ?? 0) || 0),
+          kv.get<CreatorProfile>(`${PREFIX}profile:${h.toLowerCase()}`),
+        ])
+        return { luna, txCount, createdAt: Number(profile?.createdAt ?? 0) }
+      } catch {
+        return { luna: 0, txCount: 0, createdAt: 0 }
+      }
+    }),
+  )
+
+  let walls = 0
   let tippedCreators = 0
   let totalLuna = 0
   let totalTips = 0
 
-  // Per-wall reads run in parallel; each wall contributes its lifetime luna
-  // total and its distinct verified-txHash count.
-  await Promise.all(
-    handles.map(async (h) => {
-      const [luna, txCount] = await Promise.all([
-        kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
-        kv.scard(`${PREFIX}txseen:${h}`).then(n => Number(n ?? 0) || 0).catch(() => 0),
-      ])
-      totalLuna += luna
-      totalTips += txCount
-      if (luna > 0 || txCount > 0) tippedCreators++
-    }),
-  )
+  for (const { luna, txCount, createdAt } of perWall) {
+    totalLuna += luna
+    totalTips += txCount
+    const tipped = luna > 0 || txCount > 0
+    if (tipped) tippedCreators++
+    // Count only walls Explore would list: tipped at least once, or still
+    // inside the new-wall grace window. Keeps this figure honest next to the
+    // directory instead of counting every registered handle.
+    if (tipped || (createdAt > 0 && now - createdAt < NEW_WALL_GRACE_MS)) walls++
+  }
 
   return {
-    walls: handles.length,
+    walls,
     tippedCreators,
     totalNIM: totalLuna / LUNA_PER_NIM,
     totalTips,
