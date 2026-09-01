@@ -343,6 +343,19 @@ input::placeholder, textarea::placeholder { color: var(--tw-muted); opacity:1; }
 .explore-filter:active { transform:scale(.97); }
 .explore-filter-active { border-color:var(--tw-coral-text) !important; background:#ffe3da !important; color:var(--tw-coral-text) !important; animation:explore-chip-pop .35s ease-out both; }
 @keyframes explore-chip-pop { from { transform:scale(.96); } to { transform:scale(1); } }
+.explore-search { border:1.5px solid #92897b; background:#fffaf0; color:var(--tw-ink); transition:border-color .18s ease; }
+.explore-search::placeholder { color:#92897b; }
+.explore-search:hover { border-color:var(--tw-coral); }
+.explore-search:focus-visible { outline:3px solid var(--tw-coral-text); outline-offset:2px; }
+.explore-search::-webkit-search-cancel-button { display:none; }
+.explore-search-clear { background:rgba(23,22,20,.08); color:var(--tw-ink-soft); transition:background-color .18s ease, color .18s ease; }
+.explore-search-clear:hover { background:#ffe3da; color:var(--tw-coral-text); }
+.explore-search-clear:focus-visible { outline:2px solid var(--tw-coral-text); outline-offset:1px; }
+.explore-sort-select { appearance:none; -webkit-appearance:none; border:1.5px solid #92897b; background:#fffaf0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%234a443a' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 12px center; color:var(--tw-ink); cursor:pointer; transition:border-color .18s ease, background-color .18s ease; }
+.explore-sort-select:hover { border-color:var(--tw-coral); background-color:#fffdf7; }
+.explore-sort-select:focus-visible { outline:3px solid var(--tw-coral-text); outline-offset:2px; }
+.explore-filter:disabled, .explore-search:disabled, .explore-sort-select:disabled { opacity:.5; cursor:not-allowed; }
+.explore-filter:disabled:hover { transform:none; border-color:#92897b !important; background:#fffaf0 !important; color:#4a443a !important; }
 .explore-empty { background:#fffdf7; border:1.5px solid rgba(23,22,20,.12); box-shadow:4px 4px 0 rgba(23,22,20,.12); }
 .explore-card { position:relative; isolation:isolate; overflow:hidden; cursor:pointer; animation:explore-reveal .55s cubic-bezier(.22,.8,.24,1) both; transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
 .explore-card::before { content:""; position:absolute; inset:0 0 auto; height:3px; background:var(--tw-coral); transform:scaleX(0); transform-origin:left; transition:transform .22s ease; }

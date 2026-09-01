@@ -8,7 +8,9 @@ import {
   LEADERBOARD_WINDOW_MS,
 } from '@/lib/kv'
 import { TIP_REASON_LABELS, CREATOR_CATEGORIES, type CreatorProfile, type Tip, type TipReason, type CreatorCategory } from '@/lib/types'
+import { EXPLORE_SORTS, NEW_WALL_GRACE_MS, parseExploreSort, sortWalls, wallMatches } from '@/lib/explore'
 import MissionLink from '@/components/MissionLink'
+import ExploreControls from '@/components/ExploreControls'
 import { timeAgo } from '@/lib/time'
 
 export const dynamic = 'force-dynamic'
@@ -31,13 +33,6 @@ export const metadata = {
 }
 
 const MAX_WALLS = 24
-
-/**
- * New walls are surfaced for their first 48h even with no tips - a creator who
- * just signed up must be able to find themselves. After that, a wall needs at
- * least one verified tip to stay listed, so abandoned/test walls fall off.
- */
-const NEW_WALL_GRACE_MS = 48 * 60 * 60 * 1000
 
 // Cap the "Just joined" section so nobody can flood the front door by
 // mass-registering handles.
@@ -112,11 +107,12 @@ const RANK_BADGE = [
   'bg-[#CD7F32] text-slate-900',
 ]
 
-export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ cat?: string; q?: string; tag?: string }> }) {
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ cat?: string; q?: string; tag?: string; sort?: string }> }) {
   const params = await searchParams
   const query = String(params.q || '').trim().toLowerCase()
   const activeTag = String(params.tag || '').trim().toLowerCase()
   const activeCategory = (Object.keys(CREATOR_CATEGORIES) as CreatorCategory[]).includes(params.cat as CreatorCategory) ? params.cat as CreatorCategory : null
+  const activeSort = parseExploreSort(params.sort)
   let allWalls: ExploreWall[] = []
   let directoryUnavailable = false
   try {
@@ -126,14 +122,9 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     console.error('Explore directory unavailable:', error)
   }
   const categoryWalls = activeCategory ? allWalls.filter(w => w.profile.category === activeCategory) : allWalls
-  const walls = categoryWalls.filter(w => {
-    if (query) {
-      const haystack = `${w.profile.displayName || ''} ${w.profile.handle} ${w.profile.bio || ''}`.toLowerCase()
-      if (!haystack.includes(query)) return false
-    }
-    if (activeTag && !(w.profile.tags || []).some(t => t.toLowerCase() === activeTag)) return false
-    return true
-  })
+  const walls = categoryWalls.filter(w => wallMatches(w, query, activeTag))
+  const sortedWalls = sortWalls(walls, activeSort)
+  const filtersActive = Boolean(query || activeTag || activeCategory)
 
   // Categories present in the directory power the filter chips (most walls first).
   const categoryCounts = new Map<CreatorCategory, number>()
@@ -150,19 +141,19 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   }
   const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t)
 
-  const trending = walls.filter(w => w.recentNIM > 0).slice(0, 3)
+  const trending = sortedWalls.filter(w => w.recentNIM > 0).slice(0, 3)
   const trendingHandles = new Set(trending.map(w => w.profile.handle))
 
   // "Just joined" - new walls with no verified tips yet. They can't rank, so
   // give them their own call-to-action section instead of burying them.
   // Newest first, capped to keep the front door from being flooded.
-  const justJoined = walls
+  const justJoined = sortedWalls
     .filter(w => w.isNew && w.totalNIM <= 0)
     .sort((a, b) => b.profile.createdAt - a.profile.createdAt)
     .slice(0, MAX_NEW_WALLS)
   const justJoinedHandles = new Set(justJoined.map(w => w.profile.handle))
 
-  const rest = walls.filter(
+  const rest = sortedWalls.filter(
     w => !trendingHandles.has(w.profile.handle) && !justJoinedHandles.has(w.profile.handle),
   )
 
@@ -193,35 +184,15 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           <div className="mt-3">
             <MissionLink className="explore-mission-link" />
           </div>
-          <div className="mt-5 flex flex-wrap gap-2 justify-center pb-1">
-            <Link href="/explore" aria-current={!activeCategory ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeCategory ? 'explore-filter-active' : ''}`}>All creators</Link>
-            {categoryChips.map(cat => <Link key={cat} href={`/explore?cat=${cat}`} aria-current={activeCategory === cat ? 'page' : undefined} className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeCategory === cat ? 'explore-filter-active' : ''}`}>{CREATOR_CATEGORIES[cat].emoji} {CREATOR_CATEGORIES[cat].label}</Link>)}
-          </div>
-          <form action="/explore" className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            {activeCategory && <input type="hidden" name="cat" value={activeCategory} />}
-            <input
-              name="q"
-              defaultValue={query || ''}
-              placeholder="Search creators…"
-              aria-label="Search creators"
-              className="w-56 rounded-full border px-4 py-1.5 text-xs font-semibold"
-            />
-            <button type="submit" className="explore-filter shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold explore-filter-active">Search</button>
-          </form>
-          {topTags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2 justify-center">
-              {topTags.map(tag => (
-                <Link
-                  key={tag}
-                  href={`/explore?tag=${encodeURIComponent(tag)}${activeCategory ? `&cat=${activeCategory}` : ''}${query ? `&q=${encodeURIComponent(query)}` : ''}`}
-                  aria-current={activeTag === tag ? 'page' : undefined}
-                  className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeTag === tag ? 'explore-filter-active' : ''}`}
-                >
-                  #{tag}
-                </Link>
-              ))}
-            </div>
-          )}
+          <ExploreControls
+            query={query}
+            activeCategory={activeCategory}
+            activeTag={activeTag}
+            activeSort={activeSort}
+            categories={categoryChips}
+            tags={topTags}
+            disabled={directoryUnavailable}
+          />
         </div>
 
         {directoryUnavailable ? (
@@ -237,12 +208,30 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             </form>
           </div>
         ) : walls.length === 0 ? (
-          <div className="explore-empty explore-reveal text-center rounded-2xl p-10" style={{ animationDelay: '120ms' }}>
-            <p className="text-4xl mb-3">🌱</p>
-            <p className="text-slate-300 font-semibold">No walls yet. Yours could be the first.</p>
-          </div>
+          allWalls.length > 0 ? (
+            <div className="explore-empty explore-reveal mx-auto max-w-2xl rounded-2xl p-8 text-center sm:p-10" role="status" style={{ animationDelay: '120ms' }}>
+              <p className="text-4xl mb-3">🔍</p>
+              <h2 className="text-xl font-bold text-[#171614]">No creators match those filters</h2>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">Try a different search, or clear the filters to browse every wall.</p>
+              <Link href="/explore" className="explore-bottom-cta inline-block mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">Clear filters</Link>
+            </div>
+          ) : (
+            <div className="explore-empty explore-reveal text-center rounded-2xl p-10" style={{ animationDelay: '120ms' }}>
+              <p className="text-4xl mb-3">🌱</p>
+              <p className="text-slate-300 font-semibold">No walls yet. Yours could be the first.</p>
+            </div>
+          )
         ) : (
           <>
+            {filtersActive && (
+              <p className="text-center text-xs font-semibold text-slate-500 mb-6">
+                {sortedWalls.length} matching creator {sortedWalls.length === 1 ? 'wall' : 'walls'}
+                {' · '}
+                <Link href="/explore" className="underline hover:text-[#c4442d]">Clear filters</Link>
+              </p>
+            )}
+            {activeSort === 'trending' ? (
+              <>
             {/* Leaderboard - only when at least one wall has recent activity.
                 Until tips start landing, this is empty and the flat grid below
                 carries the page. */}
@@ -377,6 +366,47 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       {profile.bio && (
                         <p className="text-sm text-slate-300 mt-2 line-clamp-2">{profile.bio}</p>
                       )}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            )}
+              </>
+            ) : (
+              <section className="explore-section explore-reveal" style={{ animationDelay: '120ms' }}>
+                <h2 className="flex items-center gap-2 text-lg font-bold text-white">{EXPLORE_SORTS[activeSort].label}</h2>
+                <p className="text-xs text-slate-500 mb-3">{EXPLORE_SORTS[activeSort].hint}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sortedWalls.map(({ profile, totalNIM, isNew, lastTipAt }, i) => (
+                    <Link
+                      key={profile.handle}
+                      href={`/${profile.handle}`}
+                      className="surface explore-card block rounded-2xl hover:border-amber-400/50 p-5"
+                      style={{ animationDelay: `${180 + Math.min(i, 8) * 65}ms` }}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="min-w-0 font-bold text-amber-300 truncate">
+                          {profile.displayName || `@${profile.handle}`}
+                        </p>
+                        {isNew ? (
+                          <span className="flex-none text-[10px] font-bold uppercase tracking-wide text-emerald-300 bg-emerald-400/15 border border-emerald-400/30 rounded-full px-1.5 py-0.5">New</span>
+                        ) : (
+                          <p className="shrink-0 text-xs font-semibold text-emerald-400">
+                            {Math.round(totalNIM).toLocaleString()} NIM
+                          </p>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">@{profile.handle}</p>
+                      {profile.bio && (
+                        <p className="text-sm text-slate-300 mt-2 line-clamp-2">{profile.bio}</p>
+                      )}
+                      {activeSort === 'active' && lastTipAt !== null && (
+                        <p className="mt-2 text-xs text-[#3f6f4d]">● tipped {timeAgo(lastTipAt)}</p>
+                      )}
+                      {activeSort === 'new' && (
+                        <p className="mt-2 text-xs text-slate-500">Joined {timeAgo(profile.createdAt)}</p>
+                      )}
+                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {CREATOR_CATEGORIES[profile.category].label}</span>}
                     </Link>
                   ))}
                 </div>
