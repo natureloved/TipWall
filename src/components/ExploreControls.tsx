@@ -13,7 +13,6 @@ type ExploreControlsProps = {
   activeTag: string
   activeSort: ExploreSort
   categories: CreatorCategory[]
-  tags: string[]
   disabled?: boolean
 }
 
@@ -23,7 +22,6 @@ export default function ExploreControls({
   activeTag,
   activeSort,
   categories,
-  tags,
   disabled,
 }: ExploreControlsProps) {
   const router = useRouter()
@@ -87,29 +85,22 @@ export default function ExploreControls({
 
   return (
     <div aria-busy={isPending || undefined}>
-      <div className="mt-5 flex flex-wrap gap-2 justify-center pb-1">
-        <button
-          type="button"
-          onClick={() => navigate({ cat: '' })}
-          disabled={disabled}
-          aria-pressed={!activeCategory}
-          className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${!activeCategory ? 'explore-filter-active' : ''}`}
-        >
-          All creators
-        </button>
-        {categories.map(cat => (
-          <button
-            key={cat}
-            type="button"
-            onClick={() => navigate({ cat: activeCategory === cat ? '' : cat })}
-            disabled={disabled}
-            aria-pressed={activeCategory === cat}
-            className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeCategory === cat ? 'explore-filter-active' : ''}`}
-          >
-            {CREATOR_CATEGORIES[cat].emoji} {CREATOR_CATEGORIES[cat].label}
-          </button>
-        ))}
-      </div>
+      {categories.length > 0 && (
+        <div className="mt-5 flex flex-wrap gap-2 justify-center pb-1">
+          {categories.map(cat => (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => navigate({ cat: activeCategory === cat ? '' : cat })}
+              disabled={disabled}
+              aria-pressed={activeCategory === cat}
+              className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeCategory === cat ? 'explore-filter-active' : ''}`}
+            >
+              {CREATOR_CATEGORIES[cat].emoji} {CREATOR_CATEGORIES[cat].label}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form
         role="search"
@@ -160,23 +151,6 @@ export default function ExploreControls({
           ))}
         </select>
       </label>
-
-      {tags.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-2 justify-center">
-          {tags.map(tag => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => navigate({ tag: activeTag === tag ? '' : tag })}
-              disabled={disabled}
-              aria-pressed={activeTag === tag}
-              className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeTag === tag ? 'explore-filter-active' : ''}`}
-            >
-              #{tag}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   )
 }

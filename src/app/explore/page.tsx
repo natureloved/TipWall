@@ -133,14 +133,6 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   }
   const categoryChips = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
 
-  // Most-used tags across the directory power the filter chips.
-  const tagCounts = new Map<string, number>()
-  for (const w of allWalls) for (const t of w.profile.tags || []) {
-    const key = t.toLowerCase()
-    tagCounts.set(key, (tagCounts.get(key) || 0) + 1)
-  }
-  const topTags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t)
-
   const trending = sortedWalls.filter(w => w.recentNIM > 0).slice(0, 3)
   const trendingHandles = new Set(trending.map(w => w.profile.handle))
 
@@ -190,7 +182,6 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             activeTag={activeTag}
             activeSort={activeSort}
             categories={categoryChips}
-            tags={topTags}
             disabled={directoryUnavailable}
           />
         </div>
