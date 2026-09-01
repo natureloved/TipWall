@@ -17,7 +17,19 @@ describe('withVerifiedEcosystemMinimum', () => {
       tippedCreators: 12,
       totalNIM: 25_000,
       totalTips: 300,
+      reasonCounts: {},
     })
+  })
+
+  it('passes live reason counts through for the signal card', () => {
+    const result = withVerifiedEcosystemMinimum({
+      walls: 40,
+      tippedCreators: 12,
+      totalNIM: 25_000,
+      totalTips: 300,
+      reasonCounts: { helpful_content: 7 },
+    })
+    expect(result.reasonCounts).toEqual({ helpful_content: 7 })
   })
 
   it('never regresses cumulative public figures', () => {

@@ -363,6 +363,8 @@ export type EcosystemStats = {
   tippedCreators: number
   totalNIM: number
   totalTips: number
+  /** Verified tips per reason, powering the home page's live signal card. */
+  reasonCounts: Record<string, number>
 }
 
 export async function getEcosystemStats(): Promise<EcosystemStats> {
@@ -381,14 +383,15 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
   const perWall = await Promise.all(
     handles.map(async (h) => {
       try {
-        const [luna, txCount, profile] = await Promise.all([
+        const [luna, txCount, profile, tips] = await Promise.all([
           kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
           kv.scard(`${PREFIX}txseen:${h}`).then(n => Number(n ?? 0) || 0),
           kv.get<CreatorProfile>(`${PREFIX}profile:${h.toLowerCase()}`),
+          kv.lrange<Tip>(`${PREFIX}tips:${h.toLowerCase()}`, 0, -1).then(t => t || []),
         ])
-        return { luna, txCount, createdAt: Number(profile?.createdAt ?? 0) }
+        return { luna, txCount, createdAt: Number(profile?.createdAt ?? 0), tips }
       } catch {
-        return { luna: 0, txCount: 0, createdAt: 0 }
+        return { luna: 0, txCount: 0, createdAt: 0, tips: [] as Tip[] }
       }
     }),
   )
@@ -397,8 +400,9 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
   let tippedCreators = 0
   let totalLuna = 0
   let totalTips = 0
+  const reasonCounts: Record<string, number> = {}
 
-  for (const { luna, txCount, createdAt } of perWall) {
+  for (const { luna, txCount, createdAt, tips } of perWall) {
     totalLuna += luna
     totalTips += txCount
     const tipped = luna > 0 || txCount > 0
@@ -407,6 +411,9 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
     // inside the new-wall grace window. Keeps this figure honest next to the
     // directory instead of counting every registered handle.
     if (tipped || (createdAt > 0 && now - createdAt < NEW_WALL_GRACE_MS)) walls++
+    for (const tip of tips) {
+      if (tip.verified && tip.reason) reasonCounts[tip.reason] = (reasonCounts[tip.reason] ?? 0) + 1
+    }
   }
 
   return {
@@ -414,6 +421,7 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
     tippedCreators,
     totalNIM: totalLuna / LUNA_PER_NIM,
     totalTips,
+    reasonCounts,
   }
 }
 
