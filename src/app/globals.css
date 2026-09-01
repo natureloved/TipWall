@@ -148,6 +148,7 @@ body {
 .landing-note { animation:landing-note-float 6s ease-in-out infinite; animation-delay:var(--note-delay,0s); }
 .landing-note:nth-of-type(2){--note-delay:.7s}.landing-note:nth-of-type(3){--note-delay:1.3s}.landing-note:nth-of-type(4){--note-delay:1.9s}
 @keyframes landing-note-float { 0%,100%{margin-top:0} 50%{margin-top:-7px} }
+.landing-pin-nudge{margin-top:10px;padding-top:9px;border-top:1.5px dashed rgba(23,22,20,.35);font-size:.78rem;line-height:1.55;color:var(--muted)}.landing-pin-nudge button{color:var(--coral-text);font-weight:700;text-decoration:underline;text-underline-offset:3px}
 .landing-signal-card,.landing-form{animation:landing-card-drift 7s ease-in-out infinite}.landing-form{animation-delay:1.2s}
 @keyframes landing-card-drift{0%,100%{translate:0 0}50%{translate:0 -5px}}
 
