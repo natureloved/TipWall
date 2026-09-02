@@ -20,9 +20,9 @@ export default function LiveSignalCard() {
 
   useEffect(() => {
     let alive = true
-    ;(async () => {
+    const loadSignal = async () => {
       try {
-        const res = await fetch('/api/stats/ecosystem')
+        const res = await fetch('/api/stats/ecosystem', { cache: 'no-store' })
         if (!res.ok) return
         const data: LiveStatsResponse = await res.json()
         if (!alive || data.stale) return
@@ -30,8 +30,10 @@ export default function LiveSignalCard() {
       } catch {
         // keep the honest fallback card
       }
-    })()
-    return () => { alive = false }
+    }
+    loadSignal()
+    const interval = setInterval(loadSignal, 60_000)
+    return () => { alive = false; clearInterval(interval) }
   }, [])
 
   if (!signal) {

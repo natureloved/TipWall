@@ -25,17 +25,19 @@ export default function RecentActivity() {
 
   useEffect(() => {
     let alive = true
-    ;(async () => {
+    const loadActivity = async () => {
       try {
-        const res = await fetch('/api/feed/recent')
+        const res = await fetch('/api/feed/recent', { cache: 'no-store' })
         if (!res.ok) return
         const data: RecentFeedResponse = await res.json()
         if (alive && !data.stale) setItems(data.items ?? [])
       } catch {
         // keep the classic ticker
       }
-    })()
-    return () => { alive = false }
+    }
+    loadActivity()
+    const interval = setInterval(loadActivity, 60_000)
+    return () => { alive = false; clearInterval(interval) }
   }, [])
 
   if (!items || items.length === 0) {
