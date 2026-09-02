@@ -30,7 +30,8 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
   // `window` before `origin` is set would make the first client render disagree
   // with the server HTML → hydration mismatch.
   const url = origin ? `${origin}/${handle}` : envWallUrl(handle)
-  const badgeUrl = `${origin}/api/badge/${handle}`
+  const overlayUrl = `${url}/overlay`
+  const badgeUrl = `${origin}/api/badge/${handle}?v=2`
   const badgeMarkdown = `[![Tip me on TipWall](${badgeUrl})](${url})`
   const embedHtml = `<a href="${url}" target="_blank" rel="noopener">⚡ Tip ${displayName || `@${handle}`} in NIM on TipWall</a>`
   const fabScript = `<script src="${origin}/embed/${handle}" defer></script>`
@@ -158,7 +159,22 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
         </div>
       </section>
 
-      {/* 4. GitHub badge */}
+      {/* 4. Stream overlay */}
+      <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Stream overlay</h2>
+        <p className="mb-3 text-xs leading-relaxed text-[#746b5e]">
+          Add this transparent page as an OBS Browser Source. New tips appear as verified sticky-note alerts while you stream.
+        </p>
+        <CodeSnippet value={overlayUrl} copied={copied === 'overlay'} onCopy={() => copy('overlay', overlayUrl)} />
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#5f574b]">
+          <span>OBS: Browser Source · 1920 × 1080 · transparent background</span>
+          <a href={`/${handle}/overlay`} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#b9382a] underline underline-offset-4 hover:text-[#171614]">
+            Preview overlay ↗
+          </a>
+        </div>
+      </section>
+
+      {/* 5. GitHub badge */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
         <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">GitHub README badge</h2>
         {origin && (
@@ -173,7 +189,7 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
         <CodeSnippet value={badgeMarkdown} copied={copied === 'badge'} onCopy={() => copy('badge', badgeMarkdown)} />
       </section>
 
-      {/* 5. Embed / link-in-bio */}
+      {/* 6. Embed / link-in-bio */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
         <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Blog / link-in-bio embed</h2>
         <p className="mb-2 text-xs text-[#746b5e]">
@@ -182,7 +198,7 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
         <CodeSnippet value={embedHtml} copied={copied === 'embed'} onCopy={() => copy('embed', embedHtml)} />
       </section>
 
-      {/* 6. Floating tip button for own sites */}
+      {/* 7. Floating tip button for own sites */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
         <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Floating tip button</h2>
         <p className="mb-2 text-xs text-[#746b5e]">

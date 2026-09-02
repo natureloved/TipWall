@@ -8,7 +8,7 @@ import {
   LEADERBOARD_WINDOW_MS,
 } from '@/lib/kv'
 import { TIP_REASON_LABELS, CREATOR_CATEGORIES, type CreatorProfile, type Tip, type TipReason, type CreatorCategory } from '@/lib/types'
-import { EXPLORE_SORTS, NEW_WALL_GRACE_MS, parseExploreSort, sortWalls, wallMatches } from '@/lib/explore'
+import { EXPLORE_SORTS, NEW_WALL_GRACE_MS, includeWallInExplore, isProfileComplete, parseExploreSort, rotateWallsDaily, sortWalls, wallMatches } from '@/lib/explore'
 import MissionLink from '@/components/MissionLink'
 import ExploreControls from '@/components/ExploreControls'
 import { timeAgo } from '@/lib/time'
@@ -22,13 +22,13 @@ export const metadata = {
     title: 'Most tipped creators this week',
     description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
     url: 'https://tipwall.vercel.app/explore',
-    images: [{ url: '/banner.png', width: 1200, height: 630 }],
+    images: [{ url: '/banner.png?v=2', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Most tipped creators this week',
     description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
-    images: ['/banner.png'],
+    images: ['/banner.png?v=2'],
   },
 }
 
@@ -44,11 +44,12 @@ type ExploreWall = {
   recentNIM: number
   recentTips: number
   isNew: boolean
+  profileComplete: boolean
   lastTipAt: number | null
   topReason: TipReason | null
 }
 
-async function loadWalls(): Promise<ExploreWall[]> {
+async function loadWalls(includeAll = false): Promise<ExploreWall[]> {
   const handles = await getDiscoveryHandles(MAX_WALLS)
 
   const cutoff = Date.now() - LEADERBOARD_WINDOW_MS
@@ -68,7 +69,7 @@ async function loadWalls(): Promise<ExploreWall[]> {
           0,
         ))
         const isNew = Date.now() - profile.createdAt < NEW_WALL_GRACE_MS
-        if (totalNIM <= 0 && !isNew) return { wall: null, failed: false }
+        const profileComplete = isProfileComplete(profile)
         const recentNIM = tips.reduce(
           (sum: number, t: Tip) => (t.verified && t.timestamp >= cutoff ? sum + (t.amountNIM || 0) : sum),
           0,
@@ -81,7 +82,7 @@ async function loadWalls(): Promise<ExploreWall[]> {
           (latest, t) => (t.verified && (latest === null || t.timestamp > latest) ? t.timestamp : latest),
           null,
         )
-        return { wall: { profile, totalNIM, recentNIM, recentTips, isNew, lastTipAt, topReason }, failed: false }
+        return { wall: { profile, totalNIM, recentNIM, recentTips, isNew, profileComplete, lastTipAt, topReason }, failed: false }
       } catch {
         return { wall: null, failed: true }
       }
@@ -95,7 +96,7 @@ async function loadWalls(): Promise<ExploreWall[]> {
 
   // Sort: recentNIM desc, tiebreak by totalNIM desc
   walls.sort((a, b) => b.recentNIM - a.recentNIM || b.totalNIM - a.totalNIM)
-  return walls.slice(0, MAX_WALLS)
+  return includeAll ? walls : walls.slice(0, MAX_WALLS)
 }
 
 const RANK_BADGE = [
@@ -113,18 +114,26 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const activeTag = String(params.tag || '').trim().toLowerCase()
   const activeCategory = (Object.keys(CREATOR_CATEGORIES) as CreatorCategory[]).includes(params.cat as CreatorCategory) ? params.cat as CreatorCategory : null
   const activeSort = parseExploreSort(params.sort)
+  const filtersActive = Boolean(query || activeTag || activeCategory)
   let allWalls: ExploreWall[] = []
   let directoryUnavailable = false
   try {
-    allWalls = await loadWalls()
+    // Search, category, tag, and Newest views must reach the durable profile
+    // registry so a zero-tip wall remains discoverable after its featured lane.
+    allWalls = await loadWalls(filtersActive || activeSort === 'new')
   } catch (error) {
     directoryUnavailable = true
     console.error('Explore directory unavailable:', error)
   }
   const categoryWalls = activeCategory ? allWalls.filter(w => w.profile.category === activeCategory) : allWalls
-  const walls = categoryWalls.filter(w => wallMatches(w, query, activeTag))
+  const matchedWalls = categoryWalls.filter(w => wallMatches(w, query, activeTag))
+
+  // Ranking views stay earned: only verified-tip walls participate in Top,
+  // Active, and the default Trending view. Search/category filters and the
+  // explicit Newest view keep zero-tip walls discoverable after their featured
+  // window, while the default view gives complete new profiles a short lane.
+  const walls = matchedWalls.filter(w => includeWallInExplore(w, activeSort, filtersActive))
   const sortedWalls = sortWalls(walls, activeSort)
-  const filtersActive = Boolean(query || activeTag || activeCategory)
 
   // Categories present in the directory power the filter chips (most walls first).
   const categoryCounts = new Map<CreatorCategory, number>()
@@ -139,9 +148,11 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   // "Just joined" - new walls with no verified tips yet. They can't rank, so
   // give them their own call-to-action section instead of burying them.
   // Newest first, capped to keep the front door from being flooded.
-  const justJoined = sortedWalls
-    .filter(w => w.isNew && w.totalNIM <= 0)
-    .sort((a, b) => b.profile.createdAt - a.profile.createdAt)
+  const justJoined = rotateWallsDaily(
+    sortedWalls
+      .filter(w => w.isNew && w.totalNIM <= 0 && w.profileComplete)
+      .sort((a, b) => b.profile.createdAt - a.profile.createdAt),
+  )
     .slice(0, MAX_NEW_WALLS)
   const justJoinedHandles = new Set(justJoined.map(w => w.profile.handle))
 
@@ -199,12 +210,19 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             </form>
           </div>
         ) : walls.length === 0 ? (
-          allWalls.length > 0 ? (
+          filtersActive ? (
             <div className="explore-empty explore-reveal mx-auto max-w-2xl rounded-2xl p-8 text-center sm:p-10" role="status" style={{ animationDelay: '120ms' }}>
               <p className="text-4xl mb-3">🔍</p>
               <h2 className="text-xl font-bold text-[#171614]">No creators match those filters</h2>
               <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">Try a different search, or clear the filters to browse every wall.</p>
               <Link href="/explore" className="explore-bottom-cta inline-block mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">Clear filters</Link>
+            </div>
+          ) : allWalls.length > 0 ? (
+            <div className="explore-empty explore-reveal mx-auto max-w-2xl rounded-2xl p-8 text-center sm:p-10" role="status" style={{ animationDelay: '120ms' }}>
+              <p className="text-4xl mb-3">🌱</p>
+              <h2 className="text-xl font-bold text-[#171614]">No featured walls yet</h2>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">Browse the newest creators to find a wall to support.</p>
+              <Link href="/explore?sort=new" className="explore-bottom-cta inline-block mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">Browse newest walls</Link>
             </div>
           ) : (
             <div className="explore-empty explore-reveal text-center rounded-2xl p-10" style={{ animationDelay: '120ms' }}>
@@ -309,9 +327,15 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         <p className="font-bold text-amber-300 truncate">
                           {profile.displayName || `@${profile.handle}`}
                         </p>
-                        <p className="shrink-0 text-xs font-semibold text-emerald-400">
-                          {Math.round(totalNIM).toLocaleString()} NIM
-                        </p>
+                        {totalNIM > 0 ? (
+                          <p className="shrink-0 text-xs font-semibold text-emerald-400">
+                            {Math.round(totalNIM).toLocaleString()} NIM
+                          </p>
+                        ) : (
+                          <p className="shrink-0 text-xs font-semibold text-[#3f6f4d]">
+                            Be their first supporter
+                          </p>
+                        )}
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">@{profile.handle}</p>
                       {profile.bio && (
@@ -337,7 +361,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
             {justJoined.length > 0 && (
               <section className="explore-section explore-reveal mt-8" style={{ animationDelay: '180ms' }}>
-                <h2 className="text-lg font-bold text-white">🌱 Just joined</h2>
+                <h2 className="text-lg font-bold text-white">New creators</h2>
                 <p className="text-xs text-slate-500 mb-3">Be their first supporter</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {justJoined.map(({ profile }, i) => (

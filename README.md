@@ -2,7 +2,7 @@
 
 The wall of creators support. Tip the creator. Not the platform. Built for the [Nimiq Mini Apps Competition](https://miniappscompetition.com).
 
-[![Tip me on TipWall](https://tipwall.vercel.app/api/badge/tipwall)](https://tipwall.vercel.app/tipwall)
+[![Tip me on TipWall](https://tipwall.vercel.app/api/badge/tipwall?v=2)](https://tipwall.vercel.app/tipwall)
 
 ## Features
 
