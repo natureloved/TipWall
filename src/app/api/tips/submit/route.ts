@@ -71,7 +71,10 @@ export async function POST(req: NextRequest) {
     let milestone: MilestoneEvent | null = null
     const milestoneEvent = checkMilestone(previousTotal, newTotal, tip.anonymous ? 'Anonymous' : tip.senderAddress, getGoalMilestones(profile.goal?.targetNIM ?? 1000))
     if (milestoneEvent && await addMilestone(handle, milestoneEvent)) milestone = milestoneEvent
-    await trackEvent(handle, 'TIP_COMPLETED')
+    // A completed funnel event means the payment is confirmed on-chain. A
+    // pending submission remains visible as pending, but must not inflate
+    // conversion or social-proof totals until reverification promotes it.
+    if (verified) await trackEvent(handle, 'TIP_COMPLETED')
     const claimToken = typeof body.claimToken === 'string' ? body.claimToken : ''
     if (claimToken) {
       const claim = await getClaim(claimToken)

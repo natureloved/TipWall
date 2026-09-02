@@ -369,6 +369,15 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             track(handle, 'INSTALL_PROMPT_SHOWN')
           }}
           onTipSuccess={async (tip) => {
+            if (tip.pending) {
+              // The payment reference was recorded, but the chain indexer has
+              // not confirmed it yet. Keep the tip visible as pending and wait
+              // for a verified live update before celebrating it.
+              setShowTipModal(false)
+              setResume(null)
+              await loadTips()
+              return
+            }
             const prev = totalNIM
             const next = totalNIM + (tip.amountNIM || 0)
             setMilestoneState({ prev, curr: next })
@@ -390,6 +399,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           onClose={() => setShowInstall(false)}
           onTipSuccess={async (tip) => {
             setShowInstall(false)
+            if (tip.pending) {
+              await loadTips()
+              return
+            }
             const prev = totalNIM
             const next = totalNIM + (tip.amountNIM || 0)
             setMilestoneState({ prev, curr: next })

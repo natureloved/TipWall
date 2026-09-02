@@ -20,29 +20,40 @@ const ALERT_MS = 8000
  * note whenever a new tip lands. Add as a Browser Source (1920x1080) in OBS.
  */
 export default function OverlayClient({ handle }: { handle: string }) {
-  const [alert, setAlert] = useState<LiveTip | null>(null)
+  const [queue, setQueue] = useState<LiveTip[]>([])
   const lastHead = useRef<string | null>(null)
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const initialized = useRef(false)
+  const alertId = queue[0]?.id
+  const alert = queue[0] || null
+
+  // Play one alert at a time so a burst of tips remains legible on stream.
+  useEffect(() => {
+    if (!alertId) return
+    const timer = setTimeout(() => setQueue(current => current.slice(1)), ALERT_MS)
+    return () => clearTimeout(timer)
+  }, [alertId])
 
   useEffect(() => {
     let cancelled = false
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/tips/${handle}/live`)
+        const cursor = lastHead.current
+        const query = cursor ? `?after=${encodeURIComponent(cursor)}` : ''
+        const res = await fetch(`/api/tips/${handle}/live${query}`)
         if (!res.ok) return
-        const data = (await res.json()) as { headTipId: string | null; latest: LiveTip | null }
+        const data = (await res.json()) as { headTipId: string | null; latest: LiveTip | null; newTips?: LiveTip[] }
         if (cancelled) return
-        if (lastHead.current === null) {
+        if (!initialized.current) {
           // First poll establishes the baseline without replaying old tips.
           lastHead.current = data.headTipId
+          initialized.current = true
           return
         }
         if (data.headTipId && data.headTipId !== lastHead.current && data.latest) {
           lastHead.current = data.headTipId
-          setAlert(data.latest)
-          if (timer.current) clearTimeout(timer.current)
-          timer.current = setTimeout(() => setAlert(null), ALERT_MS)
+          const incoming = data.newTips?.length ? [...data.newTips].reverse() : [data.latest]
+          setQueue(current => [...current, ...incoming].slice(-20))
         }
       } catch {
         // Overlay must never throw - a missed poll just retries.
@@ -51,7 +62,7 @@ export default function OverlayClient({ handle }: { handle: string }) {
 
     poll()
     const interval = setInterval(poll, POLL_MS)
-    return () => { cancelled = true; clearInterval(interval); if (timer.current) clearTimeout(timer.current) }
+    return () => { cancelled = true; clearInterval(interval) }
   }, [handle])
 
   return (
@@ -60,7 +71,7 @@ export default function OverlayClient({ handle }: { handle: string }) {
       <style>{'html,body{background:transparent !important}'}</style>
       <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-live="polite">
         {alert && (
-          <div className="overlay-note absolute left-10 bottom-10 w-[380px] max-w-[80vw]">
+          <div key={`${alert.id}-${alert.timestamp}`} className="overlay-note absolute left-10 bottom-10 w-[380px] max-w-[80vw]">
             <div className="tip-note-card !p-5">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="truncate text-base font-bold text-[#171614]">

@@ -203,11 +203,12 @@ export async function addTip(handle: string, tip: Tip): Promise<void> {
 export async function recordTipAtomically(handle: string, txHash: string, tip: Tip): Promise<boolean> {
   const globalTxKey = `${PREFIX}txseen:global`
   const txKey = `${PREFIX}txseen:${handle.toLowerCase()}`
+  const verifiedTxKey = `${PREFIX}vtxseen:${handle.toLowerCase()}`
   const tipKey = `${PREFIX}tips:${handle.toLowerCase()}`
   const result = await kv.eval(
-    `if redis.call('SADD', KEYS[1], ARGV[1]) == 1 then redis.call('SADD',KEYS[2],ARGV[1]); redis.call('LPUSH', KEYS[3], ARGV[2]); redis.call('LTRIM', KEYS[3], 0, 199); return 1 else return 0 end`,
-    [globalTxKey, txKey, tipKey],
-    [txHash, JSON.stringify(tip)],
+    `if redis.call('SADD', KEYS[1], ARGV[1]) == 1 then redis.call('SADD',KEYS[2],ARGV[1]); if ARGV[3]=='1' then redis.call('SADD',KEYS[3],ARGV[1]) end; redis.call('LPUSH', KEYS[4], ARGV[2]); redis.call('LTRIM', KEYS[4], 0, 199); return 1 else return 0 end`,
+    [globalTxKey, txKey, verifiedTxKey, tipKey],
+    [txHash, JSON.stringify(tip), tip.verified ? '1' : '0'],
   )
   return Number(result) === 1
 }
@@ -227,6 +228,26 @@ const LUNA_PER_NIM = 100000
 export async function markTxSeen(handle: string, txHash: string): Promise<boolean> {
   const added = await kv.sadd(`${PREFIX}txseen:${handle.toLowerCase()}`, txHash)
   return added === 1
+}
+
+/**
+ * Record a transaction once it is confirmed on-chain. This is separate from
+ * txseen, which is replay protection and therefore also contains pending or
+ * rejected submissions.
+ */
+export async function markVerifiedTxSeen(handle: string, txHash: string): Promise<boolean> {
+  const added = await kv.sadd(`${PREFIX}vtxseen:${handle.toLowerCase()}`, txHash)
+  return added === 1
+}
+
+/** Lifetime count of distinct verified tips. Backfills the current list for
+ * walls created before the verified-tx counter existed. */
+export async function getVerifiedTipCount(handle: string): Promise<number> {
+  const key = `${PREFIX}vtxseen:${handle.toLowerCase()}`
+  const tips = await getTips(handle)
+  const hashes = [...new Set(tips.filter(t => t.verified && t.txHash).map(t => t.txHash))]
+  for (const hash of hashes) await kv.sadd(key, hash)
+  return Number((await kv.scard(key)) ?? 0) || 0
 }
 
 /**
@@ -354,7 +375,7 @@ export async function getDiscoveryHandles(recentLimit = 24): Promise<string[]> {
 
 // --- Ecosystem aggregates (site-wide social proof) --------------------------
 // Site-wide totals for the home page's "the network is real" strip. Reads the
-// persistent lifetime counters (vtotal / txseen), never the 200-trimmed tip
+// persistent lifetime counters (vtotal / vtxseen), never the 200-trimmed tip
 // list, so figures stay correct for high-volume walls. Best effort: any read
 // failure yields zeros rather than throwing - this only powers a marketing strip.
 
@@ -385,7 +406,7 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
       try {
         const [luna, txCount, profile, tips] = await Promise.all([
           kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
-          kv.scard(`${PREFIX}txseen:${h}`).then(n => Number(n ?? 0) || 0),
+          getVerifiedTipCount(h),
           kv.get<CreatorProfile>(`${PREFIX}profile:${h.toLowerCase()}`),
           kv.lrange<Tip>(`${PREFIX}tips:${h.toLowerCase()}`, 0, -1).then(t => t || []),
         ])
@@ -471,6 +492,7 @@ export async function deleteProfileData(profile: CreatorProfile): Promise<void> 
     `${PREFIX}profile:${h}`,
     `${PREFIX}tips:${h}`,
     `${PREFIX}txseen:${h}`,
+    `${PREFIX}vtxseen:${h}`,
     `${PREFIX}vtotal:${h}`,
     `${PREFIX}milestones:${h}`,
   )
@@ -533,10 +555,14 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
   const milestones = getGoalMilestones(goalTarget)
   for (const t of current) {
     if (updates.get(t.id)?.action !== 'verify') continue
+    // Multiple readers can reverify the same pending record concurrently. The
+    // verified-tx set makes promotion and its lifetime aggregates idempotent.
+    if (!await markVerifiedTxSeen(handle, t.txHash)) continue
     const prevTotal = await getVerifiedTotalNim(handle)
     const newTotal = await addVerifiedNim(handle, t.amountNIM)
     const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress, milestones)
     if (event) await addMilestone(handle, event)
+    await trackEvent(handle, 'TIP_COMPLETED')
   }
   return rebuilt
 }

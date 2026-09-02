@@ -14,6 +14,7 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
   const [nimiqAvailable, setNimiqAvailable] = useState<boolean | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [done, setDone] = useState(claim.claimed)
+  const [pending, setPending] = useState(false)
   const openedRef = useRef(false)
 
   useEffect(() => {
@@ -55,7 +56,9 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
         </h1>
         {claim.message && <p className="text-gray-300 mt-2 italic">“{claim.message}”</p>}
         <p className="text-gray-400 text-sm mt-3">
-          {nimiqAvailable === null
+          {pending
+            ? 'Payment recorded. Waiting for on-chain confirmation…'
+            : nimiqAvailable === null
             ? 'Checking for Nimiq Pay…'
             : nimiqAvailable
               ? 'Opening your tip…'
@@ -83,7 +86,7 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
           claimToken={claim.token}
           welcome
           onNeedsInstall={() => setShowModal(false)}
-          onTipSuccess={() => { setShowModal(false); setDone(true) }}
+          onTipSuccess={(tip) => { setShowModal(false); if (tip.pending) setPending(true); else setDone(true) }}
         />
       )}
 
@@ -93,7 +96,7 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
           creatorWalletAddress={profile.walletAddress}
           amountNIM={claim.amountNIM}
           targetUrl={claimAbsoluteUrl || wallUrl(claim.creatorHandle)}
-          onTipSuccess={() => { setDone(true) }}
+          onTipSuccess={(tip) => { if (tip.pending) setPending(true); else setDone(true) }}
         />
       )}
     </>

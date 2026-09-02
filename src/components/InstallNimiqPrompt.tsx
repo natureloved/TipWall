@@ -34,7 +34,7 @@ export default function InstallNimiqPrompt({
   amountNIM?: number
   onClose?: () => void
   targetUrl?: string
-  onTipSuccess?: (tip: { senderAddress: string; amountNIM: number; txHash: string }) => void
+  onTipSuccess?: (tip: { senderAddress: string; amountNIM: number; txHash: string; pending: boolean }) => void
 }) {
   const canPay = !!(amountNIM && creatorWalletAddress)
   const [tab, setTab] = useState<Tab>(canPay ? 'pay' : 'install')
@@ -50,7 +50,7 @@ export default function InstallNimiqPrompt({
   // ── pay tab state ────────────────────────────────────────────────────────
   const nonceRef = useRef(generatePayNonce())
   const [payQr, setPayQr] = useState('')
-  const [payStatus, setPayStatus] = useState<'waiting' | 'found' | 'submitting' | 'done' | 'error'>('waiting')
+  const [payStatus, setPayStatus] = useState<'waiting' | 'found' | 'submitting' | 'pending' | 'done' | 'error'>('waiting')
   const [payError, setPayError] = useState('')
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -99,13 +99,14 @@ export default function InstallNimiqPrompt({
             anonymous: false,
           }),
         })
+        const submitted = await sub.json().catch(() => ({}))
         if (!sub.ok) {
-          const err = await sub.json()
+          const err = submitted
           // 409 = already recorded (e.g. duplicate poll hit) - treat as success
           if (sub.status !== 409) { setPayStatus('error'); setPayError(err.error || 'Failed to record tip'); return }
         }
-        setPayStatus('done')
-        onTipSuccess?.({ senderAddress: data.senderAddress || '', amountNIM: amountNIM!, txHash: data.txHash })
+        setPayStatus(submitted.pending === true ? 'pending' : 'done')
+        onTipSuccess?.({ senderAddress: data.senderAddress || '', amountNIM: amountNIM!, txHash: data.txHash, pending: submitted.pending === true })
       } catch { /* network blip - retry next tick */ }
     }, 5000)
 
@@ -191,6 +192,17 @@ export default function InstallNimiqPrompt({
                 <div className="text-5xl mb-3">🎉</div>
                 <p className="text-lg font-bold text-[#3f6f4d]">Tip sent!</p>
                 <p className="mt-1 text-sm text-[#5f574b]">Thank you for supporting @{creatorHandle}.</p>
+                {onClose && (
+                  <button onClick={onClose} className="mt-4 min-h-11 rounded-xl bg-[#171614] px-5 py-2 text-sm font-bold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]">
+                    Close
+                  </button>
+                )}
+              </div>
+            ) : payStatus === 'pending' ? (
+              <div className="text-center py-6">
+                <div className="text-5xl mb-3">⏳</div>
+                <p className="text-lg font-bold text-[#8a6a2f]">Payment received</p>
+                <p className="mt-1 text-sm text-[#5f574b]">Your tip is recorded and waiting for on-chain confirmation.</p>
                 {onClose && (
                   <button onClick={onClose} className="mt-4 min-h-11 rounded-xl bg-[#171614] px-5 py-2 text-sm font-bold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]">
                     Close

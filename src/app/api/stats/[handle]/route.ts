@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, getStats, getTips, getTopRefs } from '@/lib/kv'
+import { getProfile, getStats, reverifyPendingTips, getTopRefs, getVerifiedTipCount } from '@/lib/kv'
 import type { TipReason } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
@@ -35,20 +35,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ han
     }
 
     const stats = await getStats(handleStr)
-    const tips = await getTips(handleStr)
+    const tips = await reverifyPendingTips(handleStr, profile.walletAddress)
     const reasonStats = (['helpful_content', 'tutorial', 'open_source', 'great_idea', 'just_support'] as TipReason[]).map(reason => {
       const matching = tips.filter(t => t.verified && t.reason === reason)
       return { reason, tips: matching.length, nim: matching.reduce((sum, t) => sum + (t.amountNIM || 0), 0) }
     }).sort((a, b) => b.tips - a.tips || b.nim - a.nim)
 
-    const views = stats.TIP_WALL_VIEWED
-    const completed = Math.max(stats.TIP_COMPLETED, tips.length) // tips are the source of truth
+    // Funnel completion is backed by the distinct verified transaction set;
+    // the tip list is trimmed and may also contain pending records.
+    const completed = await getVerifiedTipCount(handleStr)
+    const verifiedStats = { ...stats, TIP_COMPLETED: completed }
+    const views = verifiedStats.TIP_WALL_VIEWED
     const conversionRate = views > 0 ? Number(((completed / views) * 100).toFixed(1)) : 0
-    const recovered = stats.RETURNED_AFTER_INSTALL
-    const lost = Math.max(0, stats.INSTALL_PROMPT_SHOWN - recovered)
+    const recovered = verifiedStats.RETURNED_AFTER_INSTALL
+    const lost = Math.max(0, verifiedStats.INSTALL_PROMPT_SHOWN - recovered)
 
     return NextResponse.json({
-      stats,
+      stats: verifiedStats,
       topRefs: await getTopRefs(handleStr, 'TIP_WALL_VIEWED').catch(() => []),
       derived: {
         completedTips: completed,

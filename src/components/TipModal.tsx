@@ -18,7 +18,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   creatorWalletAddress: string
   /** Shown in the Nimiq Hub payment popup so supporters know who they pay. */
   creatorDisplayName?: string
-  onTipSuccess: (tip: { senderAddress: string; amountNIM: number; message?: string; txHash: string; milestone?: number | null }) => void
+  onTipSuccess: (tip: { senderAddress: string; amountNIM: number; message?: string; txHash: string; milestone?: number | null; pending: boolean }) => void
   /** null = unknown/checking, true = inside Nimiq Pay, false = outside. */
   nimiqAvailable?: boolean | null
   /** Called (instead of paying) when the user tries to tip outside Nimiq Pay. */
@@ -138,6 +138,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
       message: message.trim() || undefined,
       txHash,
       milestone: data.milestone?.threshold ?? data.milestoneReached ?? null,
+      pending: data.pending === true,
     })
     onClose()
   }

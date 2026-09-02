@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseExploreSort, sortWalls, wallMatches, type SortableWall } from '../explore'
+import { includeWallInExplore, isProfileComplete, parseExploreSort, rotateWallsDaily, sortWalls, wallMatches, type SortableWall } from '../explore'
 
 function wall(overrides: Partial<SortableWall> & { handle: string; createdAt: number }): SortableWall {
   return {
@@ -96,5 +96,42 @@ describe('wallMatches', () => {
 
   it('matches everything when both filters are empty', () => {
     expect(wallMatches(w, '', '')).toBe(true)
+  })
+})
+
+describe('discovery helpers', () => {
+  it('recognizes a profile with at least one descriptive field', () => {
+    expect(isProfileComplete({ bio: 'Writes about Nimiq', achievement: '', category: undefined, contentUrl: '', tags: undefined })).toBe(true)
+    expect(isProfileComplete({ bio: '  ', achievement: '', category: undefined, contentUrl: '', tags: [] })).toBe(false)
+  })
+
+  it('keeps the daily rotation stable within a day and changes it across days', () => {
+    const walls = [
+      { profile: { handle: 'alpha' } },
+      { profile: { handle: 'bravo' } },
+      { profile: { handle: 'charlie' } },
+      { profile: { handle: 'delta' } },
+    ]
+    const day = 10 * 24 * 60 * 60 * 1000
+    const first = rotateWallsDaily(walls, day).map(w => w.profile.handle)
+    expect(rotateWallsDaily(walls, day + 1_000).map(w => w.profile.handle)).toEqual(first)
+    expect(rotateWallsDaily(walls, day + 24 * 60 * 60 * 1000).map(w => w.profile.handle)).not.toEqual(first)
+    expect(walls.map(w => w.profile.handle)).toEqual(['alpha', 'bravo', 'charlie', 'delta'])
+  })
+
+  it('keeps rankings earned while preserving intentional discovery paths', () => {
+    const tipped = { totalNIM: 10, isNew: false, profileComplete: true }
+    const newComplete = { totalNIM: 0, isNew: true, profileComplete: true }
+    const newBare = { totalNIM: 0, isNew: true, profileComplete: false }
+    const oldBare = { totalNIM: 0, isNew: false, profileComplete: false }
+
+    expect(includeWallInExplore(tipped, 'trending', false)).toBe(true)
+    expect(includeWallInExplore(newComplete, 'trending', false)).toBe(true)
+    expect(includeWallInExplore(newBare, 'trending', false)).toBe(false)
+    expect(includeWallInExplore(oldBare, 'trending', false)).toBe(false)
+    expect(includeWallInExplore(oldBare, 'top', false)).toBe(false)
+    expect(includeWallInExplore(oldBare, 'active', false)).toBe(false)
+    expect(includeWallInExplore(oldBare, 'new', false)).toBe(true)
+    expect(includeWallInExplore(oldBare, 'top', true)).toBe(true)
   })
 })

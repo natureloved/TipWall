@@ -49,7 +49,7 @@ type ExploreWall = {
   topReason: TipReason | null
 }
 
-async function loadWalls(includeAll = false): Promise<ExploreWall[]> {
+async function loadWalls(): Promise<ExploreWall[]> {
   const handles = await getDiscoveryHandles(MAX_WALLS)
 
   const cutoff = Date.now() - LEADERBOARD_WINDOW_MS
@@ -96,7 +96,7 @@ async function loadWalls(includeAll = false): Promise<ExploreWall[]> {
 
   // Sort: recentNIM desc, tiebreak by totalNIM desc
   walls.sort((a, b) => b.recentNIM - a.recentNIM || b.totalNIM - a.totalNIM)
-  return includeAll ? walls : walls.slice(0, MAX_WALLS)
+  return walls
 }
 
 const RANK_BADGE = [
@@ -118,9 +118,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   let allWalls: ExploreWall[] = []
   let directoryUnavailable = false
   try {
-    // Search, category, tag, and Newest views must reach the durable profile
-    // registry so a zero-tip wall remains discoverable after its featured lane.
-    allWalls = await loadWalls(filtersActive || activeSort === 'new')
+    // The discovery index already provides the durable profile registry. Keep
+    // the full candidate set here, then cap only the ranked/featured cards so
+    // daily rotation can reach new creators beyond the first 24 records.
+    allWalls = await loadWalls()
   } catch (error) {
     directoryUnavailable = true
     console.error('Explore directory unavailable:', error)
@@ -132,7 +133,19 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   // Active, and the default Trending view. Search/category filters and the
   // explicit Newest view keep zero-tip walls discoverable after their featured
   // window, while the default view gives complete new profiles a short lane.
-  const walls = matchedWalls.filter(w => includeWallInExplore(w, activeSort, filtersActive))
+  const defaultTrending = activeSort === 'trending' && !filtersActive
+  const rankedWalls = sortWalls(
+    matchedWalls.filter(w => w.totalNIM > 0),
+    activeSort,
+  ).slice(0, MAX_WALLS)
+  const newCreatorPool = rotateWallsDaily(
+    matchedWalls.filter(w => w.isNew && w.totalNIM <= 0 && w.profileComplete),
+  ).slice(0, MAX_NEW_WALLS)
+  const walls = defaultTrending
+    ? [...rankedWalls, ...newCreatorPool]
+    : filtersActive || activeSort === 'new'
+      ? matchedWalls.filter(w => includeWallInExplore(w, activeSort, filtersActive))
+      : rankedWalls
   const sortedWalls = sortWalls(walls, activeSort)
 
   // Categories present in the directory power the filter chips (most walls first).

@@ -23,6 +23,7 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
   // After mount we read localStorage once and flip it if needed.
   const [show, setShow] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
+  const dismissedRef = useRef(false)
   const t = useTranslations()
 
   useFocusTrap(dialogRef, show)
@@ -38,14 +39,20 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
   // setState-in-effect is intentional: we must read localStorage after mount
   // to avoid a server/client hydration mismatch (server always renders false).
   useEffect(() => {
-    if (forceOpen) { setShow(true); return }
+    if (forceOpen) {
+      if (!dismissedRef.current) setShow(true)
+      return
+    }
     try {
       if (!localStorage.getItem(SEEN_KEY)) setShow(true)
     } catch { /* storage blocked - skip intro */ }
   }, [forceOpen])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const dismiss = useCallback(() => {
+  const dismiss = useCallback((event?: { preventDefault: () => void; stopPropagation: () => void }) => {
+    event?.preventDefault()
+    event?.stopPropagation()
+    dismissedRef.current = true
     try { localStorage.setItem(SEEN_KEY, '1') } catch { /* ignore */ }
     setShow(false)
     onClose()
@@ -113,12 +120,14 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
         {onStart ? (
           <div className="space-y-2">
             <button
-              onClick={startTipping}
+              type="button"
+              onClick={(event) => { event.preventDefault(); event.stopPropagation(); startTipping() }}
               className="min-h-12 w-full rounded-xl bg-[#171614] px-4 py-3.5 font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] hover:shadow-[4px_4px_0_#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]"
             >
               💸 {t('sendTip')}
             </button>
             <button
+              type="button"
               onClick={dismiss}
               className="min-h-11 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-[#5f574b] transition-colors hover:bg-[#f4f0e6] hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]"
             >
@@ -127,6 +136,7 @@ export default function FirstVisitIntro({ onClose, onStart, forceOpen = false, v
           </div>
         ) : (
           <button
+            type="button"
             onClick={dismiss}
             className="min-h-12 w-full rounded-xl bg-[#171614] px-4 py-3.5 font-bold text-[#fffdf7] shadow-[3px_3px_0_#f05a3c] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] hover:shadow-[4px_4px_0_#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0]"
           >

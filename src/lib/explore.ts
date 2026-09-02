@@ -1,15 +1,59 @@
 import type { CreatorProfile } from './types'
 
 /**
- * New walls are surfaced for their first 48h even with no tips - a creator who
- * just signed up must be able to find themselves. After that, a wall needs at
- * least one verified tip to stay listed, so abandoned/test walls fall off.
- * Shared by the Explore listing rule and the site-wide ecosystem stats so the
- * two can never drift apart.
+ * New walls get a full week in the featured "new creators" lane. Verified-tip
+ * rankings remain separate, so extending this window helps cold-start without
+ * making an unearned popularity claim.
  */
-export const NEW_WALL_GRACE_MS = 48 * 60 * 60 * 1000
+export const NEW_WALL_GRACE_MS = 7 * 24 * 60 * 60 * 1000
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/** A minimal profile description keeps the featured cold-start lane useful. */
+export function isProfileComplete(profile: Pick<CreatorProfile, 'bio' | 'achievement' | 'category' | 'contentUrl' | 'tags'>): boolean {
+  return Boolean(
+    profile.bio?.trim() ||
+    profile.achievement?.trim() ||
+    profile.category ||
+    profile.contentUrl?.trim() ||
+    profile.tags?.length,
+  )
+}
+
+/**
+ * Rotate a capped discovery lane without making the order jump on every
+ * request. The same order is used for one day, then a different slice gets a
+ * chance to be seen.
+ */
+export function rotateWallsDaily<T extends { profile: Pick<CreatorProfile, 'handle'> }>(walls: readonly T[], now = Date.now()): T[] {
+  const day = Math.floor(now / DAY_MS)
+  const score = (handle: string) => {
+    let hash = 2166136261
+    for (const char of `${day}:${handle.toLowerCase()}`) {
+      hash = Math.imul(hash ^ char.charCodeAt(0), 16777619)
+    }
+    return hash >>> 0
+  }
+  return [...walls].sort((a, b) => score(a.profile.handle) - score(b.profile.handle))
+}
 
 export type ExploreSort = 'trending' | 'top' | 'new' | 'active'
+
+export interface ExploreVisibilityWall {
+  totalNIM: number
+  isNew: boolean
+  profileComplete: boolean
+}
+
+/**
+ * Keep ranking views earned while allowing intentional discovery paths to
+ * reach creators who have not received their first verified tip yet.
+ */
+export function includeWallInExplore(wall: ExploreVisibilityWall, sort: ExploreSort, filtersActive: boolean): boolean {
+  if (sort === 'new' || filtersActive) return true
+  if (sort === 'trending') return wall.totalNIM > 0 || (wall.isNew && wall.profileComplete)
+  return wall.totalNIM > 0
+}
 
 export const EXPLORE_SORTS: Record<ExploreSort, { label: string; hint: string }> = {
   trending: { label: 'Trending', hint: 'Most tipped this week' },
