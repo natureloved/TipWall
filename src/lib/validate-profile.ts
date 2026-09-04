@@ -7,6 +7,9 @@ export const HANDLE_MAX = 32
 export const DISPLAY_NAME_MAX = 50
 export const BIO_MAX = 280
 export const CONTENT_URL_MAX = 500
+export const AVATAR_URL_MAX = 500
+export const SOCIAL_URL_MAX = 500
+export const POLYGON_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/
 export const ACHIEVEMENT_MAX = 80
 export const GOAL_LABEL_MAX = 40
 export const GOAL_TARGET_MIN = 1
@@ -18,7 +21,7 @@ const RESERVED_HANDLES = new Set([
   'dashboard', 'analytics', 'edit', 'admin', 'settings', 'login', 'signup',
   'static', 'assets', 'public', 'images', 'fonts',
   '_next', 'next', 'vercel', 'www', 'app', 'about', 'terms', 'privacy',
-  'support', 'help', 'new', 'create', 'official', 'tipwall', 'nimiq',
+  'support', 'help', 'faq', 'new', 'create', 'official', 'tipwall', 'nimiq',
   'share', 'explore', 'badge', 'overlay', 'embed', 's',
 ])
 
@@ -57,6 +60,13 @@ export function validateNotifyTelegram(url: string): string | null {
   return null
 }
 
+/** Validate an EVM/Polygon payout address without accepting lookalike strings. */
+export function validatePolygonAddress(address: string): string | null {
+  if (!address) return null
+  if (!POLYGON_ADDRESS_RE.test(address)) return 'USDT payout address must be a valid Polygon (0x…) address'
+  return null
+}
+
 export const TAG_MAX = 3
 export const TAG_LEN_MAX = 20
 
@@ -75,7 +85,37 @@ export interface GoalInput { label: string; targetNIM: number }
 
 export const VALID_THEMES = new Set(['paper', 'mint', 'blush', 'sky', 'sun'])
 
-export const VALID_CATEGORIES = new Set(['art', 'code', 'education', 'music', 'video', 'community'])
+export const VALID_CATEGORIES = new Set(['art', 'code', 'education', 'music', 'video', 'gaming', 'freelance', 'student', 'community'])
+
+export const SOCIAL_LINK_KEYS = ['website', 'x', 'github', 'telegram', 'instagram', 'linkedin'] as const
+export type SocialLinkKey = typeof SOCIAL_LINK_KEYS[number]
+
+export function validatePublicUrl(url: string, label: string, maxLength = SOCIAL_URL_MAX): string | null {
+  if (!url) return null
+  if (url.length > maxLength) return `${label} is too long`
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return `${label} must be an http(s) link`
+  } catch {
+    return `${label} is not a valid URL`
+  }
+  return null
+}
+
+export function normalizeSocialLinks(input: unknown): { socialLinks?: Record<SocialLinkKey, string>; error?: string } {
+  if (input === undefined) return {}
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return { error: 'Social links must be an object' }
+  const raw = input as Record<string, unknown>
+  const out = {} as Record<SocialLinkKey, string>
+  for (const key of SOCIAL_LINK_KEYS) {
+    const value = String(raw[key] || '').trim().slice(0, SOCIAL_URL_MAX)
+    if (!value) continue
+    const error = validatePublicUrl(value, `${key} link`)
+    if (error) return { error }
+    out[key] = value
+  }
+  return { socialLinks: Object.keys(out).length ? out : undefined }
+}
 
 /** Clamp/normalize the mutable presentation fields to their caps. */
 export function clampProfileFields(fields: {
@@ -85,8 +125,9 @@ export function clampProfileFields(fields: {
   goal?: unknown
   theme?: unknown
   category?: unknown
-}): { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string; category?: string } {
-  const out: { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string; category?: string } = {}
+  avatarUrl?: unknown
+}): { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string; category?: string; avatarUrl?: string } {
+  const out: { displayName?: string; bio?: string; achievement?: string; goal?: GoalInput; theme?: string; category?: string; avatarUrl?: string } = {}
   if (fields.displayName !== undefined) {
     out.displayName = String(fields.displayName).slice(0, DISPLAY_NAME_MAX)
   }
@@ -112,5 +153,6 @@ export function clampProfileFields(fields: {
     const category = String(fields.category)
     out.category = VALID_CATEGORIES.has(category) ? category : undefined
   }
+  if (fields.avatarUrl !== undefined) out.avatarUrl = String(fields.avatarUrl || '').trim().slice(0, AVATAR_URL_MAX) || undefined
   return out
 }

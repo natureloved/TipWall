@@ -4,6 +4,7 @@ import { useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CREATOR_CATEGORIES, type CreatorCategory } from '@/lib/types'
 import { EXPLORE_SORTS, type ExploreSort } from '@/lib/explore'
+import { useTranslations } from '@/lib/i18n'
 
 const SEARCH_DEBOUNCE_MS = 350
 
@@ -25,6 +26,7 @@ export default function ExploreControls({
   disabled,
 }: ExploreControlsProps) {
   const router = useRouter()
+  const t = useTranslations()
   const [isPending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -96,7 +98,7 @@ export default function ExploreControls({
               aria-pressed={activeCategory === cat}
               className={`explore-filter shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold ${activeCategory === cat ? 'explore-filter-active' : ''}`}
             >
-              {CREATOR_CATEGORIES[cat].emoji} {CREATOR_CATEGORIES[cat].label}
+              {CREATOR_CATEGORIES[cat].emoji} {t(`category_${cat}`)}
             </button>
           ))}
         </div>
@@ -116,8 +118,8 @@ export default function ExploreControls({
             name="q"
             type="search"
             defaultValue={query || ''}
-            placeholder="Search creators…"
-            aria-label="Search creators"
+            placeholder={t('exploreSearch')}
+            aria-label={t('exploreSearchLabel')}
             disabled={disabled}
             onChange={event => handleSearchChange(event.target.value)}
             className="explore-search w-60 rounded-full border py-1.5 pl-4 pr-8 text-xs font-semibold"
@@ -126,7 +128,7 @@ export default function ExploreControls({
             <button
               type="button"
               onClick={clearSearch}
-              aria-label="Clear search"
+              aria-label={t('exploreClearSearch')}
               className="explore-search-clear absolute right-1.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold"
             >
               ×
@@ -136,17 +138,17 @@ export default function ExploreControls({
       </form>
 
       <label className="mt-3 flex items-center justify-center gap-2">
-        <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">Filter</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500">{t('exploreFilter')}</span>
         <select
           value={activeSort}
           onChange={event => navigate({ sort: event.target.value })}
           disabled={disabled}
-          title={EXPLORE_SORTS[activeSort].hint}
+          title={t(`exploreSortHint_${activeSort}`)}
           className="explore-sort-select rounded-full border py-1.5 pl-3 pr-8 text-xs font-semibold"
         >
           {(Object.keys(EXPLORE_SORTS) as ExploreSort[]).map(sort => (
             <option key={sort} value={sort}>
-              {EXPLORE_SORTS[sort].label}
+              {t(`exploreSort_${sort}`)}
             </option>
           ))}
         </select>

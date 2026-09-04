@@ -26,4 +26,10 @@ describe('sanitizeTips', () => {
     expect(tip.senderAddress).toBe('')
     expect(tip.senderName).toBeUndefined()
   })
+
+  it('omits hidden tips publicly but keeps them in owner views', () => {
+    const hidden = { ...base, id: 'hidden', hiddenAt: 123 }
+    expect(sanitizeTips([base, hidden]).map(tip => tip.id)).toEqual([base.id])
+    expect(sanitizeTips([base, hidden], { includeHidden: true }).map(tip => tip.id)).toEqual([base.id, 'hidden'])
+  })
 })

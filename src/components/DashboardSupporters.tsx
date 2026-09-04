@@ -30,9 +30,10 @@ export default function DashboardSupporters({ supporters }: { supporters: Suppor
               {truncate(supporter.address)}
             </span>
             <span className="text-right font-bold text-[#171614]">
-              <span className="block">{supporter.totalNIM.toLocaleString()} NIM</span>
+              {supporter.totalNIM > 0 && <span className="block">{supporter.totalNIM.toLocaleString()} NIM</span>}
+              {(supporter.totalUSDT || 0) > 0 && <span className="block">{supporter.totalUSDT!.toLocaleString()} USDT</span>}
               <span className="block text-[0.68rem] font-medium text-[#746b5e]">
-                {t(supporter.tipCount === 1 ? 'suppTipOne' : 'suppTipMany', { n: supporter.tipCount.toLocaleString() })}
+                {t('suppTip', { count: supporter.tipCount, n: supporter.tipCount.toLocaleString() })}
               </span>
             </span>
           </li>

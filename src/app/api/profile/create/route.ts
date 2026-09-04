@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { setProfileNX, addProfileToWalletIndex, consumeAuthNonce, touchActivity, isHandleTombstoned } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
-import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
+import { normalizeAddress, normalizeHandle, nimiqAddressError, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
-import { validateHandle, validateContentUrl, clampProfileFields, CONTENT_URL_MAX } from '@/lib/validate-profile'
+import { validateHandle, validateContentUrl, clampProfileFields, CONTENT_URL_MAX, validatePolygonAddress, validatePublicUrl, normalizeSocialLinks, AVATAR_URL_MAX } from '@/lib/validate-profile'
+import { withinRateLimit } from '@/lib/rate-limit'
+
+export const dynamic = 'force-dynamic'
+import { logError } from '@/lib/logger'
 
 export async function POST(req: NextRequest) {
   try {
+    if (!await withinRateLimit(req, 'profile-create', 5)) {
+      return NextResponse.json({ error: 'Rate limit exceeded, please try again shortly' }, { status: 429 })
+    }
     const body = await req.json()
     const {
       handle,
@@ -14,9 +21,12 @@ export async function POST(req: NextRequest) {
       bio = '',
       contentUrl = '',
       walletAddress,
+      usdtPolygonAddress,
       goal,
       achievement,
       category,
+      avatarUrl,
+      socialLinks,
       auth,
     } = body as Record<string, unknown>
 
@@ -31,14 +41,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'This handle belonged to a deleted wall and cannot be reused' }, { status: 409 })
     }
     const walletStr = normalizeAddress(String(walletAddress || ''))
-    if (!walletStr.startsWith('NQ')) {
-      return NextResponse.json({ error: 'Invalid Nimiq wallet address' }, { status: 400 })
+    // Full structural + checksum validation. A typo'd payout address would
+    // otherwise create a wall that can never receive a tip, and the creator
+    // would have no idea until supporters report failures.
+    const walletError = nimiqAddressError(walletStr)
+    if (walletError) {
+      return NextResponse.json({ error: walletError }, { status: 400 })
     }
+    const usdtAddress = String(usdtPolygonAddress || '').trim()
+    const usdtError = validatePolygonAddress(usdtAddress)
+    if (usdtError) return NextResponse.json({ error: usdtError }, { status: 400 })
     const contentUrlStr = String(contentUrl || '').slice(0, CONTENT_URL_MAX)
     const urlError = validateContentUrl(contentUrlStr)
     if (urlError) {
       return NextResponse.json({ error: urlError }, { status: 400 })
     }
+    const avatarUrlStr = String(avatarUrl || '').trim().slice(0, AVATAR_URL_MAX)
+    const avatarError = validatePublicUrl(avatarUrlStr, 'Avatar URL')
+    if (avatarError) return NextResponse.json({ error: avatarError }, { status: 400 })
+    const normalizedSocialLinks = normalizeSocialLinks(socialLinks)
+    if (normalizedSocialLinks.error) return NextResponse.json({ error: normalizedSocialLinks.error }, { status: 400 })
 
     // --- Signature-bound authorization ----------------------------------
     // Creating a profile requires a fresh signature from the claimed wallet,
@@ -68,13 +90,16 @@ export async function POST(req: NextRequest) {
     // --------------------------------------------------------------------
 
     const now = Date.now()
-    const clamped = clampProfileFields({ displayName, bio, achievement, goal, category })
+    const clamped = clampProfileFields({ displayName, bio, achievement, goal, category, avatarUrl: avatarUrlStr })
     const profile: CreatorProfile = {
       handle: handleStr,
       displayName: clamped.displayName || handleStr,
       bio: clamped.bio || '',
       contentUrl: contentUrlStr,
+      avatarUrl: clamped.avatarUrl,
+      socialLinks: normalizedSocialLinks.socialLinks,
       walletAddress: walletStr,
+      usdtPolygonAddress: usdtAddress || undefined,
       ownerPublicKey: proof.publicKey,
       goal: clamped.goal,
       achievement: clamped.achievement,
@@ -95,7 +120,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, handle: profile.handle })
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to create profile'
-    console.error('Profile creation error:', err)
+    logError('profile_create_failed', err)
 
     // Check if it's a KV connection error
     if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('unauthorized') || errorMsg.includes('401') || errorMsg.includes('403')) {

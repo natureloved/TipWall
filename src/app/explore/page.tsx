@@ -8,26 +8,29 @@ import {
   LEADERBOARD_WINDOW_MS,
 } from '@/lib/kv'
 import { TIP_REASON_LABELS, CREATOR_CATEGORIES, type CreatorProfile, type Tip, type TipReason, type CreatorCategory } from '@/lib/types'
+import { logError } from '@/lib/logger'
 import { EXPLORE_SORTS, NEW_WALL_GRACE_MS, includeWallInExplore, isProfileComplete, parseExploreSort, rotateWallsDaily, sortWalls, wallMatches } from '@/lib/explore'
 import MissionLink from '@/components/MissionLink'
 import ExploreControls from '@/components/ExploreControls'
-import { timeAgo } from '@/lib/time'
+import { localizedTimeAgo } from '@/lib/time'
+import { headers } from 'next/headers'
+import { resolveServerLocale, serverTranslate } from '@/lib/i18n-server'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'TipWall | Most tipped creators this week',
-  description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
+  title: 'TipWall | Most supported walls this week',
+  description: 'Live directory of public support walls on Nimiq. Support people directly, not the platform.',
   openGraph: {
-    title: 'Most tipped creators this week',
-    description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
+    title: 'Most supported walls this week',
+    description: 'Live directory of public support walls on Nimiq. Support people directly, not the platform.',
     url: 'https://tipwall.vercel.app/explore',
     images: [{ url: '/banner.png?v=2', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Most tipped creators this week',
-    description: 'Live leaderboard of creator tipping walls on Nimiq. Tip the creator. Not the platform.',
+    title: 'Most supported walls this week',
+    description: 'Live directory of public support walls on Nimiq. Support people directly, not the platform.',
     images: ['/banner.png?v=2'],
   },
 }
@@ -64,6 +67,7 @@ async function loadWalls(): Promise<ExploreWall[]> {
           getTips(handle),
         ])
         if (!profile) return { wall: null, failed: false }
+        const visibleTips = tips.filter(tip => !tip.hiddenAt)
         const totalNIM = await getVerifiedTotalNim(handle).catch(() => tips.reduce(
           (sum, tip) => sum + (tip.verified ? tip.amountNIM || 0 : 0),
           0,
@@ -75,10 +79,10 @@ async function loadWalls(): Promise<ExploreWall[]> {
           0,
         )
         const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
-        const reasons = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: tips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
+        const reasons = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: visibleTips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
         const topReason = reasons[0]?.count ? reasons[0].reason : null
         // Most recent verified tip overall powers the activity line.
-        const lastTipAt = tips.reduce<number | null>(
+        const lastTipAt = visibleTips.reduce<number | null>(
           (latest, t) => (t.verified && (latest === null || t.timestamp > latest) ? t.timestamp : latest),
           null,
         )
@@ -91,7 +95,7 @@ async function loadWalls(): Promise<ExploreWall[]> {
 
   const walls = results.flatMap(result => result.wall ? [result.wall] : [])
   if (walls.length === 0 && results.some(result => result.failed)) {
-    throw new Error('Creator directory data is unavailable')
+    throw new Error('Public wall directory data is unavailable')
   }
 
   // Sort: recentNIM desc, tiebreak by totalNIM desc
@@ -108,7 +112,17 @@ const RANK_BADGE = [
   'bg-[#CD7F32] text-slate-900',
 ]
 
+function WallAvatar({ profile, size = 'h-10 w-10' }: { profile: CreatorProfile; size?: string }) {
+  if (profile.avatarUrl) {
+    // eslint-disable-next-line @next/next/no-img-element -- creator-provided public avatar URL
+    return <img src={profile.avatarUrl} alt="" width={40} height={40} className={`${size} shrink-0 rounded-full border border-[#171614]/30 object-cover`} />
+  }
+  return <span className={`${size} shrink-0 inline-flex items-center justify-center rounded-full border border-[#171614]/25 bg-[#f4f0e6] text-sm font-bold text-[#b9382a]`} aria-hidden>{(profile.displayName || profile.handle).slice(0, 1).toUpperCase()}</span>
+}
+
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ cat?: string; q?: string; tag?: string; sort?: string }> }) {
+  const locale = resolveServerLocale((await headers()).get('accept-language'))
+  const t = (key: string, values?: Record<string, string | number>) => serverTranslate(locale, key, values)
   const params = await searchParams
   const query = String(params.q || '').trim().toLowerCase()
   const activeTag = String(params.tag || '').trim().toLowerCase()
@@ -124,7 +138,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     allWalls = await loadWalls()
   } catch (error) {
     directoryUnavailable = true
-    console.error('Explore directory unavailable:', error)
+    logError('explore_directory_unavailable', error)
   }
   const categoryWalls = activeCategory ? allWalls.filter(w => w.profile.category === activeCategory) : allWalls
   const matchedWalls = categoryWalls.filter(w => wallMatches(w, query, activeTag))
@@ -182,19 +196,19 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       <div className="w-full max-w-6xl mx-auto">
         <header className="explore-header explore-reveal flex flex-wrap items-center justify-between gap-3 mb-10 border-b border-slate-700 pb-4">
           <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
-          <Link href="/?create=1" className="explore-create-link rounded-full border px-4 py-2 text-sm font-bold">Create a wall</Link>
+          <Link href="/?create=1" className="explore-create-link rounded-full border px-4 py-2 text-sm font-bold">{t('exploreCreateWall')}</Link>
         </header>
         <div className="explore-hero explore-reveal text-center mb-8" style={{ animationDelay: '60ms' }}>
-          <p className="landing-section-kicker mb-3">Creator discovery</p>
+          <p className="landing-section-kicker mb-3">{t('exploreKicker')}</p>
           <h1 className="font-serif text-4xl sm:text-5xl font-semibold tracking-tight text-slate-900">
-            Find creators worth <span className="text-amber-300 italic">supporting.</span>
+            {t('exploreTitleLead')} <span className="text-amber-300 italic">{t('exploreTitleAccent')}</span>
           </h1>
-          <p className="max-w-xl mx-auto mt-3 text-sm text-slate-400">Browse by the kind of work creators make, not just the amount raised.</p>
+          <p className="max-w-xl mx-auto mt-3 text-sm text-slate-400">{t('exploreIntro')}</p>
           {wallCount > 0 && (
             <p className="explore-stats-pill inline-flex mt-4 rounded-full border px-4 py-2 text-xs font-semibold">
-              {wallCount.toLocaleString()} creator {wallCount === 1 ? 'wall' : 'walls'}
+              {t('exploreWallCount', { count: wallCount, n: wallCount.toLocaleString() })}
               {' · '}
-              {Math.round(weekNIM).toLocaleString()} NIM tipped this week
+              {t('exploreWeekTotal', { n: Math.round(weekNIM).toLocaleString() })}
             </p>
           )}
           <div className="mt-3">
@@ -212,13 +226,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
         {directoryUnavailable ? (
           <div className="explore-empty explore-reveal mx-auto max-w-2xl rounded-2xl p-8 text-center sm:p-10" role="status" style={{ animationDelay: '120ms' }}>
-            <h2 className="text-xl font-bold text-[#171614]">Creator walls are temporarily unavailable</h2>
+            <h2 className="text-xl font-bold text-[#171614]">{t('exploreUnavailableTitle')}</h2>
             <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">
-              Your walls and tips are safe. The creator directory could not reach its data service.
+              {t('exploreUnavailableBody')}
             </p>
             <form action="/explore" className="mt-5">
               <button type="submit" className="explore-bottom-cta rounded-xl px-5 py-2.5 text-sm font-bold">
-                Try again
+                {t('exploreTryAgain')}
               </button>
             </form>
           </div>
@@ -226,30 +240,30 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           filtersActive ? (
             <div className="explore-empty explore-reveal mx-auto max-w-2xl rounded-2xl p-8 text-center sm:p-10" role="status" style={{ animationDelay: '120ms' }}>
               <p className="text-4xl mb-3">🔍</p>
-              <h2 className="text-xl font-bold text-[#171614]">No creators match those filters</h2>
-              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">Try a different search, or clear the filters to browse every wall.</p>
-              <Link href="/explore" className="explore-bottom-cta inline-block mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">Clear filters</Link>
+              <h2 className="text-xl font-bold text-[#171614]">{t('exploreNoMatchesTitle')}</h2>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">{t('exploreNoMatchesBody')}</p>
+              <Link href="/explore" className="explore-bottom-cta inline-block mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">{t('exploreClearFilters')}</Link>
             </div>
           ) : allWalls.length > 0 ? (
             <div className="explore-empty explore-reveal mx-auto max-w-2xl rounded-2xl p-8 text-center sm:p-10" role="status" style={{ animationDelay: '120ms' }}>
               <p className="text-4xl mb-3">🌱</p>
-              <h2 className="text-xl font-bold text-[#171614]">No featured walls yet</h2>
-              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">Browse the newest creators to find a wall to support.</p>
-              <Link href="/explore?sort=new" className="explore-bottom-cta inline-block mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">Browse newest walls</Link>
+              <h2 className="text-xl font-bold text-[#171614]">{t('exploreNoFeaturedTitle')}</h2>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-[#5f574b]">{t('exploreNoFeaturedBody')}</p>
+              <Link href="/explore?sort=new" className="explore-bottom-cta inline-block mt-5 rounded-xl px-5 py-2.5 text-sm font-bold">{t('exploreBrowseNewest')}</Link>
             </div>
           ) : (
             <div className="explore-empty explore-reveal text-center rounded-2xl p-10" style={{ animationDelay: '120ms' }}>
               <p className="text-4xl mb-3">🌱</p>
-              <p className="text-slate-300 font-semibold">No walls yet. Yours could be the first.</p>
+              <p className="text-slate-300 font-semibold">{t('exploreNoWalls')}</p>
             </div>
           )
         ) : (
           <>
             {filtersActive && (
               <p className="text-center text-xs font-semibold text-slate-500 mb-6">
-                {sortedWalls.length} matching creator {sortedWalls.length === 1 ? 'wall' : 'walls'}
+                {t('exploreMatching', { count: sortedWalls.length, n: sortedWalls.length })}
                 {' · '}
-                <Link href="/explore" className="underline hover:text-[#c4442d]">Clear filters</Link>
+                <Link href="/explore" className="underline hover:text-[#c4442d]">{t('exploreClearFilters')}</Link>
               </p>
             )}
             {activeSort === 'trending' ? (
@@ -259,8 +273,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 carries the page. */}
             {trending.length > 0 && (
               <section className="explore-section explore-reveal mb-8" style={{ animationDelay: '120ms' }}>
-                <h2 className="flex items-center gap-2 text-lg font-bold text-white"><span className="explore-live-dot" aria-hidden="true" /> Most tipped this week</h2>
-                <p className="text-xs text-slate-500 mb-3">Updated live · last 7 days</p>
+                <h2 className="flex items-center gap-2 text-lg font-bold text-white"><span className="explore-live-dot" aria-hidden="true" /> {t('exploreMostTipped')}</h2>
+                <p className="text-xs text-slate-500 mb-3">{t('exploreUpdated')}</p>
                 <div className="space-y-3">
                   {trending.map(({ profile, totalNIM, recentNIM, isNew, lastTipAt, topReason }, i) => (
                     <Link
@@ -275,6 +289,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       >
                         {i + 1}
                       </div>
+                      <WallAvatar profile={profile} />
                       <div className="min-w-0 flex-1">
                         <p className="font-bold text-amber-300 truncate flex items-center gap-2">
                           <span className="truncate">{profile.displayName || `@${profile.handle}`}</span>
@@ -291,8 +306,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         {profile.achievement && (
                           <p className="text-xs text-amber-200/80 mt-1 truncate">🏆 {profile.achievement}</p>
                         )}
-                        {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {CREATOR_CATEGORIES[profile.category].label}</span>}
-                        {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
+                        {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
+                        {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {t(`reason_${topReason}`)}</span>}
                         {!!profile.tags?.length && (
                           <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
                             {profile.tags.map(tag => (
@@ -308,7 +323,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         <p className="text-xs text-slate-500">this week</p>
                         {lastTipAt !== null && (
                           <p className="mt-1 whitespace-nowrap text-xs text-[#3f6f4d]">
-                            ● tipped {timeAgo(lastTipAt)}
+                            ● {localizedTimeAgo(lastTipAt, locale)}
                           </p>
                         )}
                         <p className="text-xs text-slate-500 mt-1 whitespace-nowrap">
@@ -325,7 +340,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               <section className="explore-section explore-reveal" style={{ animationDelay: '150ms' }}>
                 {trending.length > 0 && (
                   <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">
-                    More creator walls
+                    {t('exploreMoreCreators')}
                   </h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -337,6 +352,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       style={{ animationDelay: `${220 + Math.min(i, 8) * 65}ms` }}
                     >
                       <div className="flex items-baseline justify-between gap-3">
+                        <WallAvatar profile={profile} size="h-9 w-9" />
                         <p className="font-bold text-amber-300 truncate">
                           {profile.displayName || `@${profile.handle}`}
                         </p>
@@ -357,8 +373,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       {profile.achievement && (
                         <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
                       )}
-                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {CREATOR_CATEGORIES[profile.category].label}</span>}
-                      {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {TIP_REASON_LABELS[topReason].label}</span>}
+                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
+                      {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {t(`reason_${topReason}`)}</span>}
                         {!!profile.tags?.length && (
                           <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
                             {profile.tags.map(tag => (
@@ -374,8 +390,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
             {justJoined.length > 0 && (
               <section className="explore-section explore-reveal mt-8" style={{ animationDelay: '180ms' }}>
-                <h2 className="text-lg font-bold text-white">New creators</h2>
-                <p className="text-xs text-slate-500 mb-3">Be their first supporter</p>
+                <h2 className="text-lg font-bold text-white">{t('exploreNewCreators')}</h2>
+                <p className="text-xs text-slate-500 mb-3">{t('exploreFirstSupporter')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {justJoined.map(({ profile }, i) => (
                     <Link
@@ -385,6 +401,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       style={{ animationDelay: `${250 + i * 65}ms` }}
                     >
                       <div className="flex items-baseline justify-between gap-3">
+                        <WallAvatar profile={profile} size="h-9 w-9" />
                         <p className="font-bold text-amber-300 truncate">
                           {profile.displayName || `@${profile.handle}`}
                         </p>
@@ -413,6 +430,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       style={{ animationDelay: `${180 + Math.min(i, 8) * 65}ms` }}
                     >
                       <div className="flex items-center justify-between gap-3">
+                        <WallAvatar profile={profile} size="h-9 w-9" />
                         <p className="min-w-0 font-bold text-amber-300 truncate">
                           {profile.displayName || `@${profile.handle}`}
                         </p>
@@ -429,12 +447,12 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         <p className="text-sm text-slate-300 mt-2 line-clamp-2">{profile.bio}</p>
                       )}
                       {activeSort === 'active' && lastTipAt !== null && (
-                        <p className="mt-2 text-xs text-[#3f6f4d]">● tipped {timeAgo(lastTipAt)}</p>
+                        <p className="mt-2 text-xs text-[#3f6f4d]">● {localizedTimeAgo(lastTipAt, locale)}</p>
                       )}
                       {activeSort === 'new' && (
-                        <p className="mt-2 text-xs text-slate-500">Joined {timeAgo(profile.createdAt)}</p>
+                        <p className="mt-2 text-xs text-slate-500">{localizedTimeAgo(profile.createdAt, locale)}</p>
                       )}
-                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {CREATOR_CATEGORIES[profile.category].label}</span>}
+                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
                     </Link>
                   ))}
                 </div>
@@ -448,7 +466,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             href="/?create=1"
             className="explore-bottom-cta inline-block px-6 py-3 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 font-bold text-sm transition-all"
           >
-            Create your own TipWall
+            {t('exploreCreateOwn')}
           </Link>
         </div>
       </div>

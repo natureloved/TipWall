@@ -6,6 +6,54 @@ export type VerifiedTxDetails = { result: VerifyResult; senderAddress?: string }
 const ADDR_FIELDS = ['toAddress', 'to', 'to_address', 'recipientAddress', 'recipient', 'receiver_address'] as const
 const SENDER_FIELDS = ['senderAddress', 'sender_address', 'fromAddress', 'from', 'from_address', 'sender'] as const
 const VALUE_FIELDS = ['value', 'amount', 'luna', 'lunaValue'] as const
+const CONFIRMATION_FIELDS = ['confirmations', 'confirmationCount', 'numConfirmations'] as const
+const BLOCK_HEIGHT_FIELDS = ['blockHeight', 'block_height', 'blockNumber', 'block_number'] as const
+const BLOCK_HASH_FIELDS = ['blockHash', 'block_hash'] as const
+
+/**
+ * Only count transactions with explicit chain inclusion evidence. A matching
+ * mempool payload is not enough: it can disappear before it funds the creator.
+ * Explorer and node APIs use different names, so accept their common shapes.
+ */
+function hasConfirmedInclusion(tx: Record<string, unknown>): boolean {
+  const status = tx.status ?? tx.state
+  let statusConfirmed = false
+  if (typeof status === 'string') {
+    const normalized = status.toLowerCase()
+    if (/(pending|mempool|unconfirmed)/.test(normalized)) return false
+    statusConfirmed = /(confirmed|mined|included|finalized)/.test(normalized)
+  }
+
+  const confirmations = CONFIRMATION_FIELDS
+    .map(field => tx[field])
+    .find(value => value != null)
+  if (confirmations != null) {
+    const count = Number(confirmations)
+    return Number.isFinite(count) && count >= 1
+  }
+
+  const height = BLOCK_HEIGHT_FIELDS
+    .map(field => tx[field])
+    .find(value => value != null)
+  if (height != null) {
+    const parsed = Number(height)
+    if (Number.isFinite(parsed)) return parsed >= 0
+  }
+
+  const blockHash = BLOCK_HASH_FIELDS
+    .map(field => tx[field])
+    .find(value => typeof value === 'string' && value.length > 0)
+  if (blockHash) return true
+
+  const block = tx.block
+  if (block && typeof block === 'object') {
+    const blockRecord = block as Record<string, unknown>
+    return blockRecord.height != null || blockRecord.number != null ||
+      (typeof blockRecord.hash === 'string' && blockRecord.hash.length > 0)
+  }
+
+  return statusConfirmed || tx.inBlock === true || tx.isMined === true || tx.confirmed === true
+}
 
 function candidatesFrom(data: unknown): Record<string, unknown>[] {
   const out: Record<string, unknown>[] = []
@@ -21,9 +69,10 @@ function candidatesFrom(data: unknown): Record<string, unknown>[] {
 }
 
 function inspect(tx: Record<string, unknown>, recipientNorm: string, amountLuna: number) {
-  const toAddrRaw = ADDR_FIELDS.map(f => tx[f]).find(Boolean) as string | undefined
+  const toAddrRaw = ADDR_FIELDS.map(f => tx[f]).find(value => typeof value === 'string' && value.length > 0) as string | undefined
   const rawValue = VALUE_FIELDS.map(f => tx[f]).find(v => v != null)
   if (!toAddrRaw || rawValue == null) return { result: 'unknown' as const }
+  if (!hasConfirmedInclusion(tx)) return { result: 'unknown' as const }
   const value = Number(rawValue)
   if (!Number.isFinite(value)) return { result: 'unknown' as const }
   const sender = SENDER_FIELDS.map(f => tx[f]).find(Boolean)

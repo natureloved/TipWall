@@ -33,7 +33,7 @@ export default function AnimatedNumber({
   }, [value])
 
   return (
-    <span>
+    <span suppressHydrationWarning>
       {prefix}
       {display.toLocaleString(undefined, { maximumFractionDigits: 0 })}
     </span>

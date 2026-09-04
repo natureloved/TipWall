@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getOgMetadata, getProfile, checkRateLimit } from '@/lib/kv'
 import { normalizeHandle } from '@/lib/profile-auth'
+import { getClientIp } from '@/lib/request'
 
 /**
  * Fetch OG metadata for a creator's content link. Scoped by handle - the server
@@ -11,8 +12,7 @@ export async function GET(request: NextRequest) {
   const handle = normalizeHandle(request.nextUrl.searchParams.get('handle') || '')
   if (!handle) return NextResponse.json({ error: 'handle required' }, { status: 400 })
 
-  const forwarded = request.headers.get('x-forwarded-for')
-  const ip = (forwarded ? forwarded.split(',')[0].trim() : '') || 'unknown'
+  const ip = getClientIp(request)
   const withinLimit = await checkRateLimit(`og:${ip}`, 30, 60000)
   if (!withinLimit) return NextResponse.json({ error: 'rate limited' }, { status: 429 })
 

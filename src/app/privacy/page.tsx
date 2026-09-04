@@ -3,7 +3,7 @@ import Link from 'next/link'
 export const metadata = {
   title: 'Privacy Policy | TipWall',
   description:
-    'How TipWall handles data. Non-custodial, no accounts, no PII analytics. Tip the creator, not the platform.',
+    'How TipWall handles data. Non-custodial, no accounts, no PII analytics. Support people and projects directly, not the platform.',
 }
 
 // TipWall is non-custodial and account-less by design, so this policy is short
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
         <div className="mt-8 space-y-8 leading-relaxed text-[#4f493f]">
           <section>
             <p>
-              TipWall is a non-custodial creator tipping wall that runs as a Nimiq Pay Mini App.
+              TipWall is a non-custodial support wall that runs as a Nimiq Pay Mini App.
               It is built to collect as little about you as possible. There are no accounts, no
               passwords, and no tracking cookies. This page explains, in plain language, what
               data the app does and does not handle.
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="mb-3 text-xl font-bold text-[#171614]">The short version</h2>
             <ul className="list-disc space-y-2 pl-5 marker:text-[#b9382a]">
-              <li>We never take custody of your funds. Tips go on-chain, creator to supporter.</li>
+              <li>We never take custody of your funds. Tips go on-chain, supporter to wall owner.</li>
               <li>There are no user accounts and no passwords. Ownership is proven by a wallet signature.</li>
               <li>Our usage analytics are anonymous and contain no personal information.</li>
               <li>We don&apos;t sell data, run ad trackers, or set advertising cookies.</li>
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-xl font-bold text-[#171614]">What a creator profile stores</h2>
+            <h2 className="mb-3 text-xl font-bold text-[#171614]">What a wall profile stores</h2>
             <p>
               When you create a wall, we store the profile information you choose to publish: your
               handle, display name, bio, links, and goal settings, along with your public Nimiq
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
             <h2 className="mb-3 text-xl font-bold text-[#171614]">Analytics and abuse prevention</h2>
             <p>
               TipWall records anonymous funnel counters (for example, how many people viewed a wall
-              versus opened the tip flow) so creators can see how their wall is performing. These
+              versus opened the tip flow) so wall owners can see how their wall is performing. These
               counters contain no personally identifying information.
             </p>
             <p className="mt-3">

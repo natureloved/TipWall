@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { DashboardData } from '@/lib/types'
 import DashboardStats from '@/components/DashboardStats'
 import DashboardSupporters from '@/components/DashboardSupporters'
 import DashboardTips from '@/components/DashboardTips'
-import DashboardPledges from '@/components/DashboardPledges'
 import DashboardExport from '@/components/DashboardExport'
 import DashboardEditProfile from '@/components/DashboardEditProfile'
 import DashboardMilestones from '@/components/DashboardMilestones'
@@ -13,19 +13,27 @@ import DashboardShareNudge from '@/components/DashboardShareNudge'
 import { getNimiq, signProfileAuth } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { useTranslations } from '@/lib/i18n'
+import { detectNimiqPay } from '@/lib/environment'
+import OwnerWalletHandoff from '@/components/OwnerWalletHandoff'
 
 export default function DashboardPage() {
   const { handle } = useParams<{ handle: string }>()
   const router = useRouter()
   const t = useTranslations()
+  const dashboardLoadFailed = t('dashboardLoadFailed')
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [walletAddress, setWalletAddress] = useState('')
+  const [walletHandoff, setWalletHandoff] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
+        if (!await detectNimiqPay()) {
+          setWalletHandoff(true)
+          return
+        }
         const nimiq = await getNimiq()
         const accounts = await nimiq.listAccounts()
         // accounts is either string[] or { error: ... } - extract address safely
@@ -47,7 +55,7 @@ export default function DashboardPage() {
           router.replace(`/${handle}`)
           return
         }
-        if (!res.ok) throw new Error('Failed to load dashboard')
+        if (!res.ok) throw new Error(dashboardLoadFailed)
 
         const json = await res.json()
         setData(json)
@@ -59,7 +67,9 @@ export default function DashboardPage() {
       }
     }
     load()
-  }, [handle, router])
+  }, [dashboardLoadFailed, handle, router])
+
+  if (walletHandoff) return <OwnerWalletHandoff handle={String(handle)} surface="dashboard" />
 
   if (loading) return (
     <main className="flex min-h-screen items-center justify-center bg-[#f4f0e6] px-4 py-12">
@@ -85,7 +95,13 @@ export default function DashboardPage() {
             <p className="font-serif text-xl font-semibold text-[#171614]">{t('dashTitle')}</p>
             <p className="mt-0.5 text-xs font-medium text-[#746b5e]">@{data.profile.handle}</p>
           </div>
-          <nav className="flex flex-wrap items-center gap-2" aria-label="Dashboard links">
+          <nav className="flex flex-wrap items-center gap-2" aria-label={t('dashboardLinks')}>
+            <Link
+              href={`/${handle}/edit`}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#171614]/35 bg-[#fffdf7] px-4 py-2 text-xs font-bold text-[#171614] transition-colors hover:border-[#b9382a] hover:bg-[#fffaf0] hover:text-[#b9382a] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b9382a]"
+            >
+              {t('dashEditProfile')}
+            </Link>
             <a
               href={`/${handle}/share`}
               className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#171614] bg-[#f05a3c] px-4 py-2 text-xs font-bold text-[#171614] shadow-[3px_3px_0_#171614] transition-[transform,box-shadow,background-color] hover:-translate-y-0.5 hover:bg-[#e85236] hover:shadow-[4px_4px_0_#171614] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b9382a]"
@@ -108,8 +124,16 @@ export default function DashboardPage() {
         <DashboardMilestones data={data} />
         <DashboardSupporters supporters={data.supporters} />
         <DashboardTips handle={String(handle)} tips={data.tips} walletAddress={walletAddress} />
-        <DashboardPledges pledges={data.pledges || []} />
-        <DashboardExport handle={String(handle)} tips={data.tips} />
+        <DashboardExport
+          handle={String(handle)}
+          tips={data.tips}
+          profile={data.profile}
+          supporters={data.supporters}
+          milestones={data.milestonesUnlocked}
+          walletAddress={walletAddress}
+          totalNIM={data.totalNIM}
+          totalTips={data.totalTips}
+        />
         <DashboardEditProfile profile={data.profile} walletAddress={walletAddress} />
       </div>
     </main>

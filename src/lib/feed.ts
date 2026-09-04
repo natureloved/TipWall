@@ -22,7 +22,7 @@ export function buildRecentFeed(
   const items: FeedItem[] = []
   for (const { handle, tips } of perWall) {
     for (const tip of tips) {
-      if (!tip.verified) continue
+      if (!tip.verified || tip.hiddenAt) continue
       items.push({
         id: tip.id,
         handle,

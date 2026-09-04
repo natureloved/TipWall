@@ -84,6 +84,7 @@ export async function signProfileAuth(params: {
   action: ProfileAuthAction
   handle: string
   walletAddress: string
+  transferTo?: string
 }): Promise<ProfileAuthProof> {
   const nimiq = await getNimiq()
   const walletAddress = normalizeAddress(params.walletAddress)
@@ -93,6 +94,7 @@ export async function signProfileAuth(params: {
     handle: params.handle,
     walletAddress,
     issuedAt,
+    transferTo: params.transferTo,
   })
 
   const result = await nimiq.sign(message)
@@ -107,9 +109,22 @@ export async function signProfileAuth(params: {
     handle: params.handle,
     walletAddress,
     issuedAt,
+    transferTo: params.transferTo,
     publicKey,
     signature,
   }
+}
+
+/** Sign a portable wall snapshot with the connected Nimiq wallet. */
+export async function signWallSnapshot(message: string): Promise<{ publicKey: string; signature: string }> {
+  const nimiq = await getNimiq()
+  const result = await nimiq.sign(message)
+  if (isErrorResponse(result)) {
+    throw new Error(result.error?.message || 'Signing was rejected.')
+  }
+  const { publicKey, signature } = result as { publicKey: string; signature: string }
+  if (!publicKey || !signature) throw new Error('Wallet did not return a signature.')
+  return { publicKey, signature }
 }
 
 export async function sendNimTip(params: {

@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfileByWallet } from '@/lib/kv'
-import { normalizeAddress, type ProfileAuthProof } from '@/lib/profile-auth'
+import { getProfilesByWallet } from '@/lib/kv'
+import { normalizeAddress, nimiqAddressError, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
+import { withinRateLimit } from '@/lib/rate-limit'
+import { logError } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
+    if (!await withinRateLimit(request, 'profile-wallet', 30)) {
+      return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+    }
     const address = request.nextUrl.searchParams.get('address')
     const walletStr = normalizeAddress(String(address || ''))
-    if (!walletStr.startsWith('NQ')) {
-      return NextResponse.json({ error: 'Invalid Nimiq wallet address' }, { status: 400 })
+    const walletError = nimiqAddressError(walletStr)
+    if (walletError) {
+      return NextResponse.json({ error: walletError }, { status: 400 })
     }
 
     const authHeader = request.headers.get('x-tipwall-auth')
@@ -35,15 +43,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: verdict.error || 'Invalid wallet signature' }, { status: 401 })
     }
 
-    const profile = await getProfileByWallet(walletStr)
-    if (!profile) {
+    const profiles = await getProfilesByWallet(walletStr)
+    if (!profiles.length) {
       return NextResponse.json({ error: 'not found' }, { status: 404 })
     }
 
-    return NextResponse.json(profile)
+    return NextResponse.json({ profiles })
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to load profile'
-    console.error('Profile by wallet error:', errorMsg)
+    logError('profile_wallet_lookup_failed', err, { errorMsg })
     return NextResponse.json({ error: errorMsg }, { status: 500 })
   }
 }

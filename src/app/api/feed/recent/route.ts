@@ -2,12 +2,18 @@ import { NextResponse } from 'next/server'
 import { getDiscoveryHandles, getTips } from '@/lib/kv'
 import { buildRecentFeed } from '@/lib/feed'
 import type { Tip } from '@/lib/types'
+import { withinRateLimit } from '@/lib/rate-limit'
+
+export const dynamic = 'force-dynamic'
 
 // Real network activity for the home page ticker. Cached briefly so a
 // homepage visit costs one scan, not one per wall per visitor.
 export const revalidate = 60
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!await withinRateLimit(request, 'feed-read', 60)) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+  }
   try {
     const handles = await getDiscoveryHandles(24)
     const settled = await Promise.allSettled(handles.map(h => getTips(h)))

@@ -63,7 +63,7 @@ export default function MilestoneCelebration({ previousTotal, newTotal, mileston
           {milestone.toLocaleString()} NIM Milestone Unlocked!
         </p>
         <p className="mt-1 text-sm text-[#e9e2d2]">
-          The creator just crossed {milestone.toLocaleString()} NIM in tips!
+          This wall just crossed {milestone.toLocaleString()} NIM in support!
         </p>
         {handle && (
           <button

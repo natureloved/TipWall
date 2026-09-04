@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getProfile, getVerifiedTotalNim } from '@/lib/kv'
 import { normalizeHandle } from '@/lib/profile-auth'
+import { withinRateLimit } from '@/lib/rate-limit'
+
+export const dynamic = 'force-dynamic'
 
 // Compact SVG badge for READMEs, blogs, and link-in-bio pages. It uses the
 // current ink/paper/brick palette so embedded badges stay on-brand.
@@ -47,7 +50,10 @@ function badgeSvg(rightText: string): string {
 </svg>`
 }
 
-export async function GET(_request: Request, { params }: { params: Promise<{ handle: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ handle: string }> }) {
+  if (!await withinRateLimit(request, 'badge-read', 60)) {
+    return new NextResponse('rate limited', { status: 429, headers: { 'Content-Type': 'text/plain' } })
+  }
   const { handle } = await params
   // normalizeHandle strips everything outside [a-z0-9_-], so the text placed
   // into the SVG can never carry markup.

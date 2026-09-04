@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server'
 import { getProfile, setProfile, consumeAuthNonce, deleteProfileData, touchActivity, stripSensitiveProfileFields } from '@/lib/kv'
 import { type CreatorProfile } from '@/lib/types'
-import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
+import { normalizeAddress, normalizeHandle, nimiqAddressError, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
-import { validateContentUrl, validateNotifyTelegram, normalizeTags, clampProfileFields, CONTENT_URL_MAX } from '@/lib/validate-profile'
+import { validateContentUrl, validateNotifyTelegram, normalizeTags, clampProfileFields, CONTENT_URL_MAX, validatePolygonAddress, validatePublicUrl, normalizeSocialLinks, AVATAR_URL_MAX } from '@/lib/validate-profile'
+import { withinRateLimit } from '@/lib/rate-limit'
+import { logError } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request, { params }: { params: Promise<{ handle: string }> }) {
+  if (!await withinRateLimit(request, 'profile-read', 120)) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+  }
   const { handle } = await params
   const profile = await getProfile(handle)
   if (!profile) {
@@ -22,6 +29,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
  */
 export async function PUT(request: Request, { params }: { params: Promise<{ handle: string }> }) {
   try {
+    if (!await withinRateLimit(request, 'profile-update', 20)) {
+      return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+    }
     const { handle } = await params
     const handleStr = normalizeHandle(handle)
 
@@ -31,7 +41,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     }
 
     const body = await request.json()
-    const { displayName, bio, contentUrl, goal, achievement, theme, category, notifyTelegram, tags, auth } = body as Record<string, unknown>
+    const { displayName, bio, contentUrl, goal, achievement, theme, category, notifyTelegram, tags, recoveryWalletAddress, usdtPolygonAddress, avatarUrl, socialLinks, auth } = body as Record<string, unknown>
 
     // --- Signature-bound authorization ----------------------------------
     const proof = auth as ProfileAuthProof | undefined
@@ -43,6 +53,11 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     }
     if (normalizeHandle(String(proof.handle || '')) !== handleStr) {
       return NextResponse.json({ error: 'Signature handle mismatch' }, { status: 400 })
+    }
+    const proofWallet = normalizeAddress(String(proof.walletAddress || ''))
+    const walletError = nimiqAddressError(proofWallet)
+    if (walletError) {
+      return NextResponse.json({ error: walletError }, { status: 400 })
     }
 
     const verdict = verifyProfileAuth(proof)
@@ -78,10 +93,31 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
       if (notifyError) return NextResponse.json({ error: notifyError }, { status: 400 })
     }
 
+    const newAvatarUrl = avatarUrl !== undefined ? String(avatarUrl || '').trim().slice(0, AVATAR_URL_MAX) : undefined
+    if (newAvatarUrl !== undefined) {
+      const avatarError = validatePublicUrl(newAvatarUrl, 'Avatar URL')
+      if (avatarError) return NextResponse.json({ error: avatarError }, { status: 400 })
+    }
+    const normalizedSocialLinks = normalizeSocialLinks(socialLinks)
+    if (normalizedSocialLinks.error) return NextResponse.json({ error: normalizedSocialLinks.error }, { status: 400 })
+
+    const newRecoveryWallet = recoveryWalletAddress !== undefined ? normalizeAddress(String(recoveryWalletAddress || '').trim()) : undefined
+    if (newRecoveryWallet) {
+      const recoveryError = nimiqAddressError(newRecoveryWallet)
+      if (recoveryError) return NextResponse.json({ error: recoveryError }, { status: 400 })
+      if (newRecoveryWallet === owner) return NextResponse.json({ error: 'Recovery wallet must be different from the owner wallet' }, { status: 400 })
+    }
+
+    const newUsdtAddress = usdtPolygonAddress !== undefined ? String(usdtPolygonAddress || '').trim() : undefined
+    if (newUsdtAddress !== undefined) {
+      const usdtError = validatePolygonAddress(newUsdtAddress)
+      if (usdtError) return NextResponse.json({ error: usdtError }, { status: 400 })
+    }
+
     const normalizedTags = normalizeTags(tags)
     if (normalizedTags.error) return NextResponse.json({ error: normalizedTags.error }, { status: 400 })
 
-    const clamped = clampProfileFields({ displayName, bio, achievement, goal, theme, category })
+    const clamped = clampProfileFields({ displayName, bio, achievement, goal, theme, category, avatarUrl: newAvatarUrl })
     const updated: CreatorProfile = {
       ...existing,
       // Backfill owner key for legacy profiles created before this field existed.
@@ -89,10 +125,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
       displayName: displayName !== undefined ? clamped.displayName || existing.handle : existing.displayName,
       bio: bio !== undefined ? clamped.bio ?? existing.bio : existing.bio,
       contentUrl: newContentUrl !== undefined ? newContentUrl : existing.contentUrl,
+      avatarUrl: newAvatarUrl !== undefined ? clamped.avatarUrl : existing.avatarUrl,
+      socialLinks: socialLinks !== undefined ? normalizedSocialLinks.socialLinks : existing.socialLinks,
       achievement: achievement !== undefined ? clamped.achievement : existing.achievement,
       theme: theme !== undefined ? clamped.theme as CreatorProfile['theme'] : existing.theme,
       category: category !== undefined ? clamped.category as CreatorProfile['category'] : existing.category,
       notifyTelegram: newNotify !== undefined ? (newNotify || undefined) : existing.notifyTelegram,
+      recoveryWalletAddress: recoveryWalletAddress !== undefined ? (newRecoveryWallet || undefined) : existing.recoveryWalletAddress,
+      usdtPolygonAddress: newUsdtAddress !== undefined ? (newUsdtAddress || undefined) : existing.usdtPolygonAddress,
       tags: tags !== undefined ? normalizedTags.tags : existing.tags,
       goal: goal !== undefined ? clamped.goal : existing.goal,
       // Invalidate any cached OG metadata if the content URL changed.
@@ -106,7 +146,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
     return NextResponse.json({ success: true, handle: updated.handle })
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to update profile'
-    console.error('Profile update error:', errorMsg)
+    logError('profile_update_failed', err, { errorMsg })
     if (errorMsg.includes('ECONNREFUSED') || errorMsg.includes('unauthorized') || errorMsg.includes('401') || errorMsg.includes('403')) {
       return NextResponse.json(
         { error: 'Database connection failed. Check KV_REST_API_URL and KV_REST_API_TOKEN in .env.local' },
@@ -125,6 +165,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ hand
  */
 export async function DELETE(request: Request, { params }: { params: Promise<{ handle: string }> }) {
   try {
+    if (!await withinRateLimit(request, 'profile-delete', 10)) {
+      return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+    }
     const { handle } = await params
     const handleStr = normalizeHandle(handle)
 
@@ -164,7 +207,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ h
     return NextResponse.json({ success: true })
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : 'Failed to delete profile'
-    console.error('Profile delete error:', errorMsg)
+    logError('profile_delete_failed', err, { errorMsg })
     return NextResponse.json({ error: errorMsg }, { status: 500 })
   }
 }

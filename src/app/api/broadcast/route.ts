@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/kv'
+import { getClientIp } from '@/lib/request'
 
 const MAX_BROADCASTS_PER_WINDOW = 10
 
@@ -9,9 +10,7 @@ const MAX_BROADCASTS_PER_WINDOW = 10
 const FALLBACK_RPCS = ['https://rpc.nimiqwatch.com']
 
 function getRateLimitKey(req: NextRequest): string {
-  const forwarded = req.headers.get('x-forwarded-for')
-  const ip = (forwarded ? forwarded.split(',')[0].trim() : '') || req.headers.get('x-real-ip') || 'unknown'
-  return `broadcast:${ip}`
+  return `broadcast:${getClientIp(req)}`
 }
 
 function isValidSerializedTx(tx: unknown): tx is string {

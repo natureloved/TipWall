@@ -36,6 +36,13 @@ describe('buildRecentFeed', () => {
     expect(feed.map(f => f.id)).toEqual(['ok'])
   })
 
+  it('keeps moderated tips out of the public activity feed', () => {
+    const feed = buildRecentFeed([
+      { handle: 'maya', tips: [tip({ id: 'visible' }), tip({ id: 'hidden', hiddenAt: Date.now() })] },
+    ])
+    expect(feed.map(f => f.id)).toEqual(['visible'])
+  })
+
   it('never exposes sender identity for anonymous tips', () => {
     const feed = buildRecentFeed([
       { handle: 'maya', tips: [tip({ anonymous: true, senderName: 'Sam' })] },

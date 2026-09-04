@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getProfile, setTipReply, consumeAuthNonce, checkRateLimit } from '@/lib/kv'
 import { normalizeAddress, normalizeHandle, PROFILE_AUTH_TTL_MS, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
+import { logError } from '@/lib/logger'
 
 const REPLY_MAX = 120
 
@@ -48,7 +49,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ han
 
     return NextResponse.json({ success: true })
   } catch (err) {
-    console.error('Tip reply error:', err)
+    logError('tip_reply_failed', err)
     return NextResponse.json({ error: 'Failed to save reply' }, { status: 500 })
   }
 }

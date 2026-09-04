@@ -10,8 +10,8 @@ import { wallUrl, envWallUrl } from './environment'
 export type ShareChannel = 'x' | 'telegram' | 'whatsapp' | 'native' | 'copy'
 
 /** Pre-written post for a creator announcing their own wall. */
-export function creatorShareText(): string {
-  return `I just set up my TipWall. If my work has ever helped you, you can now tip me directly in NIM. No platform, no fees, straight to my wallet ⚡`
+export function creatorShareText(copy?: string): string {
+  return copy || `I just set up my TipWall. If my work has ever helped you, you can now tip me directly in NIM. No platform, no fees, straight to my wallet ⚡`
 }
 
 /** Post for a supporter who just tipped. */

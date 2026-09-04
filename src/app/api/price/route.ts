@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
-import { kv } from '@vercel/kv'
+import { kv } from '@/lib/kv'
+import { withinRateLimit } from '@/lib/rate-limit'
+
+export const dynamic = 'force-dynamic'
 
 const KEY = 'tipwall:price:nimiq:v2'
 const TTL_MS = 10 * 60 * 1000
@@ -73,7 +76,10 @@ async function fetchEurUsdRate(): Promise<number | null> {
  * CoinGecko is primary; CoinMarketCap cross-checks it, and when they diverge
  * beyond 25% we trust CMC (with EUR converted at the live fiat rate).
  */
-export async function GET() {
+export async function GET(request: Request) {
+  if (!await withinRateLimit(request, 'price-read', 60)) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+  }
   const cached = await kv.get<PriceRow>(KEY).catch(() => null)
   if (cached && Date.now() - cached.at < TTL_MS) {
     return NextResponse.json({ usd: cached.usd, eur: cached.eur })

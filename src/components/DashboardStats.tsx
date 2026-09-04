@@ -27,7 +27,7 @@ export default function DashboardStats({ data }: { data: DashboardData }) {
 
       {data.topReason && (
         <div className="rounded-lg border border-[#b9382a]/30 bg-[#fbd8cf] p-3 text-sm leading-relaxed text-[#5c1f17]">
-          {t('statsTopReason')} <strong className="font-bold">{TIP_REASON_LABELS[data.topReason].emoji} {TIP_REASON_LABELS[data.topReason].label}</strong>
+          {t('statsTopReason')} <strong className="font-bold">{TIP_REASON_LABELS[data.topReason].emoji} {t(`reason_${data.topReason}`)}</strong>
         </div>
       )}
 

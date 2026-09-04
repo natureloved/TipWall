@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { trackEvent, trackRef, checkRateLimit } from '@/lib/kv'
 import { normalizeHandle } from '@/lib/profile-auth'
 import { isFunnelEvent } from '@/lib/events'
+import { getClientIp } from '@/lib/request'
 
 /**
  * Record an anonymous funnel event. Body: { handle, event, cid? }.
@@ -11,8 +12,7 @@ import { isFunnelEvent } from '@/lib/events'
 export async function POST(req: NextRequest) {
   try {
     // Per-IP rate limit so a script can't inflate a creator's funnel counters.
-    const forwarded = req.headers.get('x-forwarded-for')
-    const ip = (forwarded ? forwarded.split(',')[0].trim() : '') || 'unknown'
+    const ip = getClientIp(req)
     const withinLimit = await checkRateLimit(`track:${ip}`, 60, 60000)
     if (!withinLimit) return NextResponse.json({ ok: false }, { status: 429 })
 

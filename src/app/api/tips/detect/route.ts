@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getProfile, checkRateLimit } from '@/lib/kv'
 import { normalizeHandle, normalizeAddress } from '@/lib/profile-auth'
 import { messageHasNonce } from '@/lib/pay-request'
+import { getClientIp } from '@/lib/request'
 
 /**
  * Poll for an incoming transaction to a creator's wallet, sent AFTER the QR was
@@ -26,8 +27,7 @@ export async function GET(req: NextRequest) {
   // identical-amount tip. Default: 15 min ago, to tolerate clock skew.
   const since = Number(searchParams.get('since')) || Date.now() - 15 * 60_000
 
-  const forwarded = req.headers.get('x-forwarded-for')
-  const ip = (forwarded ? forwarded.split(',')[0].trim() : '') || req.headers.get('x-real-ip') || 'unknown'
+  const ip = getClientIp(req)
   if (!(await checkRateLimit(`detect:${ip}:${handle}`, 30, 60_000))) {
     return NextResponse.json({ error: 'rate limited' }, { status: 429 })
   }
@@ -119,7 +119,6 @@ export async function GET(req: NextRequest) {
 
   // Prefer a nonce match if the message survived; else take the most recent.
   const nonceMatch = nonce ? candidates.find((c) => messageHasNonce(c.msg, nonce)) : undefined
-  if (nonce && !nonceMatch) return NextResponse.json({ found: false })
   const best = nonceMatch || candidates.sort((a, b) => b.time - a.time)[0]
 
   return NextResponse.json({

@@ -33,3 +33,16 @@ jobs:
           KV_REST_API_URL: https://ci-placeholder.upstash.io
           KV_REST_API_TOKEN: ci-placeholder-token
           NEXT_PUBLIC_APP_URL: https://tipwall.vercel.app
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser smoke tests
+        run: |
+          npm run start &
+          npm run test:e2e
+        env:
+          KV_REST_API_URL: https://ci-placeholder.upstash.io
+          KV_REST_API_TOKEN: ci-placeholder-token
+          NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000

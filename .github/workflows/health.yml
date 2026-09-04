@@ -1,0 +1,19 @@
+name: Uptime
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check production health endpoint
+        env:
+          TIPWALL_HEALTH_URL: ${{ vars.TIPWALL_HEALTH_URL || 'https://tipwall.vercel.app' }}
+        run: |
+          set -euo pipefail
+          status=$(curl --silent --show-error --max-time 20 --output health.json --write-out '%{http_code}' "$TIPWALL_HEALTH_URL/api/health")
+          test "$status" = '200'
+          grep -q '"status":"OK"' health.json

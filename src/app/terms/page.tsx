@@ -3,7 +3,7 @@ import Link from 'next/link'
 export const metadata = {
   title: 'Terms of Service | TipWall',
   description:
-    'The terms for using TipWall, a non-custodial creator tipping wall on Nimiq. Tip the creator, not the platform.',
+    'The terms for using TipWall, a non-custodial support wall on Nimiq. Support people and projects directly, not the platform.',
 }
 
 // Terms reflect what the app actually is: a non-custodial, no-fee, account-less
@@ -23,7 +23,7 @@ export default function TermsPage() {
         <div className="mt-8 space-y-8 leading-relaxed text-[#4f493f]">
           <section>
             <p>
-              TipWall is a free, non-custodial tool that lets creators publish a tipping wall and
+              TipWall is a free, non-custodial tool that lets people, projects, and communities publish a support wall and
               receive NIM tips inside the Nimiq Pay app. By creating a wall or using the app, you
               agree to these terms. If you don&apos;t agree, please don&apos;t use TipWall.
             </p>
@@ -78,7 +78,7 @@ export default function TermsPage() {
             <h2 className="mb-3 text-xl font-bold text-[#171614]">Tips are final</h2>
             <p>
               Blockchain transactions are irreversible. Once a tip is sent and confirmed on-chain,
-              it cannot be undone by TipWall, by the creator, or by anyone else. Please send tips
+              it cannot be undone by TipWall, by the wall owner, or by anyone else. Please send tips
               deliberately and to the intended wall.
             </p>
           </section>

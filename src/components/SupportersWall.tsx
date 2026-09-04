@@ -27,14 +27,14 @@ const colors = [
   'from-cyan-400 to-cyan-600',
 ]
 
-function AvatarChip({ s, idx, size = 'w-12 h-12 text-xl' }: { s: { address: string; totalNIM: number; tipCount: number; name?: string; streakWeeks?: number }; idx: number; size?: string }) {
+function AvatarChip({ s, idx, size = 'w-12 h-12 text-xl' }: { s: { address: string; totalNIM: number; totalUSDT?: number; tipCount: number; name?: string; streakWeeks?: number }; idx: number; size?: string }) {
   const emoji = AVATARS[avatarIndex(s.address, AVATARS.length)]
   const color = colors[avatarIndex(s.address, colors.length)]
   const medal = idx < 3 ? RANK_MEDALS[idx] : null
   return (
     <div className="relative">
       <div
-        title={`${s.name || `${s.address.slice(0, 6)}…${s.address.slice(-4)}`} · ${s.totalNIM} NIM`}
+        title={`${s.name || `${s.address.slice(0, 6)}…${s.address.slice(-4)}`} · ${s.totalNIM > 0 ? `${s.totalNIM} NIM` : `${s.totalUSDT || 0} USDT`}`}
         className={`${size} rounded-full flex items-center justify-center flex-shrink-0 shadow-md border-2 border-white/20 bg-gradient-to-br ${color}`}
       >
         {emoji}
@@ -60,7 +60,7 @@ function AvatarChip({ s, idx, size = 'w-12 h-12 text-xl' }: { s: { address: stri
   )
 }
 
-export default function SupportersWall({ supporters, collapsible = false }: { supporters: { address: string; totalNIM: number; tipCount: number; name?: string; streakWeeks?: number }[]; collapsible?: boolean }) {
+export default function SupportersWall({ supporters, collapsible = false }: { supporters: { address: string; totalNIM: number; totalUSDT?: number; tipCount: number; name?: string; streakWeeks?: number }[]; collapsible?: boolean }) {
   const t = useTranslations()
   // Collapsed by default on the public wall: the count row keeps the first
   // scroll light, the full grid is one tap away.

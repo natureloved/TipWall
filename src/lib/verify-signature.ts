@@ -13,16 +13,19 @@ import { sha256 } from '@noble/hashes/sha2.js'
 import { blake2b } from '@noble/hashes/blake2.js'
 import {
   NIMIQ_MSG_PREFIX,
+  NIMIQ_BASE32_ALPHABET,
   PROFILE_AUTH_TTL_MS,
   buildProfileAuthMessage,
+  nimiqCheckDigits,
   normalizeAddress,
   type ProfileAuthProof,
 } from './profile-auth'
+import { buildWallSnapshotMessage, type SignedWallSnapshot } from './wall-snapshot'
 
 const textEncoder = new TextEncoder()
 
 /** Decode a hex or base64 string into bytes (Mini App SDK returns hex). */
-function decodeBytes(input: string): Uint8Array {
+export function decodeBytes(input: string): Uint8Array {
   const s = (input || '').trim()
   if (/^(0x)?[0-9a-fA-F]+$/.test(s) && s.replace(/^0x/, '').length % 2 === 0) {
     const hex = s.replace(/^0x/, '')
@@ -39,12 +42,10 @@ function decodeBytes(input: string): Uint8Array {
 }
 
 /** Compute the 32-byte hash that the Nimiq wallet actually signs. */
-function hashSignedMessage(message: string): Uint8Array {
+export function hashSignedMessage(message: string): Uint8Array {
   const prefixed = NIMIQ_MSG_PREFIX + message.length + message
   return sha256(textEncoder.encode(prefixed))
 }
-
-const NIMIQ_BASE32_ALPHABET = '0123456789ABCDEFGHJKLMNPQRSTUVXY'
 
 /** Derive the user-friendly "NQ.." address from a 32-byte Ed25519 public key. */
 export function addressFromPublicKey(publicKey: Uint8Array): string {
@@ -65,24 +66,9 @@ export function addressFromPublicKey(publicKey: Uint8Array): string {
   }
   if (bits > 0) base32 += NIMIQ_BASE32_ALPHABET[(value << (5 - bits)) & 31]
 
-  // IBAN-style mod-97 checksum over "<base32>NQ00".
-  const check = ibanCheck(base32 + 'NQ00')
-  const checkDigits = ('0' + (98 - check)).slice(-2)
-  return `NQ${checkDigits}${base32}`
-}
-
-/** mod-97 over the alphanumeric IBAN representation (letters -> 10..35). */
-function ibanCheck(str: string): number {
-  let num = ''
-  for (const ch of str) {
-    const code = ch.charCodeAt(0)
-    num += code >= 48 && code <= 57 ? ch : (code - 55).toString()
-  }
-  let remainder = 0
-  for (let i = 0; i < num.length; i += 6) {
-    remainder = Number(remainder + num.slice(i, i + 6)) % 97
-  }
-  return remainder
+  // IBAN-style mod-97 checksum over "<base32>NQ00". Uses the same helper the
+  // address validator uses, so a derived address always validates.
+  return `NQ${nimiqCheckDigits(base32)}${base32}`
 }
 
 export interface VerifyResult {
@@ -90,6 +76,61 @@ export interface VerifyResult {
   /** Re-derived, normalized signer address (only set when signature is valid). */
   signerAddress?: string
   error?: string
+}
+
+/** Verify a Nimiq signed-message envelope and derive the signing wallet. */
+export function verifyNimiqSignedMessage(
+  message: string,
+  publicKeyInput: string,
+  signatureInput: string,
+): VerifyResult {
+  try {
+    if (!publicKeyInput || !signatureInput) return { ok: false, error: 'Missing signature' }
+    const publicKey = decodeBytes(publicKeyInput)
+    const signature = decodeBytes(signatureInput)
+    if (publicKey.length !== 32) return { ok: false, error: 'Invalid public key' }
+    if (signature.length !== 64) return { ok: false, error: 'Invalid signature' }
+
+    const valid = ed25519.verify(signature, hashSignedMessage(message), publicKey)
+    if (!valid) return { ok: false, error: 'Signature does not match message' }
+    return { ok: true, signerAddress: normalizeAddress(addressFromPublicKey(publicKey)) }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Verification failed'
+    return { ok: false, error: msg }
+  }
+}
+
+/** Verify a signed wall snapshot, including its owner-wallet binding. */
+export function verifyWallSnapshot(snapshot: SignedWallSnapshot): VerifyResult {
+  try {
+    if (!snapshot || snapshot.format !== 'tipwall-wall-snapshot' || snapshot.version !== 1) {
+      return { ok: false, error: 'Unsupported wall snapshot format' }
+    }
+    if (!snapshot.profile?.walletAddress || !snapshot.signature || snapshot.signature.scheme !== 'nimiq-signed-message-v1') {
+      return { ok: false, error: 'Incomplete wall snapshot' }
+    }
+    const { signature, ...payload } = snapshot
+    const verdict = verifyNimiqSignedMessage(
+      buildWallSnapshotMessage(payload),
+      signature.publicKey,
+      signature.signature,
+    )
+    if (!verdict.ok) return verdict
+    if (verdict.signerAddress !== normalizeAddress(snapshot.profile.walletAddress)) {
+      return { ok: false, error: 'Snapshot signature does not match the profile wallet' }
+    }
+    if (snapshot.profile.ownerPublicKey) {
+      const signerKey = decodeBytes(signature.publicKey)
+      const ownerKey = decodeBytes(snapshot.profile.ownerPublicKey)
+      if (signerKey.length !== ownerKey.length || signerKey.some((byte, i) => byte !== ownerKey[i])) {
+        return { ok: false, error: 'Snapshot signature does not match the profile owner key' }
+      }
+    }
+    return verdict
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Verification failed'
+    return { ok: false, error: msg }
+  }
 }
 
 /**
@@ -116,23 +157,17 @@ export function verifyProfileAuth(proof: ProfileAuthProof, now: number = Date.no
       handle: proof.handle,
       walletAddress: proof.walletAddress,
       issuedAt: proof.issuedAt,
+      transferTo: proof.transferTo,
     })
 
-    const publicKey = decodeBytes(proof.publicKey)
-    const signature = decodeBytes(proof.signature)
-    if (publicKey.length !== 32) return { ok: false, error: 'Invalid public key' }
-    if (signature.length !== 64) return { ok: false, error: 'Invalid signature' }
+    const signed = verifyNimiqSignedMessage(message, proof.publicKey, proof.signature)
+    if (!signed.ok) return signed
 
-    const hash = hashSignedMessage(message)
-    const valid = ed25519.verify(signature, hash, publicKey)
-    if (!valid) return { ok: false, error: 'Signature does not match message' }
-
-    const derived = addressFromPublicKey(publicKey)
-    if (normalizeAddress(derived) !== normalizeAddress(proof.walletAddress)) {
+    if (normalizeAddress(signed.signerAddress || '') !== normalizeAddress(proof.walletAddress)) {
       return { ok: false, error: 'Signature does not match the provided wallet address' }
     }
 
-    return { ok: true, signerAddress: normalizeAddress(derived) }
+    return signed
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Verification failed'
     return { ok: false, error: msg }

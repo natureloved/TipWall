@@ -37,7 +37,7 @@ export default function EcosystemStats() {
   const items: { value: number; label: string; prefix?: string }[] = [
     { value: stats.walls, label: stats.walls === 1 ? 'wall' : 'walls' },
     { value: Math.round(stats.totalNIM), label: 'NIM tipped' },
-    { value: stats.tippedCreators, label: stats.tippedCreators === 1 ? 'creator paid' : 'creators paid' },
+    { value: stats.tippedCreators, label: stats.tippedCreators === 1 ? 'wall supported' : 'walls supported' },
   ].filter(i => i.value > 0)
 
   if (!items.length) return null

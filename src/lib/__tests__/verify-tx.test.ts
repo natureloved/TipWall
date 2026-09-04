@@ -25,18 +25,18 @@ afterEach(() => {
 
 describe('verifyTx', () => {
   it('verifies a tx whose recipient and amount match (explorer shape)', async () => {
-    mockFetchOnce({ to_address: RECIPIENT_NORM, value: AMOUNT_LUNA })
+    mockFetchOnce({ to_address: RECIPIENT_NORM, value: AMOUNT_LUNA, block_height: 123 })
     await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('verified')
   })
 
   it('verifies a JSON-RPC envelope (result.data with `to`/`value`)', async () => {
-    mockFetchOnce({ result: { data: { to: RECIPIENT_NORM, value: AMOUNT_LUNA } } })
+    mockFetchOnce({ result: { data: { to: RECIPIENT_NORM, value: AMOUNT_LUNA, confirmations: 2 } } })
     await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('verified')
   })
 
   it('returns the sender address from trusted chain data', async () => {
     const sender = 'NQ07000000000000000000000000000000000000'
-    mockFetchOnce({ to: RECIPIENT_NORM, from: sender, value: AMOUNT_LUNA })
+    mockFetchOnce({ to: RECIPIENT_NORM, from: sender, value: AMOUNT_LUNA, blockHash: 'block-hash' })
     await expect(verifyTxDetails(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toEqual({
       result: 'verified',
       senderAddress: sender,
@@ -44,18 +44,28 @@ describe('verifyTx', () => {
   })
 
   it('accepts a small amount tolerance', async () => {
-    mockFetchOnce({ to: RECIPIENT_NORM, value: AMOUNT_LUNA + 500 })
+    mockFetchOnce({ to: RECIPIENT_NORM, value: AMOUNT_LUNA + 500, confirmations: 1 })
     await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('verified')
   })
 
   it('reports a mismatch for the wrong recipient', async () => {
-    mockFetchOnce({ to: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000', value: AMOUNT_LUNA })
+    mockFetchOnce({ to: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000', value: AMOUNT_LUNA, blockHeight: 123 })
     await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('mismatch')
   })
 
   it('reports a mismatch for the wrong amount', async () => {
-    mockFetchOnce({ to: RECIPIENT_NORM, value: AMOUNT_LUNA * 2 })
+    mockFetchOnce({ to: RECIPIENT_NORM, value: AMOUNT_LUNA * 2, blockHeight: 123 })
     await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('mismatch')
+  })
+
+  it('does not verify a matching mempool transaction without block evidence', async () => {
+    mockFetchOnce({ to: RECIPIENT_NORM, value: AMOUNT_LUNA, status: 'pending' })
+    await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('unavailable')
+  })
+
+  it('does not verify a transaction with zero confirmations', async () => {
+    mockFetchOnce({ to: RECIPIENT_NORM, value: AMOUNT_LUNA, confirmations: 0 })
+    await expect(verifyTx(HASH, RECIPIENT, AMOUNT_LUNA, 1)).resolves.toBe('unavailable')
   })
 
   it('reports unavailable when no source can resolve the tx', async () => {

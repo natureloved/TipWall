@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getGoalMilestones } from '@/lib/types'
-import { getProfile, reverifyPendingTips, getSupporters, getVerifiedTotalNim, getMilestones, sanitizeTips, getPledges } from '@/lib/kv'
+import { getProfile, getTips, getSupporters, getVerifiedTotalNim, getMilestones, sanitizeTips } from '@/lib/kv'
 import { normalizeAddress, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
+import { withinRateLimit } from '@/lib/rate-limit'
+
+export const dynamic = 'force-dynamic'
 
 /** Decode the base64 JSON `view` proof carried in the x-tipwall-auth header. */
 function readAuthProof(req: NextRequest): ProfileAuthProof | null {
@@ -16,6 +19,9 @@ function readAuthProof(req: NextRequest): ProfileAuthProof | null {
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ handle: string }> }) {
+  if (!await withinRateLimit(req, 'dashboard-read', 30)) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+  }
   const { handle } = await params
 
   const profile = await getProfile(handle)
@@ -36,13 +42,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
     return NextResponse.json({ error: 'Unauthorized. Wallet does not match creator' }, { status: 403 })
   }
 
-  // Re-check pending tips, then report money metrics from verified tips only.
-  const allTips = await reverifyPendingTips(handle, profile.walletAddress)
+  // GET is read-only; the scheduled worker promotes pending tips separately.
+  const allTips = await getTips(handle)
   const supporters = await getSupporters(handle)
   const tips = allTips.filter(t => t.verified)
 
-  // Lifetime verified total (the tip list is trimmed to 200, so summing it
-  // would silently shrink a popular wall's total).
+  // Lifetime verified total comes from the persistent aggregate. The full tip
+  // list is retained for the wall and CSV export, but the counter keeps this
+  // headline metric cheap and exact.
   const totalNIM = await getVerifiedTotalNim(handle)
 
   const nextMilestone = getGoalMilestones(profile.goal?.targetNIM ?? 1000).find(m => m > totalNIM) ?? null
@@ -69,9 +76,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ hand
   return NextResponse.json({
     profile,
     // Anonymous tippers stay anonymous even to the creator.
-    tips: sanitizeTips(allTips),
+    // Owners can review moderated rows; public readers receive only visible
+    // tips from the public tips route.
+    tips: sanitizeTips(allTips, { includeHidden: true }),
     supporters,
-    pledges: await getPledges(handle).catch(() => []),
     totalNIM,
     totalTips: tips.length,
     // Milestones live under their own KV key, not on the profile object.

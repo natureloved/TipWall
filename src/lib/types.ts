@@ -5,6 +5,8 @@ export type TipReason =
   | 'great_idea'
   | 'just_support'
 
+export type TipAsset = 'NIM' | 'USDT'
+
 export const TIP_REASON_LABELS: Record<TipReason, { emoji: string; label: string }> = {
   helpful_content: { emoji: '💡', label: 'Helpful content' },
   open_source: { emoji: '🔨', label: 'Open source contribution' },
@@ -29,7 +31,7 @@ export type OGMetadata = {
 export type WallTheme = 'paper' | 'mint' | 'blush' | 'sky' | 'sun'
 
 /** Curated discovery categories - the explore filter axis (what the creator makes). */
-export type CreatorCategory = 'art' | 'code' | 'education' | 'music' | 'video' | 'community'
+export type CreatorCategory = 'art' | 'code' | 'education' | 'music' | 'video' | 'gaming' | 'freelance' | 'student' | 'community'
 
 export const CREATOR_CATEGORIES: Record<CreatorCategory, { emoji: string; label: string }> = {
   art: { emoji: '🎨', label: 'Art & Design' },
@@ -37,7 +39,19 @@ export const CREATOR_CATEGORIES: Record<CreatorCategory, { emoji: string; label:
   education: { emoji: '📚', label: 'Writing & Education' },
   music: { emoji: '🎵', label: 'Music & Audio' },
   video: { emoji: '🎬', label: 'Streaming & Video' },
+  gaming: { emoji: '🎮', label: 'Gaming' },
+  freelance: { emoji: '🧰', label: 'Freelance & Services' },
+  student: { emoji: '🎓', label: 'Student Projects' },
   community: { emoji: '🌱', label: 'Community & Other' },
+}
+
+export type SocialLinks = {
+  website?: string
+  x?: string
+  github?: string
+  telegram?: string
+  instagram?: string
+  linkedin?: string
 }
 
 // Milestones are derived from a creator's goal rather than a fixed ladder, so the
@@ -80,13 +94,21 @@ export interface CreatorProfile {
   displayName: string
   bio: string
   contentUrl: string
+  /** Optional public avatar URL. */
+  avatarUrl?: string
+  /** Optional structured links shown on the public wall. */
+  socialLinks?: SocialLinks
   walletAddress: string
+  /** Optional Polygon address for receiving USDT (Polygon PoS). */
+  usdtPolygonAddress?: string
   /**
    * Hex-encoded Ed25519 public key of the wallet that owns this profile,
    * captured at creation. Only a signature from this key (i.e. this wallet)
    * is allowed to edit the profile afterwards.
    */
   ownerPublicKey?: string
+  /** Optional pre-authorized wallet that can recover/rotate ownership. */
+  recoveryWalletAddress?: string
   ogCache?: OGMetadata
   ogCachedAt?: number
   achievement?: string
@@ -118,17 +140,30 @@ export interface Tip {
   reason?: TipReason
   message?: string
   amountNIM: number
+  /** Asset used for this tip. Legacy records are NIM when omitted. */
+  asset?: TipAsset
+  /** USDT amount when `asset` is `USDT`, represented in decimal units. */
+  amountUSDT?: number
   txHash: string
   verified: boolean
   anonymous: boolean
   timestamp: number
+  /** Number of bounded attempts made to resolve a pending payment. */
+  verificationAttempts?: number
+  /** Earliest time a pending payment may be checked again. */
+  nextVerificationAt?: number
   /** Creator's thank-you reply, pinned to this tip. */
   reply?: { message: string; at: number }
+  /** Set when the creator hides a tip from the public wall. */
+  hiddenAt?: number
+  /** Set when public supporter content was permanently removed by the owner. */
+  deletedAt?: number
 }
 
 export interface Supporter {
   address: string
   totalNIM: number
+  totalUSDT?: number
   tipCount: number
   firstTipAt: number
   /** Latest self-reported display name for this address, if any. */
@@ -141,8 +176,7 @@ export interface Supporter {
  * A non-custodial claim intent. Bridges external traffic into Nimiq Pay: the
  * tip details are reserved under a token so the user (or anyone they share the
  * link with) can complete the tip from any device, inside Nimiq Pay. NO funds
- * are ever held - this only preserves intent. A "pledge" is the same record
- * with source 'pledge' (and optionally an email, deferred for v1).
+ * are ever held - this only preserves a one-time intent.
  */
 export interface ClaimIntent {
   token: string
@@ -150,10 +184,7 @@ export interface ClaimIntent {
   amountNIM: number
   message?: string
   reason?: TipReason
-  email?: string
-  source: 'redirect' | 'pledge'
-  /** Pledges only: the supporter asked to repeat this tip on a schedule. */
-  recurrence?: 'monthly'
+  source: 'redirect'
   claimed: boolean
   createdAt: number
   claimedAt?: number
@@ -164,7 +195,6 @@ export type DashboardData = {
   profile: CreatorProfile
   tips: Tip[]
   supporters: Supporter[]
-  pledges?: ClaimIntent[]
   totalNIM: number
   totalTips: number
   milestonesUnlocked: MilestoneEvent[]

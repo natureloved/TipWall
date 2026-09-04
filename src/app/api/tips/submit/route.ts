@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, getTips, recordTipAtomically, addMilestone, markClaimClaimed, getClaim, trackEvent, checkRateLimit, getVerifiedTotalNim, addVerifiedNim, touchActivity } from '@/lib/kv'
+import { getProfile, getTips, recordTipAtomically, addMilestone, markClaimClaimed, getClaim, trackEvent, checkRateLimit, getVerifiedTotalNim, initializeVerifiedTotal, addVerifiedNim, touchActivity } from '@/lib/kv'
 import { Tip, MilestoneEvent, getGoalMilestones } from '@/lib/types'
 import { checkMilestone } from '@/lib/milestones'
 import { verifyTxDetails } from '@/lib/verify-tx'
+import { verifyUsdtTxDetails } from '@/lib/verify-usdt'
+import { getClientIp } from '@/lib/request'
+import { logError } from '@/lib/logger'
 
 const MAX_TIPS_PER_WINDOW = 5
 const MAX_TIP_NIM = 100_000_000
 
 function getRateLimitKey(req: NextRequest): string {
-  const forwarded = req.headers.get('x-forwarded-for')
-  const ip = (forwarded ? forwarded.split(',')[0].trim() : '') || req.headers.get('x-real-ip') || 'unknown'
-  return `tip:${ip}`
+  return `tip:${getClientIp(req)}`
 }
 
 export async function POST(req: NextRequest) {
@@ -20,18 +21,28 @@ export async function POST(req: NextRequest) {
     const body = await req.json() as Record<string, unknown>
     const rawHandle = String(body.handle || '')
     const txHash = String(body.txHash || '')
+    const asset = body.asset === 'USDT' ? 'USDT' : 'NIM'
     const amountNIM = Number(body.amountNIM)
-    if (!rawHandle || !txHash || !Number.isFinite(amountNIM)) return NextResponse.json({ error: 'missing fields' }, { status: 400 })
-    if (!Number.isFinite(amountNIM) || amountNIM < 1 || amountNIM > MAX_TIP_NIM || Math.round(amountNIM * 100000) !== amountNIM * 100000) return NextResponse.json({ error: 'invalid amount' }, { status: 400 })
+    const amountUSDT = Number(body.amountUSDT)
+    if (!rawHandle || !txHash) return NextResponse.json({ error: 'missing fields' }, { status: 400 })
+    if (asset === 'NIM' && (!Number.isFinite(amountNIM) || amountNIM < 1 || amountNIM > MAX_TIP_NIM || Math.round(amountNIM * 100000) !== amountNIM * 100000)) return NextResponse.json({ error: 'invalid amount' }, { status: 400 })
+    if (asset === 'USDT' && (!Number.isFinite(amountUSDT) || amountUSDT < 0.01 || amountUSDT > 1_000_000_000 || Math.round(amountUSDT * 1_000_000) !== amountUSDT * 1_000_000)) return NextResponse.json({ error: 'invalid USDT amount' }, { status: 400 })
     if (txHash.length < 32 || txHash.length > 128 || !/^[a-zA-Z0-9_-]+$/.test(txHash)) return NextResponse.json({ error: 'invalid payment reference' }, { status: 400 })
     const handle = rawHandle.toLowerCase().replace(/[^a-z0-9_-]/g, '')
     const profile = await getProfile(handle)
     if (!profile) return NextResponse.json({ error: 'creator not found' }, { status: 404 })
     const existing = await getTips(handle)
     if (existing.some(t => t.txHash === txHash)) return NextResponse.json({ error: 'tip already recorded for this transaction' }, { status: 409 })
-    const verification = await verifyTxDetails(txHash, profile.walletAddress, Math.round(amountNIM * 100000))
+    if (asset === 'USDT' && !profile.usdtPolygonAddress) return NextResponse.json({ error: 'USDT tips are not enabled for this wall' }, { status: 400 })
+    const verification = asset === 'USDT'
+      ? await verifyUsdtTxDetails(txHash, profile.usdtPolygonAddress || '', amountUSDT)
+      : await verifyTxDetails(txHash, profile.walletAddress, Math.round(amountNIM * 100000))
     if (verification.result === 'mismatch') return NextResponse.json({ error: 'transaction does not match this tip' }, { status: 402 })
     const verified = verification.result === 'verified'
+    // Read the pre-tip total before appending the record. Legacy walls are
+    // initialized here, on the mutation path, so GETs remain pure.
+    const previousTotal = await getVerifiedTotalNim(handle)
+    if (verified) await initializeVerifiedTotal(handle, previousTotal)
     const anonymous = body.anonymous === true
     // Self-reported display name is garnish, never identity: capped, trimmed,
     // and dropped entirely for anonymous tips.
@@ -41,13 +52,15 @@ export async function POST(req: NextRequest) {
       handle,
       senderAddress: verification.senderAddress || '',
       senderName,
-      amountNIM,
+      amountNIM: asset === 'NIM' ? amountNIM : 0,
+      ...(asset === 'USDT' ? { asset: 'USDT' as const, amountUSDT } : {}),
       txHash,
       verified,
       timestamp: Date.now(),
       reason: ['helpful_content', 'open_source', 'tutorial', 'great_idea', 'just_support'].includes(String(body.reason || '')) ? body.reason as Tip['reason'] : undefined,
       message: typeof body.message === 'string' ? body.message.slice(0, 64) : '',
       anonymous,
+      ...(verified ? {} : { verificationAttempts: 0, nextVerificationAt: Date.now() + 20_000 }),
     }
     if (!await recordTipAtomically(handle, txHash, tip)) return NextResponse.json({ error: 'tip already recorded for this transaction' }, { status: 409 })
     await touchActivity(handle)
@@ -56,7 +69,7 @@ export async function POST(req: NextRequest) {
     if (verified && profile.notifyTelegram) {
       const webhook = profile.notifyTelegram
       const who = tip.anonymous ? 'Someone' : tip.senderName || 'A supporter'
-      const text = `💸 ${who} tipped you ${amountNIM} NIM${tip.message ? ` — “${tip.message}”` : ''}`
+      const text = `💸 ${who} tipped you ${asset === 'USDT' ? `${amountUSDT} USDT` : `${amountNIM} NIM`}${tip.message ? ` — “${tip.message}”` : ''}`
       Promise.resolve()
         .then(() => fetch(webhook, {
           method: 'POST',
@@ -66,10 +79,9 @@ export async function POST(req: NextRequest) {
         }))
         .catch(() => {})
     }
-    const previousTotal = await getVerifiedTotalNim(handle)
-    const newTotal = verified ? await addVerifiedNim(handle, amountNIM) : previousTotal
+    const newTotal = verified && asset === 'NIM' ? await addVerifiedNim(handle, amountNIM) : previousTotal
     let milestone: MilestoneEvent | null = null
-    const milestoneEvent = checkMilestone(previousTotal, newTotal, tip.anonymous ? 'Anonymous' : tip.senderAddress, getGoalMilestones(profile.goal?.targetNIM ?? 1000))
+    const milestoneEvent = asset === 'NIM' ? checkMilestone(previousTotal, newTotal, tip.anonymous ? 'Anonymous' : tip.senderAddress, getGoalMilestones(profile.goal?.targetNIM ?? 1000)) : null
     if (milestoneEvent && await addMilestone(handle, milestoneEvent)) milestone = milestoneEvent
     // A completed funnel event means the payment is confirmed on-chain. A
     // pending submission remains visible as pending, but must not inflate
@@ -82,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ success: true, tip, milestone, pending: !verified })
   } catch (err) {
-    console.error('Tip submission error:', err)
+    logError('tip_submission_failed', err)
     return NextResponse.json({ error: 'Failed to submit tip' }, { status: 500 })
   }
 }

@@ -46,9 +46,9 @@ export default function TipFeed({ tips }: { tips: Tip[] }) {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="text-lg font-bold bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent whitespace-nowrap">
-                    {tip.amountNIM} NIM
+                    {tip.asset === 'USDT' ? `${tip.amountUSDT || 0} USDT` : `${tip.amountNIM} NIM`}
                   </div>
-                  <FiatHint nim={tip.amountNIM} className="block text-xs text-slate-500" />
+                  {tip.asset !== 'USDT' && <FiatHint nim={tip.amountNIM} className="block text-xs text-slate-500" />}
                   <div
                     className="text-xs text-slate-400 mt-1"
                     title={tip.verified ? undefined : t('confirmingOnChain')}

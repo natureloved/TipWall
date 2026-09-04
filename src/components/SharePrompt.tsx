@@ -54,7 +54,7 @@ export default function SharePrompt({ handle, amountNIM, onClose }: {
           <div>
             <p className="text-sm font-bold text-[#315c3b]">💚 Thanks for supporting @{handle}!</p>
             <p className="mt-1 text-xs text-[#5f574b]">
-              Tell others. Supporters like you are how creators get found.
+              Tell others. Supporters like you are how wall owners get found.
             </p>
           </div>
           <button

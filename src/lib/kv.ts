@@ -1,11 +1,63 @@
-import { kv } from '@vercel/kv'
+import { kv as remoteKv } from '@vercel/kv'
 import { CreatorProfile, Tip, OGMetadata, Supporter, MilestoneEvent, ClaimIntent, getGoalMilestones } from './types'
 import { FUNNEL_EVENTS, type FunnelEvent } from './events'
 import { verifyTxDetails } from './verify-tx'
+import { verifyUsdtTxDetails } from './verify-usdt'
 import { normalizeAddress } from './profile-auth'
 import { checkMilestone } from './milestones'
 import { weekIndex, streakWeeks } from './time'
 import { NEW_WALL_GRACE_MS } from './explore'
+import { logError } from './logger'
+import { LocalKv } from './local-kv'
+
+const localKv = new LocalKv()
+const localFallbackEnabled = process.env.NODE_ENV === 'development' || process.env.TIPWALL_LOCAL_KV_FALLBACK === '1'
+let remoteKvUnavailable = false
+let fallbackReported = false
+type LocalKvMethod = (...args: unknown[]) => unknown
+
+function invokeLocalKv(method: PropertyKey, args: unknown[]): unknown {
+  const localMethod = (localKv as unknown as Record<string, LocalKvMethod>)[String(method)]
+  return localMethod(...args)
+}
+
+function isTransportError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const message = error.message.toLowerCase()
+  if (message.includes('fetch failed') || message.includes('econnrefused') || message.includes('enetwork') || message.includes('etimedout') || message.includes('enetunreach')) return true
+  const cause = (error as Error & { cause?: unknown }).cause
+  return cause instanceof Error ? isTransportError(cause) : false
+}
+
+async function invokeKv(method: PropertyKey, remoteMethod: (...args: unknown[]) => unknown, args: unknown[]): Promise<unknown> {
+  if (remoteKvUnavailable) {
+    return invokeLocalKv(method, args)
+  }
+
+  try {
+    return await remoteMethod(...args)
+  } catch (error) {
+    // A local dev server should remain useful when its sandbox/network cannot
+    // reach Upstash. Authentication and command errors still surface; only
+    // transport failures activate the in-memory store.
+    if (!localFallbackEnabled || !isTransportError(error)) throw error
+    remoteKvUnavailable = true
+    if (!fallbackReported) {
+      fallbackReported = true
+      logError('kv_transport_unavailable_local_fallback', error)
+    }
+    return invokeLocalKv(method, args)
+  }
+}
+
+/** Vercel KV in production, with a transport-only in-memory fallback in dev. */
+export const kv = new Proxy(remoteKv, {
+  get(target, property, receiver) {
+    const value = Reflect.get(target, property, receiver)
+    if (typeof value !== 'function') return value
+    return (...args: unknown[]) => invokeKv(property, value.bind(target), args)
+  },
+}) as typeof remoteKv
 
 const PREFIX = 'tipwall:'
 
@@ -13,6 +65,11 @@ const PREFIX = 'tipwall:'
 const CLAIM_TTL_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 /** OG metadata is cached per-URL for this long to avoid refetching on every view. */
 const OG_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
+
+/** Pending chain lookups are bounded and exponentially spaced. */
+const PENDING_REVERIFY_MAX_ATTEMPTS = 6
+const PENDING_REVERIFY_MAX_AGE_MS = 24 * 60 * 60 * 1000
+const PENDING_REVERIFY_DELAYS_MS = [30_000, 60_000, 5 * 60_000, 15 * 60_000, 60 * 60_000]
 
 /**
  * Distributed fixed-window rate limit backed by KV, so the limit holds across
@@ -84,21 +141,6 @@ export async function markClaimClaimed(token: string, txHash?: string): Promise<
   return Number(result) === 1
 }
 
-/** Index a pledge under its creator so the dashboard can list them. */
-export async function addPledgeToken(handle: string, token: string): Promise<void> {
-  await kv.sadd(`${PREFIX}pledges:${handle.toLowerCase()}`, token)
-}
-
-/** Surviving pledge records for a creator, newest first. */
-export async function getPledges(handle: string): Promise<ClaimIntent[]> {
-  const tokens = (await kv.smembers<string[]>(`${PREFIX}pledges:${handle.toLowerCase()}`)) || []
-  if (!tokens.length) return []
-  const claims = await Promise.all(tokens.map(t => getClaim(t)))
-  return claims
-    .filter((c): c is ClaimIntent => !!c && c.source === 'pledge')
-    .sort((a, b) => b.createdAt - a.createdAt)
-}
-
 // --- Conversion funnel counters (Phase 3) ----------------------------------
 
 /**
@@ -130,17 +172,16 @@ export async function getStats(handle: string): Promise<Record<FunnelEvent, numb
 
 /** Increment a per-referrer counter for a funnel event. */
 export async function trackRef(handle: string, event: FunnelEvent, ref: string): Promise<void> {
-  await kv.incr(`${PREFIX}stats:${handle.toLowerCase()}:${event}:ref:${ref}`)
+  await kv.hincrby(`${PREFIX}stats:${handle.toLowerCase()}:${event}:refs`, ref || 'other', 1)
 }
 
 /** Top referrers for a funnel event, highest count first. */
 export async function getTopRefs(handle: string, event: FunnelEvent, limit = 8): Promise<{ ref: string; count: number }[]> {
   const h = handle.toLowerCase()
-  const keys = await kv.keys(`${PREFIX}stats:${h}:${event}:ref:*`)
-  if (!keys.length) return []
-  const values = await kv.mget<(number | null)[]>(...keys)
-  return keys
-    .map((k, i) => ({ ref: k.split(':ref:')[1] || 'other', count: Number(values?.[i] ?? 0) }))
+  const values = await kv.hgetall<Record<string, number | string>>(`${PREFIX}stats:${h}:${event}:refs`)
+  if (!values) return []
+  return Object.entries(values)
+    .map(([ref, count]) => ({ ref: ref || 'other', count: Number(count) || 0 }))
     .sort((a, b) => b.count - a.count)
     .slice(0, limit)
 }
@@ -150,8 +191,16 @@ export async function getProfile(handle: string): Promise<CreatorProfile | null>
   return raw ?? null
 }
 
+/** Durable profile index used by scheduled maintenance and discovery. */
+export async function getRegisteredHandles(): Promise<string[]> {
+  const handles = await kv.smembers<string[]>(`${PREFIX}profiles`)
+  return (handles || []).map(handle => String(handle).toLowerCase()).filter(Boolean)
+}
+
 export async function setProfile(profile: CreatorProfile): Promise<void> {
   await kv.set(`${PREFIX}profile:${profile.handle.toLowerCase()}`, profile)
+  // Keep the durable registry populated for legacy profiles touched by an edit.
+  await kv.sadd(`${PREFIX}profiles`, profile.handle.toLowerCase())
 }
 
 export async function setProfileNX(profile: CreatorProfile): Promise<boolean> {
@@ -176,27 +225,45 @@ export async function addProfileToWalletIndex(profile: CreatorProfile): Promise<
   }
 }
 
-export async function getProfileByWallet(walletAddress: string): Promise<CreatorProfile | null> {
-  const setHandles = await kv.smembers<string[]>(`${PREFIX}walletset:${normalizeAddress(walletAddress)}`)
-  for (const h of setHandles || []) {
-    const p = await getProfile(h)
-    if (p) return p
+/** Return every profile owned by a wallet, in stable creation order. */
+export async function getProfilesByWallet(walletAddress: string): Promise<CreatorProfile[]> {
+  const normalized = normalizeAddress(walletAddress)
+  const handles = new Set<string>()
+  for (const h of (await kv.smembers<string[]>(`${PREFIX}walletset:${normalized}`)) || []) handles.add(String(h).toLowerCase())
+  for (const h of (await kv.get<string[]>(`${WALLET_INDEX_PREFIX}${normalized}`)) || []) handles.add(String(h).toLowerCase())
+  const profiles = (await Promise.all([...handles].map(getProfile))).filter((p): p is CreatorProfile => !!p)
+  return profiles.sort((a, b) => a.createdAt - b.createdAt || a.handle.localeCompare(b.handle))
+}
+
+/** Atomically move a profile's owner binding to a new wallet index. */
+export async function transferProfileOwnership(profile: CreatorProfile, newWalletAddress: string, newOwnerPublicKey: string): Promise<CreatorProfile> {
+  const oldAddress = normalizeAddress(profile.walletAddress)
+  const updated: CreatorProfile = {
+    ...profile,
+    walletAddress: normalizeAddress(newWalletAddress),
+    ownerPublicKey: newOwnerPublicKey,
+    // Delegation is consumed by a successful rotation. The new owner must
+    // explicitly designate their own recovery wallet afterward.
+    recoveryWalletAddress: undefined,
+    updatedAt: Date.now(),
   }
-  const key = `${WALLET_INDEX_PREFIX}${normalizeAddress(walletAddress)}`
-  const handles = (await kv.get<string[]>(key)) || []
-  for (const h of handles) {
-    const p = await getProfile(h)
-    if (p) return p
-  }
-  return null
+  await setProfile(updated)
+  await addProfileToWalletIndex(updated)
+  const oldWalletKey = `${WALLET_INDEX_PREFIX}${oldAddress}`
+  const oldHandles = (await kv.get<string[]>(oldWalletKey)) || []
+  const remaining = oldHandles.filter(h => h !== profile.handle.toLowerCase())
+  if (remaining.length) await kv.set(oldWalletKey, remaining)
+  else await kv.del(oldWalletKey)
+  await kv.srem(`${PREFIX}walletset:${oldAddress}`, profile.handle.toLowerCase())
+  return updated
 }
 
 export async function addTip(handle: string, tip: Tip): Promise<void> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
   // Use an atomic list push instead of read-modify-write so concurrent tips
-  // to the same creator can't clobber each other (lost-update race).
+  // to the same creator can't clobber each other (lost-update race). This is
+  // append-only: a wall promises that its supporters' messages remain there.
   await kv.lpush(key, tip)
-  await kv.ltrim(key, 0, 199)
 }
 
 /** Atomically reserve a transaction hash and append its tip record. */
@@ -206,7 +273,7 @@ export async function recordTipAtomically(handle: string, txHash: string, tip: T
   const verifiedTxKey = `${PREFIX}vtxseen:${handle.toLowerCase()}`
   const tipKey = `${PREFIX}tips:${handle.toLowerCase()}`
   const result = await kv.eval(
-    `if redis.call('SADD', KEYS[1], ARGV[1]) == 1 then redis.call('SADD',KEYS[2],ARGV[1]); if ARGV[3]=='1' then redis.call('SADD',KEYS[3],ARGV[1]) end; redis.call('LPUSH', KEYS[4], ARGV[2]); redis.call('LTRIM', KEYS[4], 0, 199); return 1 else return 0 end`,
+    `if redis.call('SADD', KEYS[1], ARGV[1]) == 1 then redis.call('SADD',KEYS[2],ARGV[1]); if ARGV[3]=='1' then redis.call('SADD',KEYS[3],ARGV[1]) end; redis.call('LPUSH', KEYS[4], ARGV[2]); return 1 else return 0 end`,
     [globalTxKey, txKey, verifiedTxKey, tipKey],
     [txHash, JSON.stringify(tip), tip.verified ? '1' : '0'],
   )
@@ -214,9 +281,8 @@ export async function recordTipAtomically(handle: string, txHash: string, tip: T
 }
 
 // --- Lifetime aggregates ----------------------------------------------------
-// The tip list is trimmed to the most recent 200 entries, so anything that must
-// be correct for the lifetime of a wall (totals, milestones, replay protection)
-// lives in persistent aggregates instead of being recomputed from the list.
+// Tip records are append-only, while these counters keep lifetime reads cheap
+// and preserve totals even when a legacy deployment has already trimmed rows.
 
 const LUNA_PER_NIM = 100000
 
@@ -244,25 +310,32 @@ export async function markVerifiedTxSeen(handle: string, txHash: string): Promis
  * walls created before the verified-tx counter existed. */
 export async function getVerifiedTipCount(handle: string): Promise<number> {
   const key = `${PREFIX}vtxseen:${handle.toLowerCase()}`
+  const stored = Number((await kv.scard(key)) ?? 0) || 0
+  if (stored > 0) return stored
+  // Pure fallback for walls created before vtxseen existed. Do not backfill
+  // during a read; the scheduled reconciliation/write path owns migrations.
   const tips = await getTips(handle)
-  const hashes = [...new Set(tips.filter(t => t.verified && t.txHash).map(t => t.txHash))]
-  for (const hash of hashes) await kv.sadd(key, hash)
-  return Number((await kv.scard(key)) ?? 0) || 0
+  return new Set(tips.filter(t => t.verified && t.txHash).map(t => t.txHash)).size
 }
 
 /**
- * Lifetime verified total in NIM, stored as an integer luna counter. Seeds the
- * counter from the (possibly trimmed) tip list the first time a legacy wall is
- * read, so pre-existing walls keep their totals.
+ * Lifetime verified total in NIM, stored as an integer luna counter. Legacy
+ * walls fall back to their retained records without writing during a read.
  */
 export async function getVerifiedTotalNim(handle: string): Promise<number> {
   const key = `${PREFIX}vtotal:${handle.toLowerCase()}`
   const raw = await kv.get<number>(key)
   if (raw != null) return Number(raw) / LUNA_PER_NIM
-  const legacy = Math.round(verifiedTotal(await getTips(handle)) * LUNA_PER_NIM)
-  // NX so two concurrent seeders can't double-write; re-read to converge.
-  await kv.set(key, legacy, { nx: true })
-  return Number((await kv.get<number>(key)) ?? legacy) / LUNA_PER_NIM
+  return verifiedTotal(await getTips(handle))
+}
+
+/** Seed a legacy lifetime total from a mutation path, never from a GET. */
+export async function initializeVerifiedTotal(handle: string, totalNIM: number): Promise<void> {
+  await kv.set(
+    `${PREFIX}vtotal:${handle.toLowerCase()}`,
+    Math.round(totalNIM * LUNA_PER_NIM),
+    { nx: true },
+  )
 }
 
 /** Add a verified tip amount to the lifetime counter; returns the new total NIM. */
@@ -277,8 +350,20 @@ export async function addVerifiedNim(handle: string, amountNIM: number): Promise
  * The sender address is stored (needed for verification) but must never be
  * exposed through any API response when the tipper chose to stay anonymous.
  */
-export function sanitizeTips(tips: Tip[]): Tip[] {
-  return tips.map(t => (t.anonymous ? { ...t, senderAddress: '', senderName: undefined } : t))
+export function sanitizeTips(tips: Tip[], options: { includeHidden?: boolean } = {}): Tip[] {
+  return tips.filter(t => options.includeHidden || !t.hiddenAt).map(t => {
+    const publicTip = { ...t }
+    // Verification scheduling is an internal maintenance detail, not wall
+    // content that should be exposed to visitors or exported to creators.
+    delete publicTip.verificationAttempts
+    delete publicTip.nextVerificationAt
+    if (!options.includeHidden) delete publicTip.hiddenAt
+    if (publicTip.anonymous) {
+      publicTip.senderAddress = ''
+      publicTip.senderName = undefined
+    }
+    return publicTip
+  })
 }
 
 /**
@@ -289,6 +374,7 @@ export function sanitizeTips(tips: Tip[]): Tip[] {
 export function stripSensitiveProfileFields(profile: CreatorProfile): CreatorProfile {
   const publicProfile = { ...profile }
   delete publicProfile.notifyTelegram
+  delete publicProfile.recoveryWalletAddress
   return publicProfile
 }
 
@@ -353,20 +439,9 @@ export async function getDiscoveryHandles(recentLimit = 24): Promise<string[]> {
   if (registryResult.status === 'fulfilled') append(registered)
   else recordFailure(registryResult.reason)
 
-  // New profiles always enter the registry. KEYS remains only as a migration
-  // fallback for older deployments or a registry read failure.
-  let durableIndexAvailable = registryResult.status === 'fulfilled' && registered.length > 0
-  if (!durableIndexAvailable) {
-    try {
-      const keys = await kv.keys(`${PREFIX}profile:*`)
-      append(keys.map(key => key.slice(`${PREFIX}profile:`.length)))
-      durableIndexAvailable = true
-    } catch (error) {
-      recordFailure(error)
-    }
-  }
-
-  if (!durableIndexAvailable) {
+  // The registry is the canonical index. Do not fall back to KEYS in a
+  // request path: managed Redis treats a keyspace scan as an O(N) operation.
+  if (registryResult.status !== 'fulfilled') {
     throw lastError instanceof Error ? lastError : new Error('Creator discovery is unavailable')
   }
 
@@ -375,7 +450,7 @@ export async function getDiscoveryHandles(recentLimit = 24): Promise<string[]> {
 
 // --- Ecosystem aggregates (site-wide social proof) --------------------------
 // Site-wide totals for the home page's "the network is real" strip. Reads the
-// persistent lifetime counters (vtotal / vtxseen), never the 200-trimmed tip
+// persistent lifetime counters (vtotal / vtxseen), never a reconstructed tip
 // list, so figures stay correct for high-volume walls. Best effort: any read
 // failure yields zeros rather than throwing - this only powers a marketing strip.
 
@@ -390,11 +465,7 @@ export type EcosystemStats = {
 
 export async function getEcosystemStats(): Promise<EcosystemStats> {
   let handles = await kv.smembers<string[]>(`${PREFIX}profiles`)
-  if (!handles?.length) {
-    const keys = await kv.keys(`${PREFIX}profile:*`)
-    handles = keys.map(k => k.slice(`${PREFIX}profile:`.length)).filter(Boolean)
-    for (const handle of handles) await kv.sadd(`${PREFIX}profiles`, handle)
-  }
+  handles = handles || []
 
   const now = Date.now()
 
@@ -497,13 +568,14 @@ export async function deleteProfileData(profile: CreatorProfile): Promise<void> 
     `${PREFIX}milestones:${h}`,
   )
 
-  // Funnel counters: all-time totals plus every per-day key.
-  try {
-    const statKeys = await kv.keys(`${PREFIX}stats:${h}:*`)
-    if (statKeys.length) await kv.del(...statKeys)
-  } catch {
-    // Best effort - orphaned counters carry no PII and reference nothing.
-  }
+  // Delete the bounded set of durable aggregate keys. Per-day legacy counters
+  // are intentionally left untouched; wildcard key scans are not safe in a
+  // production request path and those counters contain no wall content.
+  const statKeys = FUNNEL_EVENTS.flatMap(event => [
+    `${PREFIX}stats:${h}:${event}:total`,
+    `${PREFIX}stats:${h}:${event}:refs`,
+  ])
+  await kv.del(...statKeys)
 }
 
 export async function getTips(handle: string): Promise<Tip[]> {
@@ -513,10 +585,11 @@ export async function getTips(handle: string): Promise<Tip[]> {
 
 /**
  * Re-check tips that were recorded as unverified (indexer was lagging at submit
- * time). Upgrades ones that now confirm on-chain, and drops ones that resolve to
- * a mismatch (a fabricated txHash that never funded this creator). Returns the
- * up-to-date tip list. Safe to call on read; only rewrites KV when something
- * actually changed, and skips very recent tips so it can't race a fresh submit.
+ * time). Upgrades ones that now confirm on-chain, drops mismatches, and removes
+ * permanently unresolvable records after a bounded, backoff-spaced retry
+ * schedule. Returns the up-to-date tip list. This is a maintenance mutation,
+ * not a read helper; callers should invoke it from the scheduled worker. It
+ * skips very recent tips so it can't race a fresh submit.
  */
 export async function reverifyPendingTips(handle: string, walletAddress: string): Promise<Tip[]> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
@@ -524,16 +597,36 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
   const now = Date.now()
   // Only tips old enough that a real one would be indexed by now, so we don't
   // fight the submit-time verification or clobber an in-flight lpush.
-  const pending = tips.filter(t => !t.verified && now - t.timestamp > 20000)
+  const pending = tips.filter(t =>
+    !t.verified &&
+    now - t.timestamp > 20000 &&
+    (!t.nextVerificationAt || t.nextVerificationAt <= now),
+  )
   if (!pending.length) return tips
 
-  const updates = new Map<string, { action: 'verify' | 'remove'; senderAddress?: string }>()
+  // Legacy walls may not have a persistent aggregate yet. Initialize it before
+  // promoting any pending record so the promotion cannot seed its own amount
+  // and then count it a second time.
+  const lifetimeBefore = await getVerifiedTotalNim(handle)
+  await initializeVerifiedTotal(handle, lifetimeBefore)
+
+  const updates = new Map<string, {
+    action: 'verify' | 'remove' | 'retry'
+    senderAddress?: string
+    nextAttemptAt?: number
+  }>()
   for (const t of pending) {
-    const res = await verifyTxDetails(t.txHash, walletAddress, Math.round(t.amountNIM * 100000), 1)
+    const res = t.asset === 'USDT'
+      ? await verifyUsdtTxDetails(t.txHash, (await getProfile(handle))?.usdtPolygonAddress || '', t.amountUSDT || 0, 1)
+      : await verifyTxDetails(t.txHash, walletAddress, Math.round(t.amountNIM * 100000), 1)
     if (res.result === 'verified') updates.set(t.id, { action: 'verify', senderAddress: res.senderAddress })
     else if (res.result === 'mismatch') updates.set(t.id, { action: 'remove' })
+    else if (now - t.timestamp >= PENDING_REVERIFY_MAX_AGE_MS) updates.set(t.id, { action: 'remove' })
+    else updates.set(t.id, {
+      action: 'retry',
+      nextAttemptAt: now + PENDING_REVERIFY_DELAYS_MS[Math.min(t.verificationAttempts || 0, PENDING_REVERIFY_DELAYS_MS.length - 1)],
+    })
   }
-  if (!updates.size) return tips
 
   // Update individual entries atomically so concurrent new tips are never deleted.
   const current = await getTips(handle)
@@ -541,9 +634,9 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
     const update = updates.get(t.id)
     if (!update) continue
     await kv.eval(
-      `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then if ARGV[2]=='remove' then redis.call('LREM',KEYS[1],1,row) else item.verified=true; if ARGV[3]~='' then item.senderAddress=ARGV[3] end; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)) end; return 1 end end; return 0`,
+      `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then if ARGV[2]=='remove' then redis.call('LREM',KEYS[1],1,row) elseif ARGV[2]=='retry' then local attempts=tonumber(item.verificationAttempts or 0)+1; if attempts>=tonumber(ARGV[5]) then redis.call('LREM',KEYS[1],1,row) else item.verificationAttempts=attempts; item.nextVerificationAt=tonumber(ARGV[4]); redis.call('LSET',KEYS[1],i-1,cjson.encode(item)) end else item.verified=true; item.verificationAttempts=nil; item.nextVerificationAt=nil; if ARGV[3]~='' then item.senderAddress=ARGV[3] end; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)) end; return 1 end end; return 0`,
       [key],
-      [t.id, update.action, update.senderAddress || ''],
+      [t.id, update.action, update.senderAddress || '', String(update.nextAttemptAt || 0), String(PENDING_REVERIFY_MAX_ATTEMPTS)],
     )
   }
   const rebuilt = await getTips(handle)
@@ -559,9 +652,11 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
     // verified-tx set makes promotion and its lifetime aggregates idempotent.
     if (!await markVerifiedTxSeen(handle, t.txHash)) continue
     const prevTotal = await getVerifiedTotalNim(handle)
-    const newTotal = await addVerifiedNim(handle, t.amountNIM)
-    const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress, milestones)
-    if (event) await addMilestone(handle, event)
+    const newTotal = t.asset === 'USDT' ? await getVerifiedTotalNim(handle) : await addVerifiedNim(handle, t.amountNIM)
+    if (t.asset !== 'USDT') {
+      const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress, milestones)
+      if (event) await addMilestone(handle, event)
+    }
     await trackEvent(handle, 'TIP_COMPLETED')
   }
   return rebuilt
@@ -576,8 +671,7 @@ export function verifiedTotal(tips: Tip[]): number {
 /**
  * Attach (or replace) the creator's thank-you reply on a single tip record.
  * Same atomic LSET-by-id pattern as reverifyPendingTips so a concurrent tip
- * push can't be clobbered. Returns false when the tip id no longer exists
- * (e.g. trimmed past 200 entries).
+ * push can't be clobbered. Returns false when the tip id no longer exists.
  */
 export async function setTipReply(handle: string, tipId: string, reply: { message: string; at: number }): Promise<boolean> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
@@ -589,16 +683,38 @@ export async function setTipReply(handle: string, tipId: string, reply: { messag
   return Number(result) === 1
 }
 
+/** Hide or restore one tip without touching its verified financial record. */
+export async function setTipHidden(handle: string, tipId: string, hidden: boolean): Promise<boolean> {
+  const key = `${PREFIX}tips:${handle.toLowerCase()}`
+  const result = await kv.eval(
+    `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then if item.deletedAt and ARGV[2]~='1' then return -1 end; if ARGV[2]=='1' then item.hiddenAt=tonumber(ARGV[3]) else item.hiddenAt=nil end; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)); return 1 end end; return 0`,
+    [key],
+    [tipId, hidden ? '1' : '0', String(Date.now())],
+  )
+  return Number(result) === 1
+}
+
+/** Permanently remove supporter-authored public content while retaining the
+ * verified payment record for accounting, replay protection, and export. */
+export async function deleteTip(handle: string, tipId: string): Promise<boolean> {
+  const key = `${PREFIX}tips:${handle.toLowerCase()}`
+  const result = await kv.eval(
+    `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then item.message=nil; item.senderName=nil; item.reply=nil; item.anonymous=true; item.hiddenAt=tonumber(ARGV[2]); item.deletedAt=tonumber(ARGV[2]); redis.call('LSET',KEYS[1],i-1,cjson.encode(item)); return 1 end end; return 0`,
+    [key],
+    [tipId, String(Date.now())],
+  )
+  return Number(result) === 1
+}
+
 /** Rolling window for the /explore leaderboard. */
 export const LEADERBOARD_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
 /**
  * Verified NIM received by a creator within the trailing `windowMs`.
  *
- * Computed from the tip list rather than a stored counter: the list is the only
- * place tip timestamps live, and it is exact for any wall under the 200-entry
- * ltrim cap. A wall past that cap could under-report inside the window, which is
- * acceptable - this drives a "recent activity" ranking, not an audited total.
+ * Computed from the append-only tip list rather than a stored counter: the list
+ * is the only place tip timestamps live, so this remains exact for every wall.
+ * This drives a "recent activity" ranking, not an audited lifetime total.
  * Lifetime figures must still come from getVerifiedTotalNim().
  */
 export async function getRecentVerifiedNim(
@@ -618,8 +734,9 @@ export async function getSupporters(handle: string): Promise<Supporter[]> {
   // Derive supporters from verified, NON-anonymous tips only: pending/forged
   // tips don't appear until they confirm, and an anonymous tipper's address
   // must never surface on the supporters wall or the top-supporter card.
-  // (Derived from the most recent 200 tips - a "recent supporters" view.)
-  const tips = (await getTips(handle)).filter(t => t.verified && !t.anonymous)
+  // Derived from every retained tip so supporter totals and streaks remain
+  // durable as a wall grows.
+  const tips = (await getTips(handle)).filter(t => t.verified && !t.hiddenAt && !t.anonymous)
   const supportersMap = new Map<string, Supporter>()
   const weeksByAddress = new Map<string, number[]>()
 
@@ -627,12 +744,14 @@ export async function getSupporters(handle: string): Promise<Supporter[]> {
     const existing = supportersMap.get(tip.senderAddress)
     if (existing) {
       existing.totalNIM += tip.amountNIM
+      if (tip.asset === 'USDT') existing.totalUSDT = (existing.totalUSDT || 0) + (tip.amountUSDT || 0)
       existing.tipCount += 1
       existing.firstTipAt = Math.min(existing.firstTipAt, tip.timestamp)
     } else {
       supportersMap.set(tip.senderAddress, {
         address: tip.senderAddress,
         totalNIM: tip.amountNIM,
+        ...(tip.asset === 'USDT' ? { totalUSDT: tip.amountUSDT || 0 } : {}),
         tipCount: 1,
         firstTipAt: tip.timestamp,
       })
@@ -653,7 +772,7 @@ export async function getSupporters(handle: string): Promise<Supporter[]> {
     s.streakWeeks = streakWeeks(weeksByAddress.get(s.address) || [])
   }
 
-  return Array.from(supportersMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || a.firstTipAt - b.firstTipAt)
+  return Array.from(supportersMap.values()).sort((a, b) => b.totalNIM - a.totalNIM || (b.totalUSDT || 0) - (a.totalUSDT || 0) || a.firstTipAt - b.firstTipAt)
 }
 
 export async function getMilestones(handle: string): Promise<MilestoneEvent[]> {
@@ -733,7 +852,7 @@ export async function getOgMetadata(url: string): Promise<OGMetadata | null> {
     return meta
   } catch (err) {
     // Log error for debugging but don't break the flow
-    console.warn('Failed to fetch OG metadata:', err)
+    logError('og_metadata_fetch_failed', err)
     await kv.set(`${PREFIX}og:${url}`, { neg: true } as OGMetadata, { px: 5 * 60 * 1000 }).catch(() => {})
     return null
   }

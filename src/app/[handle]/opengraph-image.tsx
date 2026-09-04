@@ -4,7 +4,7 @@ import { getProfile, getVerifiedTotalNim } from '@/lib/kv'
 // Social share card for a creator wall (rendered for og:image / twitter:image).
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
-export const alt = 'TipWall creator tipping wall'
+export const alt = 'TipWall public support wall'
 // Cache the rendered card for 5 min: a posted link hitting X/Telegram/Discord/
 // Slack at once should share one KV read + Satori render, not stampede.
 export const revalidate = 300
@@ -85,7 +85,7 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
                 ) : null}
               </div>
             ) : (
-              <div style={{ fontSize: 30, color: '#94a3b8' }}>Tip the creator. Not the platform.</div>
+              <div style={{ fontSize: 30, color: '#94a3b8' }}>Support people directly. Not the platform.</div>
             )}
           </div>
         </div>
@@ -112,7 +112,7 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
           }}
         >
           <div style={{ fontSize: 72, fontWeight: 800, color: '#fbbf24' }}>TipWall</div>
-          <div style={{ fontSize: 34, color: '#cbd5e1' }}>Tip the creator. Not the platform.</div>
+          <div style={{ fontSize: 34, color: '#cbd5e1' }}>Support people directly. Not the platform.</div>
         </div>
       ),
       size,

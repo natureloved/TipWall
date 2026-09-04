@@ -1,12 +1,19 @@
 import { NextResponse } from 'next/server'
 import { getDiscoveryHandles, getProfile, getTips, LEADERBOARD_WINDOW_MS } from '@/lib/kv'
 import type { Tip } from '@/lib/types'
+import { withinRateLimit } from '@/lib/rate-limit'
+import { logError } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
 
 export const revalidate = 300
 
 const MAX_WALLS = 24
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!await withinRateLimit(request, 'leaderboard-read', 30)) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+  }
   try {
     const handles = await getDiscoveryHandles(MAX_WALLS)
 
@@ -31,7 +38,7 @@ export async function GET() {
 
     return NextResponse.json(ranked)
   } catch (error) {
-    console.error('Leaderboard data unavailable:', error)
+    logError('leaderboard_unavailable', error)
     return NextResponse.json(
       { error: 'Leaderboard data is temporarily unavailable' },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },

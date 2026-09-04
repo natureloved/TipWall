@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import { creatorShareText, openShare, canNativeShare, envWallUrl, type ShareChannel } from '@/lib/share'
 import { track } from '@/lib/analytics'
+import { useTranslations } from '@/lib/i18n'
+import { escapeHtml } from '@/lib/html'
 
 /**
  * The creator's Share Kit: everything needed to put a wall where their
@@ -18,8 +20,9 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
   displayName?: string
   isNew?: boolean
 }) {
+  const t = useTranslations()
   const [origin, setOrigin] = useState('')
-  const [postText, setPostText] = useState(creatorShareText())
+  const [postText, setPostText] = useState(() => creatorShareText(t('shareDefaultText')))
   const [qrDataUrl, setQrDataUrl] = useState('')
   const [copied, setCopied] = useState<string | null>(null)
   const [nativeShare, setNativeShare] = useState(false)
@@ -33,8 +36,9 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
   const overlayUrl = `${url}/overlay`
   const badgeUrl = `${origin}/api/badge/${handle}?v=2`
   const badgeMarkdown = `[![Tip me on TipWall](${badgeUrl})](${url})`
-  const embedHtml = `<a href="${url}" target="_blank" rel="noopener">⚡ Tip ${displayName || `@${handle}`} in NIM on TipWall</a>`
-  const fabScript = `<script src="${origin}/embed/${handle}" defer></script>`
+  const embedName = displayName?.trim() || `@${handle}`
+  const embedHtml = `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(`⚡ Tip ${embedName} in NIM on TipWall`)}</a>`
+  const fabScript = `<script src="${escapeHtml(`${origin}/embed/${handle}`)}" defer></script>`
 
   useEffect(() => {
     // Origin and Web Share availability are browser-only; resolve after mount.
@@ -86,16 +90,16 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
         {isNew ? (
           <>
             <div className="text-4xl mb-2">🎉</div>
-            <h1 className="text-2xl font-bold text-[#171614]">Your TipWall is live!</h1>
+            <h1 className="text-2xl font-bold text-[#171614]">{t('shareLiveTitle')}</h1>
             <p className="mt-2 text-sm text-[#5f574b]">
-              A wall only earns when your audience can find it. Put it where they already are. It takes one minute.
+              {t('shareLiveBody')}
             </p>
           </>
         ) : (
           <>
-            <h1 className="text-2xl font-bold text-[#171614]">Share @{handle}</h1>
+            <h1 className="text-2xl font-bold text-[#171614]">{t('shareTitle', { handle })}</h1>
             <p className="mt-2 text-sm text-[#5f574b]">
-              Everything you need to put your wall in front of your audience.
+              {t('shareBody')}
             </p>
           </>
         )}
@@ -103,7 +107,7 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
 
       {/* 1. Wall link */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Your wall link</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('yourWallLink')}</h2>
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <input readOnly value={url} className="flex-1 truncate rounded-lg border border-[#92897b] bg-[#f4f0e6] px-3 py-2.5 font-mono text-sm text-[#171614] focus:border-[#b9382a] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/25" />
           <button
@@ -111,14 +115,14 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
             onClick={() => copy('url', url)}
             className="w-full shrink-0 rounded-lg border border-[#171614] bg-[#f05a3c] px-4 py-2.5 text-sm font-bold text-[#171614] transition-colors hover:bg-[#ff7358] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#171614] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf7] sm:w-auto"
           >
-            {copied === 'url' ? '✓ Copied' : 'Copy'}
+            {copied === 'url' ? `✓ ${t('copied')}` : t('shareCopy')}
           </button>
         </div>
       </section>
 
       {/* 2. Pre-written post + one-tap shares */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Announce it</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('announceIt')}</h2>
         <textarea
           value={postText}
           onChange={e => setPostText(e.target.value)}
@@ -127,17 +131,17 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
           aria-label="Share post text"
         />
         <div className="flex flex-wrap gap-2">
-          <ShareBtn label="Post on X" onClick={() => share('x')} />
-          <ShareBtn label="Telegram" onClick={() => share('telegram')} />
-          <ShareBtn label="WhatsApp" onClick={() => share('whatsapp')} />
-          {nativeShare && <ShareBtn label="More…" onClick={() => share('native')} />}
-          <ShareBtn label={copied === 'post' ? '✓ Copied' : 'Copy text'} onClick={() => copy('post', `${postText} ${url}`)} />
+          <ShareBtn label={t('sharePostX')} onClick={() => share('x')} />
+          <ShareBtn label={t('shareTelegram')} onClick={() => share('telegram')} />
+          <ShareBtn label={t('shareWhatsapp')} onClick={() => share('whatsapp')} />
+          {nativeShare && <ShareBtn label={t('shareMore')} onClick={() => share('native')} />}
+          <ShareBtn label={copied === 'post' ? `✓ ${t('copied')}` : t('shareCopyText')} onClick={() => copy('post', `${postText} ${url}`)} />
         </div>
       </section>
 
       {/* 3. QR code + poster (streams, slides, print) */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">QR code</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('qrCode')}</h2>
         <div className="flex flex-col sm:flex-row items-center gap-4">
           {qrDataUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- data: URL QR code; nothing to optimize
@@ -147,13 +151,13 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
           )}
           <div className="flex-1 space-y-2 w-full">
             <p className="text-xs text-[#746b5e]">
-              For stream overlays, slide decks, video outros, or the coffee-shop counter.
+              {t('shareQrBody')}
             </p>
             <button type="button" onClick={downloadQr} className="w-full rounded-lg border border-[#171614]/35 bg-[#fffdf7] py-2.5 text-sm font-semibold text-[#171614] transition-colors hover:border-[#b9382a] hover:bg-[#fff1eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf7]">
-              Download QR (PNG)
+              {t('downloadQr')}
             </button>
             <button type="button" onClick={downloadPoster} className="w-full rounded-lg border border-[#171614]/35 bg-[#fffdf7] py-2.5 text-sm font-semibold text-[#171614] transition-colors hover:border-[#b9382a] hover:bg-[#fff1eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf7]">
-              Download poster (PNG)
+              {t('downloadPoster')}
             </button>
           </div>
         </div>
@@ -161,22 +165,22 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
 
       {/* 4. Stream overlay */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Stream overlay</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('streamOverlay')}</h2>
         <p className="mb-3 text-xs leading-relaxed text-[#746b5e]">
-          Add this transparent page as an OBS Browser Source. New tips appear as verified sticky-note alerts while you stream.
+          {t('shareOverlayBody')}
         </p>
         <CodeSnippet value={overlayUrl} copied={copied === 'overlay'} onCopy={() => copy('overlay', overlayUrl)} />
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#5f574b]">
-          <span>OBS: Browser Source · 1920 × 1080 · transparent background</span>
+          <span>{t('shareObs')}</span>
           <a href={`/${handle}/overlay`} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#b9382a] underline underline-offset-4 hover:text-[#171614]">
-            Preview overlay ↗
+            {t('previewOverlay')}
           </a>
         </div>
       </section>
 
       {/* 5. GitHub badge */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">GitHub README badge</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('githubBadge')}</h2>
         {origin && (
           <div className="mb-3">
             {/* eslint-disable-next-line @next/next/no-img-element -- same-origin dynamic SVG badge */}
@@ -184,35 +188,49 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
           </div>
         )}
         <p className="mb-2 text-xs text-[#746b5e]">
-          Shows your live NIM total. Paste into any README or markdown file:
+          {t('shareBadgeBody')}
         </p>
         <CodeSnippet value={badgeMarkdown} copied={copied === 'badge'} onCopy={() => copy('badge', badgeMarkdown)} />
       </section>
 
       {/* 6. Embed / link-in-bio */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Blog / link-in-bio embed</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('embedTitle')}</h2>
         <p className="mb-2 text-xs text-[#746b5e]">
-          For blog posts, YouTube descriptions, and link-in-bio pages:
+          {t('shareEmbedBody')}
         </p>
         <CodeSnippet value={embedHtml} copied={copied === 'embed'} onCopy={() => copy('embed', embedHtml)} />
       </section>
 
       {/* 7. Floating tip button for own sites */}
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">Floating tip button</h2>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('floatingButton')}</h2>
         <p className="mb-2 text-xs text-[#746b5e]">
-          One line on your own site adds a “Tip @handle” button in the corner that opens your wall:
+          {t('shareFloatingBody')}
         </p>
         <CodeSnippet value={fabScript} copied={copied === 'fab'} onCopy={() => copy('fab', fabScript)} />
       </section>
 
+      {/* 8. Creator-owned history */}
+      <section className="rounded-2xl border border-[#7d9b85] bg-[#e7f0e7] p-5">
+        <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#315c3b]">{t('ownHistory')}</h2>
+        <p className="mb-3 text-xs leading-relaxed text-[#425b49]">
+          {t('shareHistoryBody')}
+        </p>
+        <a
+          href={`/${handle}/dashboard`}
+          className="inline-block rounded-lg border border-[#315c3b] bg-[#fffdf7] px-3 py-2 text-xs font-bold text-[#315c3b] transition-colors hover:bg-[#d5e7d8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#315c3b] focus-visible:ring-offset-2 focus-visible:ring-offset-[#e7f0e7]"
+        >
+          {t('openDashboardExport')}
+        </a>
+      </section>
+
       <div className="flex items-center justify-center gap-4 pb-8 text-xs text-[#746b5e]">
         <a href={`/${handle}`} className="font-semibold text-[#b9382a] underline underline-offset-4 transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a]">
-          {isNew ? 'Go to my wall' : 'View wall'}
+          {isNew ? t('goToWall') : t('viewWall')}
         </a>
         <a href={`/${handle}/dashboard`} className="font-semibold text-[#b9382a] underline underline-offset-4 transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a]">
-          Dashboard
+          {t('dashboard')}
         </a>
       </div>
     </div>
@@ -232,6 +250,7 @@ function ShareBtn({ label, onClick }: { label: string; onClick: () => void }) {
 }
 
 function CodeSnippet({ value, copied, onCopy }: { value: string; copied: boolean; onCopy: () => void }) {
+  const t = useTranslations()
   return (
     <div className="flex flex-col sm:flex-row sm:items-start gap-2">
       <code className="block flex-1 break-all rounded-lg border border-[#92897b] bg-[#f4f0e6] px-3 py-2.5 font-mono text-[11px] text-[#403b34]">
@@ -242,7 +261,7 @@ function CodeSnippet({ value, copied, onCopy }: { value: string; copied: boolean
         onClick={onCopy}
         className="w-full shrink-0 rounded-lg border border-[#171614] bg-[#171614] px-3 py-2 text-xs font-semibold text-[#fffdf7] transition-colors hover:bg-[#39342d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf7] sm:w-auto"
       >
-        {copied ? '✓' : 'Copy'}
+        {copied ? '✓' : t('copy')}
       </button>
     </div>
   )
@@ -324,7 +343,7 @@ async function renderPoster(handle: string, displayName: string, url: string): P
   ctx.fillText(url.replace(/^https?:\/\//, ''), W / 2, cardY + cardSize + 90)
   ctx.fillStyle = '#5f574b'
   ctx.font = '30px sans-serif'
-  ctx.fillText('Tip the creator. Not the platform.', W / 2, cardY + cardSize + 150)
+  ctx.fillText('Tip the person or project. Not the platform.', W / 2, cardY + cardSize + 150)
 
   return canvas.toDataURL('image/png')
 }

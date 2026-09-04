@@ -40,16 +40,16 @@ export async function GET() {
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: 4, color: '#746B5E', fontFamily: 'monospace' }}>
-            CREATOR APPRECIATION WALL
+            PUBLIC SUPPORT WALL
           </div>
           <div style={{ fontSize: 82, fontWeight: 800, color: '#171614', lineHeight: 1.05 }}>
-            Tip the creator,
+            Support people,
           </div>
           <div style={{ fontSize: 82, fontWeight: 800, color: '#B9382A', fontStyle: 'italic', lineHeight: 1.05 }}>
             not the platform.
           </div>
           <div style={{ fontSize: 32, color: '#5F574B', marginTop: 8, maxWidth: 560 }}>
-            Every fan leaves a mark. On-chain, 0% fee.
+            Every supporter leaves a mark. On-chain, 0% fee.
           </div>
           <div
             style={{

@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ token: st
   if (!claim) return { title: 'TipWall | Claim' }
   return {
     title: `Send ${claim.amountNIM} NIM to @${claim.creatorHandle} | TipWall`,
-    description: `Complete your ${claim.amountNIM} NIM tip to @${claim.creatorHandle} in Nimiq Pay.`,
+    description: `Complete your ${claim.amountNIM} NIM support payment to @${claim.creatorHandle} in Nimiq Pay.`,
     robots: { index: false },
   }
 }

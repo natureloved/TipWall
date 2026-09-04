@@ -1,28 +1,31 @@
 import { useState, useRef, useEffect } from 'react'
+import QRCode from 'qrcode'
 import TipReasonPicker from './TipReasonPicker'
 import FiatHint from './FiatHint'
-import { TipReason, TIP_REASON_LABELS } from '@/lib/types'
+import { TipReason, TIP_REASON_LABELS, type TipAsset } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
+import { buildUsdtPaymentLink, sendUsdtTip, usdtPaymentsConfigured } from '@/lib/usdt'
 import { tipViaHub } from '@/lib/hub'
-import { isMobileDevice } from '@/lib/environment'
+import { isMobileDevice, NIMIQ_GET_NIM_URL } from '@/lib/environment'
 import { savePendingTipIntent } from '@/lib/tip-intent'
 import { useTranslations } from '@/lib/i18n'
 import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
-export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, creatorDisplayName, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken, goal, totalNIM }: {
+export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, creatorUsdtAddress, creatorDisplayName, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken, goal, totalNIM, walletBalanceNim = null, walletBalanceLoading = false }: {
   isOpen: boolean
   onClose: () => void
   creatorHandle: string
   creatorWalletAddress: string
+  creatorUsdtAddress?: string
   /** Shown in the Nimiq Hub payment popup so supporters know who they pay. */
   creatorDisplayName?: string
-  onTipSuccess: (tip: { senderAddress: string; amountNIM: number; message?: string; txHash: string; milestone?: number | null; pending: boolean }) => void
+  onTipSuccess: (tip: { senderAddress: string; amountNIM: number; amountUSDT?: number; asset?: TipAsset; message?: string; txHash: string; milestone?: number | null; pending: boolean }) => void
   /** null = unknown/checking, true = inside Nimiq Pay, false = outside. */
   nimiqAvailable?: boolean | null
   /** Called (instead of paying) when the user tries to tip outside Nimiq Pay. */
-  onNeedsInstall?: (amountNIM: number) => void
+  onNeedsInstall?: (amountNIM: number, message?: string, reason?: TipReason) => void
   /** Prefill for resuming a preserved tip intent. */
   initialAmount?: number
   initialMessage?: string
@@ -35,10 +38,14 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   goal?: { label: string; targetNIM: number }
   /** Verified lifetime total, used with `goal` to draw the progress bar. */
   totalNIM?: number
+  /** Current connected-wallet balance, or null when the read is unavailable. */
+  walletBalanceNim?: number | null
+  walletBalanceLoading?: boolean
 }) {
   // Single source of truth for the amount: one editable field prefilled with a
   // sensible default. Presets fill it; the user can also type any value freely.
   const [amount, setAmount] = useState<string>(initialAmount ? String(initialAmount) : '100')
+  const [asset, setAsset] = useState<TipAsset>('NIM')
   // Reason is optional garnish, not a gate. Default to a neutral "just support"
   // so a tip always carries a valid reason without the user having to choose.
   const [reason, setReason] = useState<TipReason>('just_support')
@@ -50,10 +57,10 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     if (typeof window === 'undefined') return ''
     try { return window.localStorage.getItem('tipwall:senderName') || '' } catch { return '' }
   })
-  const [pledgeMonthly, setPledgeMonthly] = useState(false)
-  const [pledgeEmail, setPledgeEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [usdtQr, setUsdtQr] = useState('')
+  const [manualUsdtHash, setManualUsdtHash] = useState('')
   const sendingRef = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const t = useTranslations()
@@ -79,6 +86,18 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   }, [isOpen, onClose])
 
   const finalAmount = Number(amount)
+  const usdtEnabled = usdtPaymentsConfigured(creatorUsdtAddress)
+  const insufficientFunds = asset === 'NIM' && nimiqAvailable === true && walletBalanceNim != null && finalAmount > walletBalanceNim
+  const amountLabel = asset === 'USDT' ? 'USDT' : 'NIM'
+  let usdtPaymentLink = ''
+  if (usdtEnabled && asset === 'USDT' && creatorUsdtAddress && Number.isFinite(finalAmount) && finalAmount > 0) {
+    try { usdtPaymentLink = buildUsdtPaymentLink({ recipient: creatorUsdtAddress, amountUSDT: finalAmount }) } catch { /* invalid input leaves the QR hidden */ }
+  }
+
+  useEffect(() => {
+    if (!usdtPaymentLink) return
+    QRCode.toDataURL(usdtPaymentLink, { width: 220, margin: 1, color: { dark: '#171614', light: '#ffffff' } }).then(setUsdtQr).catch(() => setUsdtQr(''))
+  }, [usdtPaymentLink])
 
   // Compact goal progress for the modal - only meaningful when the creator set a
   // goal. Mirrors the wall's logic: true % can exceed 100 (label), bar caps at 100.
@@ -95,8 +114,8 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   }
 
   // Shared tail of every successful payment: record the tip server-side,
-  // remember the display name, optionally log the pledge, then report success.
-  const recordTip = async (txHash: string, senderAddress: string) => {
+  // remember the display name, then report success.
+  const recordTip = async (txHash: string, senderAddress: string, recordAsset: TipAsset = asset) => {
     const res = await fetch('/api/tips/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -106,7 +125,9 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         senderName: senderName.trim() || undefined,
         reason,
         message: message.trim() || undefined,
-        amountNIM: finalAmount,
+        asset: recordAsset,
+        amountNIM: recordAsset === 'NIM' ? finalAmount : 0,
+        amountUSDT: recordAsset === 'USDT' ? finalAmount : undefined,
         txHash,
         anonymous,
         claimToken,
@@ -117,24 +138,12 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     if (senderName.trim()) {
       try { window.localStorage.setItem('tipwall:senderName', senderName.trim()) } catch { /* private mode */ }
     }
-    if (pledgeMonthly) {
-      fetch('/api/claim/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          creatorHandle,
-          amountNIM: finalAmount,
-          source: 'pledge',
-          recurrence: 'monthly',
-          email: pledgeEmail.trim() || undefined,
-          reason,
-          message: message.trim() || undefined,
-        }),
-      }).catch(() => {})
-    }
+    const resolvedSender = typeof data.tip?.senderAddress === 'string' ? data.tip.senderAddress : senderAddress
     onTipSuccess({
-      senderAddress,
-      amountNIM: finalAmount,
+      senderAddress: resolvedSender,
+      amountNIM: recordAsset === 'NIM' ? finalAmount : 0,
+      amountUSDT: recordAsset === 'USDT' ? finalAmount : undefined,
+      asset: recordAsset,
       message: message.trim() || undefined,
       txHash,
       milestone: data.milestone?.threshold ?? data.milestoneReached ?? null,
@@ -152,20 +161,56 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
       reason: reason || undefined,
       createdAt: Date.now(),
     })
-    onNeedsInstall?.(finalAmount)
+    onNeedsInstall?.(finalAmount, message.trim() || undefined, reason)
+  }
+
+  const preserveTipBeforeAcquisition = () => {
+    savePendingTipIntent({
+      creatorHandle,
+      amountNIM: finalAmount,
+      message: message.trim() || undefined,
+      reason: reason || undefined,
+      createdAt: Date.now(),
+    })
+  }
+
+  const submitManualUsdt = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const txHash = manualUsdtHash.trim()
+    if (!txHash || loading) return
+    setLoading(true)
+    setError('')
+    try {
+      await recordTip(txHash, '', 'USDT')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not verify the USDT payment')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSendTip = async () => {
     if (sendingRef.current) return
-    if (!finalAmount || finalAmount < 1) return setError('Minimum tip is 1 NIM')
+    const minimum = asset === 'USDT' ? 0.01 : 1
+    if (!finalAmount || finalAmount < minimum) return setError(`Minimum tip is ${minimum} ${amountLabel}`)
+    if (asset === 'USDT' && !creatorUsdtAddress) return setError('This wall has not enabled USDT tips.')
     sendingRef.current = true
 
     const reset = () => { sendingRef.current = false }
 
     try {
-      // Outside Nimiq Pay: on phones we hand off to the Nimiq Pay app; on
-      // desktop the tip completes right here via the Nimiq Hub popup.
-      if (nimiqAvailable === false) {
+      if (asset === 'USDT') {
+        setLoading(true)
+        setError('')
+        const result = await sendUsdtTip({ recipient: creatorUsdtAddress!, amountUSDT: finalAmount })
+        await recordTip(result.txHash, result.senderAddress, 'USDT')
+        reset()
+        return
+      }
+      // Outside Nimiq Pay (or while detection is still resolving): on phones
+      // we hand off to the Nimiq Pay app; on desktop the tip completes right
+      // here via the Nimiq Hub popup.
+      if (nimiqAvailable !== true) {
         if (isMobileDevice()) {
           fallbackToInstall()
           reset()
@@ -250,6 +295,23 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </p>
         </div>
 
+        {usdtEnabled && (
+          <div className="mb-5 flex overflow-hidden rounded-xl border-2 border-[#92897b] bg-[#f6efe3] p-1" role="tablist" aria-label={t('paymentAsset')}>
+            {(['NIM', 'USDT'] as TipAsset[]).map(option => (
+              <button
+                key={option}
+                type="button"
+                role="tab"
+                aria-selected={asset === option}
+                onClick={() => { setAsset(option); setAmount(option === 'USDT' ? '5' : '100'); setError('') }}
+                className={`min-h-10 flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${asset === option ? 'bg-[#171614] text-[#fffdf7]' : 'text-[#5f574b] hover:bg-[#fffdf7]'}`}
+              >
+                {option === 'USDT' ? t('payWithUsdt') : t('payWithNim')}
+              </button>
+            ))}
+          </div>
+        )}
+
         {welcome && (
           <div className="mb-5 rounded-xl border border-[#9ab6a2] bg-[#edf5ee] px-4 py-3 text-sm font-medium text-[#315c3e]">
             👋 Welcome back! Your tip is ready to send.
@@ -285,14 +347,14 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
 
         {/* Amount is the decision - it leads. Everything below is garnish. */}
         <div className="tip-amount-section">
-          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('tipAmount')}</p>
+          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('tipAmount')} · {amountLabel}</p>
 
           {/* Prominent, editable amount field - the focal point of the modal.
               Prefilled with a default; presets below fill it; users can type any value. */}
           <div className="mb-[10px] flex min-h-[54px] items-center gap-3 rounded-xl border-2 border-[#92897b] bg-[#fff3ee] px-3 py-2 transition-colors focus-within:border-[#f05a3c] focus-within:ring-2 focus-within:ring-[#f05a3c] focus-within:ring-offset-2 focus-within:ring-offset-[#fffaf0] sm:mb-4 sm:min-h-[62px] sm:rounded-2xl sm:px-4 sm:py-3">
             <input
               type="number"
-              inputMode="numeric"
+              inputMode={asset === 'USDT' ? 'decimal' : 'numeric'}
               enterKeyHint="done"
               min={1}
               value={amount}
@@ -300,12 +362,12 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
               aria-label={t('tipAmount')}
               className="tip-modal-amount min-w-0 flex-1 bg-transparent text-3xl font-bold placeholder:text-[#746b5e] focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
-            <span className="shrink-0 text-lg font-semibold text-[#b9382a]">NIM</span>
-            <FiatHint nim={finalAmount} className="shrink-0 text-xs font-semibold text-[#746b5e]" />
+            <span className="shrink-0 text-lg font-semibold text-[#b9382a]">{amountLabel}</span>
+            {asset === 'NIM' && <FiatHint nim={finalAmount} className="shrink-0 text-xs font-semibold text-[#746b5e]" />}
           </div>
 
           <div className="tip-amount-grid grid grid-cols-4 gap-2 mb-5">
-            {PRESET_AMOUNTS.map(amt => (
+            {(asset === 'USDT' ? [1, 5, 10, 25] : PRESET_AMOUNTS).map(amt => (
               <button
                 key={amt}
                 onClick={() => setAmount(String(amt))}
@@ -343,6 +405,56 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           />
         )}
 
+        {asset === 'USDT' && usdtEnabled && (
+          <div className="mb-4 rounded-xl border border-[#9ab6a2] bg-[#edf5ee] p-3 text-sm text-[#315c3e]">
+            <p className="font-bold">{t('usdtPolygonTitle')}</p>
+            <p className="mt-1 text-xs leading-relaxed">{t('usdtPolygonBody')}</p>
+            {usdtQr && usdtPaymentLink && <img src={usdtQr} alt={t('usdtQrAlt')} width={220} height={220} className="mx-auto mt-3 rounded-lg border border-[#cfc2af] bg-white p-2" /> /* eslint-disable-line @next/next/no-img-element */}
+            <a
+              href={usdtPaymentLink || undefined}
+              className="mt-3 block text-center text-xs font-bold underline underline-offset-4"
+            >
+              {t('openUsdtWallet')}
+            </a>
+            <form onSubmit={submitManualUsdt} className="mt-3 flex gap-2">
+              <input value={manualUsdtHash} onChange={event => setManualUsdtHash(event.target.value)} placeholder={t('usdtTxHashPlaceholder')} aria-label={t('usdtTxHashLabel')} className="min-w-0 flex-1 rounded-lg border border-[#92897b] bg-[#fffdf7] px-2.5 py-2 font-mono text-[11px] text-[#171614] focus:border-[#f05a3c] focus:outline-none" />
+              <button type="submit" disabled={!manualUsdtHash.trim() || loading} className="min-h-10 shrink-0 rounded-lg bg-[#171614] px-3 py-2 text-xs font-bold text-[#fffdf7] disabled:opacity-50">{t('verifyUsdtPayment')}</button>
+            </form>
+          </div>
+        )}
+
+        {asset === 'NIM' && nimiqAvailable === true && walletBalanceLoading && (
+          <p className="mb-4 text-center text-xs font-medium text-[#746b5e]" role="status">
+            {t('checkingWalletBalance')}
+          </p>
+        )}
+
+        {asset === 'NIM' && nimiqAvailable === true && !walletBalanceLoading && walletBalanceNim != null && walletBalanceNim <= 0 && (
+          <div className="mb-4 rounded-xl border border-[#d8b06b] bg-[#fff6df] p-3 text-sm text-[#6f5524]" role="status">
+            <p className="font-bold">{t('walletHasNoNim')}</p>
+            <p className="mt-1 text-xs leading-relaxed">{t('walletNeedsNim')}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <a href={NIMIQ_GET_NIM_URL} onClick={preserveTipBeforeAcquisition} target="_blank" rel="noopener noreferrer" className="font-bold text-[#8f2923] underline underline-offset-4">
+                {t('getNim')}
+              </a>
+              {onNeedsInstall && <button type="button" onClick={fallbackToInstall} className="font-bold text-[#8f2923] underline underline-offset-4">{t('askSomeoneToPay')}</button>}
+            </div>
+          </div>
+        )}
+
+        {asset === 'NIM' && nimiqAvailable === true && !walletBalanceLoading && walletBalanceNim != null && walletBalanceNim > 0 && insufficientFunds && (
+          <div className="mb-4 rounded-xl border border-[#d8b06b] bg-[#fff6df] p-3 text-sm text-[#6f5524]" role="status">
+            <p className="font-bold">{t('walletBalanceTooLow', { n: walletBalanceNim.toLocaleString(undefined, { maximumFractionDigits: 5 }) })}</p>
+            <p className="mt-1 text-xs leading-relaxed">{t('walletNeedsMoreNim', { n: finalAmount.toLocaleString() })}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <a href={NIMIQ_GET_NIM_URL} onClick={preserveTipBeforeAcquisition} target="_blank" rel="noopener noreferrer" className="font-bold text-[#8f2923] underline underline-offset-4">
+                {t('getNim')}
+              </a>
+              {onNeedsInstall && <button type="button" onClick={fallbackToInstall} className="font-bold text-[#8f2923] underline underline-offset-4">{t('askSomeoneToPay')}</button>}
+            </div>
+          </div>
+        )}
+
         <label className="tip-anonymous-row mb-4 flex cursor-pointer items-center gap-3 text-sm text-[#5f574b] transition-colors hover:text-[#171614]">
           <input
             type="checkbox"
@@ -352,26 +464,6 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           />
           {t('anonymous')}
         </label>
-
-        <label className="mb-2 flex cursor-pointer items-center gap-3 text-sm text-[#5f574b] transition-colors hover:text-[#171614]">
-          <input
-            type="checkbox"
-            checked={pledgeMonthly}
-            onChange={e => setPledgeMonthly(e.target.checked)}
-            className="h-4 w-4 cursor-pointer rounded border-2 border-[#746b5e] accent-[#f05a3c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2"
-          />
-          🔁 {t('pledgeMonthly')}
-        </label>
-        {pledgeMonthly && (
-          <input
-            type="email"
-            value={pledgeEmail}
-            onChange={e => setPledgeEmail(e.target.value)}
-            placeholder={t('pledgeEmailPlaceholder')}
-            aria-label={t('pledgeEmailPlaceholder')}
-            className="mb-3 w-full rounded-xl border-2 border-[#92897b] bg-[#fffdf7] px-3 py-2 text-sm text-[#171614] placeholder:text-[#746b5e] focus:border-[#f05a3c] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/20"
-          />
-        )}
 
         {error && (
           <div className="mb-4 rounded-xl border border-[#d36b61] bg-[#fff0ed] p-3 text-sm font-medium text-[#8f2923]" role="alert">
@@ -385,26 +477,33 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         <div className="tip-modal-footer sticky bottom-0 -mx-6 -mb-6 px-6 pt-4 pb-6">
           <button
             onClick={handleSendTip}
-            disabled={loading || !finalAmount}
+            disabled={loading || !finalAmount || insufficientFunds}
             className="w-full transform rounded-xl bg-[#171614] py-3.5 text-sm font-bold text-[#fffdf7] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#171614]"
           >
             {loading
-              ? (nimiqAvailable === false ? '⏳ Waiting for wallet confirmation...' : t('waiting'))
-              : nimiqAvailable === false
-                ? (isMobileDevice() ? '⚡ Continue in Nimiq Pay' : `💳 ${finalAmount || '?'} NIM: Pay via Nimiq Hub`)
+              ? (nimiqAvailable !== true ? `⏳ ${t('waitingForWallet')}` : t('waiting'))
+              : asset === 'USDT'
+                ? `💳 ${finalAmount || '?'} USDT: ${t('confirmUsdt')}`
+              : nimiqAvailable !== true
+                ? (isMobileDevice() ? `⚡ ${t('continueInNimiqPay')}` : `⚡ ${finalAmount || '?'} NIM: ${t('payWithNimiqWallet')}`)
                 : `💰 ${finalAmount || '?'} NIM: ${t('confirmTip')}`}
           </button>
-          {nimiqAvailable === false && !isMobileDevice() && (
+          {nimiqAvailable !== true && !isMobileDevice() && (
             <button
               type="button"
               onClick={fallbackToInstall}
               className="mt-2.5 w-full text-center text-xs font-semibold text-[#746b5e] underline underline-offset-4 transition-colors hover:text-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]"
             >
-              Prefer Nimiq Pay on your phone?
+              {t('preferPhoneWallet')}
             </button>
           )}
+          {asset === 'NIM' && (nimiqAvailable !== true || insufficientFunds || (nimiqAvailable === true && walletBalanceNim == null && !walletBalanceLoading)) && (
+            <a href={NIMIQ_GET_NIM_URL} onClick={preserveTipBeforeAcquisition} target="_blank" rel="noopener noreferrer" className="mt-2 block text-center text-xs font-semibold text-[#746b5e] underline underline-offset-4 transition-colors hover:text-[#b9382a]">
+              {t('dontHaveNim')}
+            </a>
+          )}
           <p className="mt-2.5 text-center text-[11px] text-[#746b5e]">
-            ⚡ {t('tipGoesDirectly')}
+            ⚡ {asset === 'USDT' ? t('usdtDirectHint') : t('tipGoesDirectly')}
           </p>
         </div>
       </div>

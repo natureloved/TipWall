@@ -3,7 +3,8 @@ import { useEffect, useState, useRef } from 'react'
 import { type ClaimIntent, type CreatorProfile } from '@/lib/types'
 import TipModal from '@/components/TipModal'
 import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
-import { detectNimiqPay, wallUrl } from '@/lib/environment'
+import { detectNimiqPay, wallUrl, isMobileDevice } from '@/lib/environment'
+import { getSenderAddress } from '@/lib/nimiq'
 
 /**
  * Resume a preserved tip from any device. Opened via a claim link, this page
@@ -13,8 +14,11 @@ import { detectNimiqPay, wallUrl } from '@/lib/environment'
 export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; profile: CreatorProfile }) {
   const [nimiqAvailable, setNimiqAvailable] = useState<boolean | null>(null)
   const [showModal, setShowModal] = useState(false)
+  const [showInstall, setShowInstall] = useState(false)
   const [done, setDone] = useState(claim.claimed)
   const [pending, setPending] = useState(false)
+  const [walletBalanceNim, setWalletBalanceNim] = useState<number | null>(null)
+  const [walletBalanceLoading, setWalletBalanceLoading] = useState(false)
   const openedRef = useRef(false)
 
   useEffect(() => {
@@ -22,13 +26,37 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
     detectNimiqPay().then((available) => {
       if (cancelled) return
       setNimiqAvailable(available)
-      if (available && !claim.claimed && !openedRef.current) {
+      if (!claim.claimed && !openedRef.current && (available || !isMobileDevice())) {
         openedRef.current = true
         setShowModal(true)
       }
     })
     return () => { cancelled = true }
   }, [claim.claimed])
+
+  useEffect(() => {
+    if (nimiqAvailable !== true || !showModal) return
+    let cancelled = false
+    void Promise.resolve().then(async () => {
+      if (cancelled) return
+      setWalletBalanceLoading(true)
+      try {
+        const address = await getSenderAddress()
+        if (!address) {
+          if (!cancelled) setWalletBalanceNim(null)
+          return
+        }
+        const response = await fetch(`/api/wallet/balance?address=${encodeURIComponent(address)}`)
+        const data = response.ok ? await response.json() as { balanceNIM?: number } : null
+        if (!cancelled) setWalletBalanceNim(data && typeof data.balanceNIM === 'number' ? data.balanceNIM : null)
+      } catch {
+        if (!cancelled) setWalletBalanceNim(null)
+      } finally {
+        if (!cancelled) setWalletBalanceLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [nimiqAvailable, showModal])
 
   const claimAbsoluteUrl =
     (typeof window !== 'undefined' ? window.location.href : '') ||
@@ -52,7 +80,7 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
       <Centered>
         <div className="text-4xl mb-2">⚡</div>
         <h1 className="text-2xl font-bold text-white">
-          Send {claim.amountNIM} NIM to @{claim.creatorHandle}
+          Send {claim.amountNIM} NIM to support @{claim.creatorHandle}
         </h1>
         {claim.message && <p className="text-gray-300 mt-2 italic">“{claim.message}”</p>}
         <p className="text-gray-400 text-sm mt-3">
@@ -80,22 +108,29 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
           onClose={() => setShowModal(false)}
           creatorHandle={claim.creatorHandle}
           creatorWalletAddress={profile.walletAddress}
+          creatorDisplayName={profile.displayName}
           nimiqAvailable={nimiqAvailable}
+          walletBalanceNim={walletBalanceNim}
+          walletBalanceLoading={walletBalanceLoading}
           initialAmount={claim.amountNIM}
           initialMessage={claim.message}
           claimToken={claim.token}
           welcome
-          onNeedsInstall={() => setShowModal(false)}
+          onNeedsInstall={() => { setShowModal(false); setShowInstall(true) }}
           onTipSuccess={(tip) => { setShowModal(false); if (tip.pending) setPending(true); else setDone(true) }}
         />
       )}
 
-      {nimiqAvailable === false && (
+      {(nimiqAvailable === false || showInstall) && !showModal && (
         <InstallNimiqPrompt
           creatorHandle={claim.creatorHandle}
           creatorWalletAddress={profile.walletAddress}
           amountNIM={claim.amountNIM}
+          message={claim.message}
+          reason={claim.reason}
+          claimToken={claim.token}
           targetUrl={claimAbsoluteUrl || wallUrl(claim.creatorHandle)}
+          onClose={() => setShowInstall(false)}
           onTipSuccess={(tip) => { if (tip.pending) setPending(true); else setDone(true) }}
         />
       )}

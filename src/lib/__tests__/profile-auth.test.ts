@@ -55,4 +55,15 @@ describe('buildProfileAuthMessage', () => {
     })
     expect(new TextEncoder().encode(msg).length).toBe(msg.length)
   })
+
+  it('binds a transfer proof to the destination wallet', () => {
+    const msg = buildProfileAuthMessage({
+      action: 'transfer',
+      handle: 'alice',
+      walletAddress: 'NQ48 8CKH',
+      transferTo: 'NQ59 7VFN',
+      issuedAt: 2,
+    })
+    expect(msg).toContain('transfer-to: NQ597VFN')
+  })
 })

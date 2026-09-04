@@ -31,7 +31,7 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
     try {
       const wallet = await connectWallet()
       if (normalizeAddress(wallet) !== normalizeAddress(ownerAddress)) {
-        throw new Error('This wallet does not own @' + handle + '.')
+        throw new Error(t('analyticsWalletMismatch', { handle }))
       }
       // Signature-gated: prove ownership before reading the funnel.
       const auth = await signProfileAuth({ action: 'view', handle, walletAddress: wallet })
@@ -41,11 +41,11 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
         body: JSON.stringify({ auth }),
       })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to load analytics')
+      if (!res.ok) throw new Error(json.error || t('analyticsLoadFailed'))
       setData(json)
     } catch (err) {
       const error = err as Error
-      setError(error.message || 'Could not load analytics')
+      setError(error.message || t('analyticsLoadError'))
     } finally {
       setLoading(false)
     }
@@ -107,10 +107,10 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
               {d.reasonStats.length === 0 ? <p className="text-sm text-[#746b5e]">{t('analReasonPending')}</p> : (
                 <div className="space-y-3">
                   {d.reasonStats.map((item, index) => {
-                    const label = TIP_REASON_LABELS[item.reason].label
+                    const label = t(`reason_${item.reason}`)
                     const max = d.reasonStats[0].tips || 1
                     return <div key={item.reason}>
-                      <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"><span className="font-medium text-[#171614]">{TIP_REASON_LABELS[item.reason].emoji} {label}</span><span className="text-[#5f574b]">{item.tips} tips, {item.nim} NIM</span></div>
+                      <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"><span className="font-medium text-[#171614]">{TIP_REASON_LABELS[item.reason].emoji} {label}</span><span className="text-[#5f574b]">{t('analyticsTipsNim', { tips: item.tips, nim: item.nim })}</span></div>
                       <div className="h-2 overflow-hidden rounded-full bg-[#e0d6c7]"><div className={`h-full rounded-full ${index === 0 ? 'bg-[#f05a3c]' : 'bg-[#5c99a9]'}`} style={{ width: `${(item.tips / max) * 100}%` }} /></div>
                     </div>
                   })}
@@ -167,13 +167,13 @@ export default function AnalyticsClient({ handle, ownerAddress }: { handle: stri
                 <div className="h-full bg-[#b9473f]" style={{ width: `${pct(d.lostSupporters, d.recoveredSupporters + d.lostSupporters)}%` }} />
               </div>
               <div className="mt-2 flex flex-wrap justify-between gap-x-4 gap-y-1 text-xs font-semibold">
-                <span className="text-[#315c3e]">● Recovered: {d.recoveredSupporters}</span>
-                <span className="text-[#8f2923]">● Lost: {d.lostSupporters}</span>
+                <span className="text-[#315c3e]">● {t('analyticsRecoveredCount', { n: d.recoveredSupporters })}</span>
+                <span className="text-[#8f2923]">● {t('analyticsLostCount', { n: d.lostSupporters })}</span>
               </div>
             </div>
 
             <button onClick={loadAnalytics} disabled={loading} className="min-h-10 rounded px-2 text-xs font-semibold text-[#b9382a] underline underline-offset-4 transition-colors hover:text-[#171614] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] disabled:cursor-not-allowed disabled:opacity-60">
-              {loading ? 'Refreshing…' : 'Refresh'}
+              {loading ? t('analyticsRefreshing') : t('analyticsRefresh')}
             </button>
           </div>
         )}

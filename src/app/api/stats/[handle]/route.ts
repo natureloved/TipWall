@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, getStats, reverifyPendingTips, getTopRefs, getVerifiedTipCount } from '@/lib/kv'
+import { getProfile, getStats, getTips, getTopRefs, getVerifiedTipCount } from '@/lib/kv'
 import type { TipReason } from '@/lib/types'
 import { normalizeAddress, normalizeHandle, type ProfileAuthProof } from '@/lib/profile-auth'
 import { verifyProfileAuth } from '@/lib/verify-signature'
+import { withinRateLimit } from '@/lib/rate-limit'
+
+export const dynamic = 'force-dynamic'
 
 /**
  * Return a creator's funnel analytics - gated by an owner `view` signature so
@@ -13,6 +16,9 @@ import { verifyProfileAuth } from '@/lib/verify-signature'
  * owner may refresh); the 5-minute signature TTL still bounds replay.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ handle: string }> }) {
+  if (!await withinRateLimit(req, 'stats-read', 30)) {
+    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+  }
   try {
     const { handle } = await params
     const handleStr = normalizeHandle(handle)
@@ -35,14 +41,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ han
     }
 
     const stats = await getStats(handleStr)
-    const tips = await reverifyPendingTips(handleStr, profile.walletAddress)
+    // Analytics reads are side-effect free; reconciliation runs on the cron
+    // endpoint instead of on every owner refresh.
+    const tips = await getTips(handleStr)
     const reasonStats = (['helpful_content', 'tutorial', 'open_source', 'great_idea', 'just_support'] as TipReason[]).map(reason => {
       const matching = tips.filter(t => t.verified && t.reason === reason)
       return { reason, tips: matching.length, nim: matching.reduce((sum, t) => sum + (t.amountNIM || 0), 0) }
     }).sort((a, b) => b.tips - a.tips || b.nim - a.nim)
 
     // Funnel completion is backed by the distinct verified transaction set;
-    // the tip list is trimmed and may also contain pending records.
+    // The tip list may contain pending records; only confirmed tips count here.
     const completed = await getVerifiedTipCount(handleStr)
     const verifiedStats = { ...stats, TIP_COMPLETED: completed }
     const views = verifiedStats.TIP_WALL_VIEWED

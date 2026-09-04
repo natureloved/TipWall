@@ -1,15 +1,18 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 import QRCode from 'qrcode'
 import {
   NIMIQ_PAY_IOS_URL,
   NIMIQ_PAY_ANDROID_URL,
   NIMIQ_PAY_LANDING_URL,
+  NIMIQ_GET_NIM_URL,
   buildNimiqPayDeepLink,
   isMobileDevice,
   wallUrl,
 } from '@/lib/environment'
 import { generatePayNonce, composePayMessage, buildNimiqPaymentLink } from '@/lib/pay-request'
+import { useTranslations } from '@/lib/i18n'
+import type { TipReason } from '@/lib/types'
 
 type Tab = 'install' | 'pay'
 
@@ -24,6 +27,9 @@ export default function InstallNimiqPrompt({
   creatorHandle,
   creatorWalletAddress,
   amountNIM,
+  message,
+  reason,
+  claimToken,
   onClose,
   targetUrl,
   onTipSuccess,
@@ -32,10 +38,16 @@ export default function InstallNimiqPrompt({
   /** Required for the scan-to-pay tab. */
   creatorWalletAddress?: string
   amountNIM?: number
+  /** Preserve the original supporter context when handing payment to another wallet. */
+  message?: string
+  reason?: TipReason
+  /** Fulfil an existing non-custodial claim when scan-to-pay completes. */
+  claimToken?: string
   onClose?: () => void
   targetUrl?: string
   onTipSuccess?: (tip: { senderAddress: string; amountNIM: number; txHash: string; pending: boolean }) => void
 }) {
+  const t = useTranslations()
   const canPay = !!(amountNIM && creatorWalletAddress)
   const [tab, setTab] = useState<Tab>(canPay ? 'pay' : 'install')
 
@@ -43,8 +55,8 @@ export default function InstallNimiqPrompt({
   const [mobile] = useState(() => isMobileDevice())
   const [deepLink] = useState(() => buildNimiqPayDeepLink(targetUrl || wallUrl(creatorHandle)))
   const [installQr, setInstallQr] = useState('')
-  const [pledging, setPledging] = useState(false)
-  const [pledgeUrl, setPledgeUrl] = useState('')
+  const [claiming, setClaiming] = useState(false)
+  const [claimUrl, setClaimUrl] = useState('')
   const [copied, setCopied] = useState(false)
 
   // ── pay tab state ────────────────────────────────────────────────────────
@@ -52,7 +64,70 @@ export default function InstallNimiqPrompt({
   const [payQr, setPayQr] = useState('')
   const [payStatus, setPayStatus] = useState<'waiting' | 'found' | 'submitting' | 'pending' | 'done' | 'error'>('waiting')
   const [payError, setPayError] = useState('')
+  const [manualTxHash, setManualTxHash] = useState('')
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const submitDetectedPayment = useCallback(async (txHash: string, senderAddress = '') => {
+    if (!amountNIM) return
+    if (pollRef.current) clearInterval(pollRef.current)
+    setPayStatus('submitting')
+    const sub = await fetch('/api/tips/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        handle: creatorHandle,
+        senderAddress,
+        txHash,
+        amountNIM,
+        message: message?.trim() || undefined,
+        reason,
+        claimToken,
+        anonymous: false,
+      }),
+    })
+    const submitted = await sub.json().catch(() => ({}))
+    if (!sub.ok && sub.status !== 409) {
+      throw new Error(submitted.error || 'Failed to record tip')
+    }
+    const pending = submitted.pending === true
+    setPayStatus(pending ? 'pending' : 'done')
+    onTipSuccess?.({ senderAddress, amountNIM, txHash, pending })
+  }, [amountNIM, claimToken, creatorHandle, message, onTipSuccess, reason])
+
+  const findAlreadyPaid = useCallback(async () => {
+    if (!amountNIM || !creatorWalletAddress || payStatus === 'submitting') return
+    setPayError('')
+    try {
+      const since = Date.now() - 15 * 60_000
+      const res = await fetch(
+        `/api/tips/detect?handle=${encodeURIComponent(creatorHandle)}&nonce=${encodeURIComponent(nonceRef.current)}&amountNIM=${amountNIM}&since=${since}`,
+      )
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Could not search for the payment')
+      if (!data.found || !data.txHash) {
+        setPayStatus('waiting')
+        setPayError('No matching payment yet. Wait a moment and try again.')
+        return
+      }
+      await submitDetectedPayment(String(data.txHash), String(data.senderAddress || ''))
+    } catch (err) {
+      setPayStatus('error')
+      setPayError(err instanceof Error ? err.message : 'Could not find the payment')
+    }
+  }, [amountNIM, creatorHandle, creatorWalletAddress, payStatus, submitDetectedPayment])
+
+  const submitManualHash = useCallback(async (event: React.FormEvent) => {
+    event.preventDefault()
+    const txHash = manualTxHash.trim()
+    if (!txHash || payStatus === 'submitting') return
+    setPayError('')
+    try {
+      await submitDetectedPayment(txHash)
+    } catch (err) {
+      setPayStatus('error')
+      setPayError(err instanceof Error ? err.message : 'Could not record the payment')
+    }
+  }, [manualTxHash, payStatus, submitDetectedPayment])
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -73,8 +148,8 @@ export default function InstallNimiqPrompt({
     // Only match payments made after the QR was shown (guards against matching a
     // pre-existing identical-amount tip to this creator).
     const since = Date.now()
-    const message = composePayMessage(undefined, nonce)
-    const uri = buildNimiqPaymentLink({ address: creatorWalletAddress!, amountNIM: amountNIM!, message })
+    const payMessage = composePayMessage(message, nonce)
+    const uri = buildNimiqPaymentLink({ address: creatorWalletAddress!, amountNIM: amountNIM!, message: payMessage })
     QRCode.toDataURL(uri, { width: 240, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } })
       .then(setPayQr).catch(() => setPayQr(''))
 
@@ -86,33 +161,15 @@ export default function InstallNimiqPrompt({
         )
         const data = await res.json()
         if (!data.found) return
-        clearInterval(pollRef.current!)
-        setPayStatus('submitting')
-        const sub = await fetch('/api/tips/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            handle: creatorHandle,
-            senderAddress: data.senderAddress || '',
-            txHash: data.txHash,
-            amountNIM: amountNIM,
-            anonymous: false,
-          }),
-        })
-        const submitted = await sub.json().catch(() => ({}))
-        if (!sub.ok) {
-          const err = submitted
-          // 409 = already recorded (e.g. duplicate poll hit) - treat as success
-          if (sub.status !== 409) { setPayStatus('error'); setPayError(err.error || 'Failed to record tip'); return }
-        }
-        setPayStatus(submitted.pending === true ? 'pending' : 'done')
-        onTipSuccess?.({ senderAddress: data.senderAddress || '', amountNIM: amountNIM!, txHash: data.txHash, pending: submitted.pending === true })
-      } catch { /* network blip - retry next tick */ }
+        await submitDetectedPayment(String(data.txHash), String(data.senderAddress || ''))
+      } catch (err) {
+        setPayStatus('error')
+        setPayError(err instanceof Error ? err.message : 'Failed to record tip')
+      }
     }, 5000)
 
     return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab])
+  }, [amountNIM, canPay, creatorHandle, creatorWalletAddress, message, payStatus, submitDetectedPayment, tab])
 
   // Escape key
   useEffect(() => {
@@ -122,25 +179,25 @@ export default function InstallNimiqPrompt({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const createPledge = async () => {
+  const createClaimLink = async () => {
     if (!amountNIM) return
-    setPledging(true)
+    setClaiming(true)
     try {
       const res = await fetch('/api/claim/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ creatorHandle, amountNIM, source: 'pledge' }),
+        body: JSON.stringify({ creatorHandle, amountNIM, message: message?.trim() || undefined, reason, source: 'redirect' }),
       })
       const data = await res.json()
       if (res.ok && data.claimUrl) {
         const origin = typeof window !== 'undefined' ? window.location.origin : ''
-        setPledgeUrl(`${origin}${data.claimUrl}`)
+        setClaimUrl(`${origin}${data.claimUrl}`)
       }
-    } catch { /* ignore */ } finally { setPledging(false) }
+    } catch { /* ignore */ } finally { setClaiming(false) }
   }
 
-  const copyPledge = async () => {
-    try { await navigator.clipboard.writeText(pledgeUrl); setCopied(true); setTimeout(() => setCopied(false), 2000) }
+  const copyClaim = async () => {
+    try { await navigator.clipboard.writeText(claimUrl); setCopied(true); setTimeout(() => setCopied(false), 2000) }
     catch { /* ignore */ }
   }
 
@@ -241,6 +298,36 @@ export default function InstallNimiqPrompt({
                     Payment detected. Recording…
                   </div>
                 )}
+                <div className="mb-4 rounded-xl border border-[#d8cdbb] bg-[#f7f1e6] p-3">
+                  <p className="text-center text-xs font-semibold text-[#5f574b]">Already paid?</p>
+                  <button
+                    type="button"
+                    onClick={findAlreadyPaid}
+                    disabled={payStatus === 'submitting'}
+                    className="mt-2 min-h-10 w-full rounded-lg border border-[#746b5e] bg-[#fffdf7] px-3 py-2 text-xs font-bold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    I already paid - find my tip
+                  </button>
+                  <form onSubmit={submitManualHash} className="mt-2 flex gap-2">
+                    <input
+                      value={manualTxHash}
+                      onChange={event => setManualTxHash(event.target.value)}
+                      placeholder="Or paste transaction hash"
+                      aria-label="Transaction hash"
+                      className="min-w-0 flex-1 rounded-lg border border-[#92897b] bg-[#fffdf7] px-2.5 py-2 font-mono text-[11px] text-[#171614] focus:border-[#f05a3c] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]/20"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!manualTxHash.trim() || payStatus === 'submitting'}
+                      className="min-h-10 shrink-0 rounded-lg bg-[#171614] px-3 py-2 text-xs font-bold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Record
+                    </button>
+                  </form>
+                  {payError && payStatus === 'waiting' && (
+                    <p className="mt-2 text-center text-[11px] font-medium text-[#8f2923]" role="status">{payError}</p>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <a href={NIMIQ_PAY_IOS_URL} target="_blank" rel="noopener noreferrer"
                     className="min-h-11 rounded-xl border border-[#92897b] bg-[#fffdf7] px-2 py-2.5 text-center text-sm font-semibold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c]">
@@ -251,6 +338,9 @@ export default function InstallNimiqPrompt({
                     ▶ Google Play
                   </a>
                 </div>
+                <a href={NIMIQ_GET_NIM_URL} target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-xs font-semibold text-[#746b5e] underline underline-offset-4 hover:text-[#b9382a]">
+                  {t('newToNim')}
+                </a>
               </>
             )}
           </>
@@ -291,24 +381,27 @@ export default function InstallNimiqPrompt({
                 ▶ Google Play
               </a>
             </div>
+            <a href={NIMIQ_GET_NIM_URL} target="_blank" rel="noopener noreferrer" className="mb-5 block text-center text-xs font-semibold text-[#746b5e] underline underline-offset-4 hover:text-[#b9382a]">
+              {t('newToNim')}
+            </a>
 
             {amountNIM && (
               <div className="mb-5">
-                {pledgeUrl ? (
+                {claimUrl ? (
                   <div className="rounded-xl border border-[#9ab6a2] bg-[#edf5ee] p-3">
-                    <p className="mb-1 text-sm font-semibold text-[#315c3e]">Your support has been reserved.</p>
-                    <p className="mb-2 text-[11px] text-[#5f574b]">Open this link in Nimiq Pay anytime to finish.</p>
+                    <p className="mb-1 text-sm font-semibold text-[#315c3e]">{t('claimSavedTitle')}</p>
+                    <p className="mb-2 text-[11px] text-[#5f574b]">{t('claimSavedBody')}</p>
                     <div className="flex flex-col sm:flex-row items-stretch gap-2">
-                      <input readOnly value={pledgeUrl} className="min-w-0 flex-1 truncate rounded-lg border border-[#92897b] bg-[#fffdf7] px-3 py-2 font-mono text-xs text-[#171614] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]" />
-                      <button type="button" onClick={copyPledge} className="min-h-10 w-full shrink-0 rounded-lg bg-[#171614] px-3 py-2 text-xs font-semibold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] sm:w-auto">
-                        {copied ? '✓' : 'Copy'}
+                      <input readOnly value={claimUrl} className="min-w-0 flex-1 truncate rounded-lg border border-[#92897b] bg-[#fffdf7] px-3 py-2 font-mono text-xs text-[#171614] focus:outline-none focus:ring-2 focus:ring-[#f05a3c]" />
+                      <button type="button" onClick={copyClaim} className="min-h-10 w-full shrink-0 rounded-lg bg-[#171614] px-3 py-2 text-xs font-semibold text-[#fffdf7] transition-colors hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] sm:w-auto">
+                        {copied ? t('copied') : t('copy')}
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <button type="button" onClick={createPledge} disabled={pledging}
+                  <button type="button" onClick={createClaimLink} disabled={claiming}
                     className="min-h-11 w-full rounded-xl border border-[#746b5e] bg-[#fffdf7] px-3 py-2.5 text-sm font-semibold text-[#171614] transition-colors hover:border-[#f05a3c] hover:bg-[#ffe3da] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] disabled:cursor-not-allowed disabled:opacity-60">
-                    {pledging ? 'Reserving…' : 'Support Later: get a claim link'}
+                    {claiming ? t('savingClaim') : t('askSomeoneToPay')}
                   </button>
                 )}
               </div>

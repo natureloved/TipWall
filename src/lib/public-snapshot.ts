@@ -37,3 +37,7 @@ export function withVerifiedEcosystemMinimum(
         : {},
   }
 }
+
+// Keep the portable wall format discoverable alongside the public snapshot
+// helpers used by the site-wide statistics surface.
+export * from './wall-snapshot'

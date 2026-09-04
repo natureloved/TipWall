@@ -1,13 +1,15 @@
 import Link from 'next/link'
+import PlatformSupportLink from '@/components/PlatformSupportLink'
+import { NIMIQ_GET_NIM_URL } from '@/lib/environment'
 
 /* eslint-disable react/no-unescaped-entities */
 
 export const metadata = {
-  title: 'Tip the creator, not the platform | TipWall',
+  title: 'Support people directly, not the platform | TipWall',
   description:
     'TipWall turns your audience’s goodwill into NIM tips. On-chain, one tap, and 100% yours. No platform cut. No accounts. Ever.',
   openGraph: {
-    title: 'Tip the creator, not the platform',
+    title: 'Support people directly, not the platform',
     description:
       'A Nimiq Pay Mini App where supporters tip you NIM directly. You keep 100%. Free forever.',
     url: 'https://tipwall.vercel.app/launch',
@@ -15,7 +17,7 @@ export const metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Tip the creator, not the platform',
+    title: 'Support people directly, not the platform',
     description:
       'A Nimiq Pay Mini App where supporters tip you NIM directly. You keep 100%. Free forever.',
     images: ['/banner.png?v=2'],
@@ -32,13 +34,13 @@ export default function LaunchPage() {
             Nimiq Pay Mini App · Free Forever
           </div>
           <h1 className="mb-5 text-4xl sm:text-5xl font-bold leading-tight text-[#b9382a]">
-            Tip the creator,
+            Support people,
             <br />
             not the platform.
           </h1>
           <p className="mx-auto mb-7 max-w-2xl text-lg sm:text-xl text-[#5f574b]">
-            <strong className="text-[#171614]">TipWall</strong> turns your audience's goodwill into NIM
-            tips. On-chain, one tap, and 100% yours. No platform cut. No accounts. Ever.
+            <strong className="text-[#171614]">TipWall</strong> turns your audience's goodwill into direct NIM
+            support. On-chain, one tap, and 100% yours. No platform cut. No accounts. Ever.
           </p>
           <Link
             href="/"
@@ -87,13 +89,13 @@ export default function LaunchPage() {
             TipWall is your wall, and only yours.
           </h2>
           <p className="mb-6 text-lg text-[#5f574b]">
-            A shareable page where supporters tip you NIM directly. You keep every cent.
+            A shareable page where supporters send NIM directly. You keep every cent.
           </p>
           <ul className="space-y-4">
             {[
               {
                 title: 'One tap to tip.',
-                desc: 'Inside Nimiq Pay, supporting you takes a single tap. No sign-up, no account, no friction for the people who want to pay you.',
+                desc: 'Inside Nimiq Pay, supporting you takes a single tap. No sign-up, no account, no friction for people who want to back you.',
               },
               {
                 title: 'Verified on-chain.',
@@ -101,7 +103,7 @@ export default function LaunchPage() {
               },
               {
                 title: 'You keep 100%.',
-                desc: 'No platform fee. The money goes creator-to-supporter, directly. We never touch it.',
+                desc: 'No platform fee. The money goes wallet-to-wallet, directly. We never touch it.',
               },
               {
                 title: 'Yours to own, yours to leave.',
@@ -128,7 +130,10 @@ export default function LaunchPage() {
             <p className="text-[#425b49]">
               Covered. Anyone without it gets a claim link and QR code that saves their tip intent,
               so no supporter hits a dead end. It's non-custodial the whole way through. Nobody
-              ever holds your funds, not even for a second.
+              ever holds your funds, not even for a second. New supporters can also{' '}
+              <a href={NIMIQ_GET_NIM_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-[#315c3b] underline underline-offset-4 hover:text-[#171614]">
+                get a wallet and NIM before they start
+              </a>.
             </p>
           </div>
         </section>
@@ -140,7 +145,7 @@ export default function LaunchPage() {
             {[
               {
                 title: 'Create your wall.',
-                desc: 'Connect your wallet, pick a handle, add your bio. Two minutes, signature-based, no password.',
+                desc: 'Connect your wallet, pick a handle, add your identity. Two minutes, signature-based, no password.',
               },
               {
                 title: 'Share it anywhere.',
@@ -195,6 +200,11 @@ export default function LaunchPage() {
           <Link href="/terms" className="font-semibold text-[#b9382a] underline-offset-4 hover:text-[#171614] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a]">
             Terms
           </Link>
+          {' · '}
+          <Link href="/faq" className="font-semibold text-[#b9382a] underline-offset-4 hover:text-[#171614] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a]">
+            FAQ
+          </Link>
+          <PlatformSupportLink showSeparator className="font-semibold text-[#b9382a] underline-offset-4 hover:text-[#171614] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a]" />
         </div>
       </div>
     </div>

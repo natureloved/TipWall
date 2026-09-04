@@ -9,10 +9,10 @@
     "start": "next start",
     "lint": "eslint src",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "node scripts/e2e-smoke.mjs"
   },
   "dependencies": {
-    "@nimiq/core": "^2.7.0",
     "@nimiq/hub-api": "^1.14.0",
     "@nimiq/mini-app-sdk": "^0.1.0",
     "@noble/curves": "^2.2.0",

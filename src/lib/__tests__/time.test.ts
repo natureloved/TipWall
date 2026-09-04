@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { timeAgo, weekIndex, streakWeeks } from '../time'
+import { localizedTimeAgo, timeAgo, weekIndex, streakWeeks } from '../time'
 
 describe('timeAgo', () => {
   const now = 1_700_000_000_000 // fixed reference so tests are deterministic
@@ -34,6 +34,13 @@ describe('timeAgo', () => {
   it('shows weeks beyond a week', () => {
     expect(ago(WEEK)).toBe('1w ago')
     expect(ago(3 * WEEK)).toBe('3w ago')
+  })
+})
+
+describe('localizedTimeAgo', () => {
+  it('uses locale-aware relative time outside English', () => {
+    const now = Date.UTC(2026, 0, 1, 12)
+    expect(localizedTimeAgo(now - 2 * 60 * 60 * 1000, 'fr', now)).toMatch(/2/)
   })
 })
 

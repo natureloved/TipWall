@@ -7,6 +7,7 @@ import {
   BIO_MAX,
   DISPLAY_NAME_MAX,
   GOAL_TARGET_MAX,
+  validatePolygonAddress,
 } from '../validate-profile'
 
 describe('validateHandle', () => {
@@ -24,6 +25,18 @@ describe('validateHandle', () => {
       expect(validateHandle(reserved), reserved).toMatch(/reserved/)
       expect(isReservedHandle(reserved)).toBe(true)
     }
+  })
+})
+
+describe('validatePolygonAddress', () => {
+  it('accepts optional empty values and strict EVM addresses', () => {
+    expect(validatePolygonAddress('')).toBeNull()
+    expect(validatePolygonAddress(`0x${'a'.repeat(40)}`)).toBeNull()
+  })
+
+  it('rejects malformed payout addresses', () => {
+    expect(validatePolygonAddress('0x1234')).toMatch(/valid Polygon/)
+    expect(validatePolygonAddress('not-an-address')).toMatch(/valid Polygon/)
   })
 })
 

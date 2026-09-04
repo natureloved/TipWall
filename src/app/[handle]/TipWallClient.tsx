@@ -17,7 +17,7 @@ import FirstVisitIntro from '@/components/FirstVisitIntro'
 import { detectNimiqPay } from '@/lib/environment'
 import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 import { track } from '@/lib/analytics'
-import { getNimiq } from '@/lib/nimiq'
+import { getNimiq, getSenderAddress } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { timeAgo } from '@/lib/time'
 import { useTranslations } from '@/lib/i18n'
@@ -26,6 +26,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const profile = initialProfile
   const [tips, setTips] = useState<Tip[]>([])
   const [tipsLoading, setTipsLoading] = useState(true)
+  const [tipsLoadError, setTipsLoadError] = useState(false)
   const [totalNIM, setTotalNIM] = useState(0)
   const [showTipModal, setShowTipModal] = useState(false)
   const [milestoneState, setMilestoneState] = useState<{ prev: number; curr: number; event?: MilestoneEvent } | null>(null)
@@ -33,8 +34,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [unlockedMilestones, setUnlockedMilestones] = useState<number[]>([])
   const [floatingTipTrigger, setFloatingTipTrigger] = useState(0)
   const [nimiqAvailable, setNimiqAvailable] = useState<boolean | null>(null)
+  const [walletBalanceNim, setWalletBalanceNim] = useState<number | null>(null)
+  const [walletBalanceLoading, setWalletBalanceLoading] = useState(false)
   const [showInstall, setShowInstall] = useState(false)
-  const [installAmount, setInstallAmount] = useState<number | undefined>(undefined)
+  const [installIntent, setInstallIntent] = useState<{ amount?: number; message?: string; reason?: TipReason }>({})
   const [resume, setResume] = useState<{ amount?: number; message?: string } | null>(null)
   const [isOwner, setIsOwner] = useState(false)
   const [sharePrompt, setSharePrompt] = useState<{ amount?: number } | null>(null)
@@ -44,10 +47,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const t = useTranslations()
 
   const loadTips = useCallback(() => {
+    setTipsLoadError(false)
     return fetch(`/api/tips/${handle}`)
-      .then(res => (res.ok ? (res.json() as Promise<{ tips: Tip[]; supporters: Supporter[]; totalNIM: number }>) : null))
+      .then(res => {
+        if (!res.ok) throw new Error('tips unavailable')
+        return res.json() as Promise<{ tips: Tip[]; supporters: Supporter[]; totalNIM: number }>
+      })
       .then(data => {
-        if (!data) return
         setTips(data.tips)
         // Use the server's verified-only total (pending/unverified tips don't count).
         const newTotal = data.totalNIM ?? data.tips.reduce((s, t) => s + (t.verified ? t.amountNIM || 0 : 0), 0)
@@ -55,11 +61,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         setSupporters(data.supporters)
         setUnlockedMilestones(getGoalMilestones(profile.goal?.targetNIM ?? 1000).filter(m => newTotal >= m))
       })
-      .catch(() => {})
+      .catch(() => { setTipsLoadError(true) })
       .finally(() => setTipsLoading(false))
   }, [handle, profile.goal?.targetNIM])
 
   useEffect(() => {
+    // Initial wall data is loaded from the API when the handle changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadTips()
   }, [loadTips])
 
@@ -104,6 +112,33 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
       .catch(() => {})
     return () => { cancelled = true }
   }, [handle])
+
+  // Balance is a read-only hint for the payment UI. Fetch it when the modal is
+  // open so the state is fresh after a previous tip, and fail open if the RPC
+  // is unavailable: the wallet remains the final authority at send time.
+  useEffect(() => {
+    if (nimiqAvailable !== true || !showTipModal) return
+    let cancelled = false
+    void Promise.resolve().then(async () => {
+      if (cancelled) return
+      setWalletBalanceLoading(true)
+      try {
+        const address = await getSenderAddress()
+        if (!address) {
+          if (!cancelled) setWalletBalanceNim(null)
+          return
+        }
+        const response = await fetch(`/api/wallet/balance?address=${encodeURIComponent(address)}`)
+        const data = response.ok ? await response.json() as { balanceNIM?: number } : null
+        if (!cancelled) setWalletBalanceNim(data && typeof data.balanceNIM === 'number' ? data.balanceNIM : null)
+      } catch {
+        if (!cancelled) setWalletBalanceNim(null)
+      } finally {
+        if (!cancelled) setWalletBalanceLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [nimiqAvailable, showTipModal])
 
   // Check if connected wallet is the owner for dashboard link. Only ever true
   // inside Nimiq Pay (getNimiq() rejects on desktop); the footer link below is
@@ -189,7 +224,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 pb-4">
             <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
-            <Link href="/explore" className="text-sm font-semibold text-slate-400">Explore creators</Link>
+            <Link href="/explore" className="text-sm font-semibold text-slate-400">Explore walls</Link>
           </header>
           {/* Hero Section */}
           <div className="creator-wall-hero animate-glow relative overflow-hidden rounded-3xl bg-[#fffaf0] p-6 text-[#171614] sm:p-8">
@@ -197,7 +232,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
               {/* Identity */}
               <div className="min-w-0 sm:flex-1 space-y-3">
-                <p className="creator-wall-eyebrow">Creator appreciation wall</p>
+                <p className="creator-wall-eyebrow">Public support wall</p>
                 {weeklyRank !== null && (
                   <Link
                     href="/explore"
@@ -206,13 +241,19 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                     🔥 #{weeklyRank} most tipped this week
                   </Link>
                 )}
-                <div className="space-y-1 animate-slide-up">
+                <div className="flex items-center gap-3 space-y-1 animate-slide-up">
+                  {profile.avatarUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element -- creator-provided public avatar URL
+                    <img src={profile.avatarUrl} alt="" className="h-14 w-14 shrink-0 rounded-full border-2 border-[#171614] object-cover shadow-[3px_3px_0_#171614]" width={56} height={56} />
+                  )}
+                  <div className="min-w-0">
                   <h1 className="creator-wall-name text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight break-words">
                     {profile.displayName || `@${handle}`}
                   </h1>
                   {profile.displayName && (
                     <p className="text-sm text-slate-400">@{handle}</p>
                   )}
+                  </div>
                 </div>
 
                 {profile.bio && (
@@ -226,6 +267,11 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                     <span className="shrink-0">🏆</span>
                     <span className="truncate">{profile.achievement}</span>
                   </div>
+                )}
+                {profile.socialLinks && Object.values(profile.socialLinks).some(Boolean) && (
+                  <nav className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-[#2d697c]" aria-label="Public links">
+                    {Object.entries(profile.socialLinks).filter(([, url]) => Boolean(url)).map(([key, url]) => <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-4 hover:text-[#b9382a]">{key === 'x' ? 'X' : key[0].toUpperCase() + key.slice(1)} ↗</a>)}
+                  </nav>
                 )}
               </div>
 
@@ -262,6 +308,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
           {tipsLoading ? (
             <div className="wall-content-loading" role="status" aria-live="polite"><span className="wall-loading-spinner" /><p>Opening the appreciation wall...</p></div>
+          ) : tipsLoadError ? (
+            <div className="empty-appreciation-board rounded-2xl bg-slate-800/60 backdrop-blur p-8 text-center shadow-lg border-2 border-[#d36b61] animate-slide-up" role="alert">
+              <div className="text-4xl mb-3">!</div>
+              <h2 className="text-xl font-bold text-white mb-2">The wall could not load</h2>
+              <p className="text-sm text-slate-400 mb-6 max-w-sm mx-auto">Your wall and tips are safe. Please try again.</p>
+              <button onClick={() => { setTipsLoading(true); void loadTips() }} className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold text-slate-900 bg-amber-400 hover:bg-amber-500 transition-colors">Try again</button>
+            </div>
           ) : !hasTips ? (
             /* Empty wall: one warm invitation, no wall of zeros. */
             <div className="empty-appreciation-board rounded-2xl bg-slate-800/60 backdrop-blur p-8 text-center shadow-lg border-2 border-amber-400/20 animate-slide-up" style={{animationDelay: '0.35s'}}>
@@ -335,7 +388,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               <>
                 {' · '}
                 <a href={`/${handle}/edit`} className="underline underline-offset-4 hover:text-amber-300 transition-colors">
-                  Creator? Manage this wall
+                  Wall owner? Manage this wall
                 </a>
               </>
             )}
@@ -354,6 +407,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           onClose={() => { setShowTipModal(false); setResume(null) }}
           creatorHandle={handle}
           creatorWalletAddress={profile.walletAddress}
+          creatorUsdtAddress={profile.usdtPolygonAddress}
           creatorDisplayName={profile.displayName}
           nimiqAvailable={nimiqAvailable}
           goal={profile.goal}
@@ -361,8 +415,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           initialAmount={resume?.amount}
           initialMessage={resume?.message}
           welcome={!!resume}
-          onNeedsInstall={(amount) => {
-            setInstallAmount(amount)
+          walletBalanceNim={walletBalanceNim}
+          walletBalanceLoading={walletBalanceLoading}
+          onNeedsInstall={(amount, message, reason) => {
+            setInstallIntent({ amount, message, reason })
             setShowTipModal(false)
             setResume(null)
             setShowInstall(true)
@@ -386,7 +442,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             setResume(null)
             // Invite the supporter to announce their tip - supporters sharing
             // is the wall's most credible distribution channel.
-            setSharePrompt({ amount: tip.amountNIM })
+            if (tip.asset !== 'USDT') setSharePrompt({ amount: tip.amountNIM })
             await loadTips()
           }}
         />
@@ -395,7 +451,9 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
         <InstallNimiqPrompt
           creatorHandle={handle}
           creatorWalletAddress={profile.walletAddress}
-          amountNIM={installAmount}
+          amountNIM={installIntent.amount}
+          message={installIntent.message}
+          reason={installIntent.reason}
           onClose={() => setShowInstall(false)}
           onTipSuccess={async (tip) => {
             setShowInstall(false)

@@ -42,8 +42,8 @@ export default function RecentActivity() {
 
   if (!items || items.length === 0) {
     return <div className="landing-ticker">
-      <span>TIP THE CREATOR · SAY WHY IT MATTERED · LEAVE A MARK · </span>
-      <span>TIP THE CREATOR · SAY WHY IT MATTERED · LEAVE A MARK · </span>
+      <span>SUPPORT SOMEONE · SAY WHY IT MATTERED · LEAVE A MARK · </span>
+      <span>SUPPORT SOMEONE · SAY WHY IT MATTERED · LEAVE A MARK · </span>
     </div>
   }
 
