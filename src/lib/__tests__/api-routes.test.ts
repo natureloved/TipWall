@@ -27,6 +27,7 @@ vi.mock('@/lib/verify-signature', () => ({
 import { POST as createClaim } from '@/app/api/claim/create/route'
 import { GET as detectTip } from '@/app/api/tips/detect/route'
 import { GET as getPublicTips } from '@/app/api/tips/[handle]/route'
+import { GET as getLiveTips } from '@/app/api/tips/[handle]/live/route'
 import { POST as moderateTip } from '@/app/api/tips/[handle]/moderate/route'
 import { POST as transferProfile } from '@/app/api/profile/[handle]/transfer/route'
 import { GET as getWalletBalance } from '@/app/api/wallet/balance/route'
@@ -119,6 +120,17 @@ describe('public tip route', () => {
   })
 })
 
+describe('live overlay route', () => {
+  it('preserves USDT metadata for stream alerts', async () => {
+    kvMocks.getTips.mockResolvedValue([
+      { id: 'usdt-1', handle: 'alice', senderAddress: '0xsender', amountNIM: 0, amountUSDT: 5, asset: 'USDT', txHash: '0xhash', verified: true, anonymous: false, timestamp: 2, senderName: 'Sam' },
+    ])
+    const response = await getLiveTips(new NextRequest('https://tipwall.test/api/tips/alice/live'), { params: Promise.resolve({ handle: 'alice' }) })
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({ latest: { asset: 'USDT', amountUSDT: 5, senderName: 'Sam' } })
+  })
+})
+
 describe('moderation route', () => {
   it('lets the signed owner hide a tip without deleting its payment record', async () => {
     const request = new Request('https://tipwall.test/api/tips/alice/moderate', {
@@ -166,6 +178,53 @@ describe('wallet balance route', () => {
     const response = await getWalletBalance(new NextRequest(`https://tipwall.test/api/wallet/balance?address=${encodeURIComponent(PROFILE.walletAddress)}`))
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({ balanceLuna: 250000, balanceNIM: 2.5 })
+  })
+
+  it('tries the documented fallback when a configured relay returns null', async () => {
+    vi.stubEnv('NIMIQ_RPC_URL', 'https://rpc.test')
+    const calls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      calls.push(String(input))
+      return {
+        ok: true,
+        json: async () => calls.length === 1
+          ? { result: null }
+          : { result: { balance: 250000 } },
+      }
+    }))
+    const response = await getWalletBalance(new NextRequest(`https://tipwall.test/api/wallet/balance?address=${encodeURIComponent(PROFILE.walletAddress)}`))
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({ balanceNIM: 2.5 })
+    expect(calls).toEqual(['https://rpc.test', 'https://api.nimiq.com'])
+  })
+
+  it('prefers a positive fallback result over a stale zero', async () => {
+    vi.stubEnv('NIMIQ_RPC_URL', 'https://rpc.test')
+    const calls: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      calls.push(String(input))
+      return {
+        ok: true,
+        json: async () => calls.length === 1
+          ? { result: { balance: 0 } }
+          : { result: { balance: 250000 } },
+      }
+    }))
+    const response = await getWalletBalance(new NextRequest(`https://tipwall.test/api/wallet/balance?address=${encodeURIComponent(PROFILE.walletAddress)}`))
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({ balanceNIM: 2.5 })
+    expect(calls).toEqual(['https://rpc.test', 'https://api.nimiq.com'])
+  })
+
+  it('does not turn an unresolved account into a false zero balance', async () => {
+    vi.stubEnv('NIMIQ_RPC_URL', 'https://rpc.test')
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ result: null }),
+    })))
+    const response = await getWalletBalance(new NextRequest(`https://tipwall.test/api/wallet/balance?address=${encodeURIComponent(PROFILE.walletAddress)}`))
+    expect(response.status).toBe(503)
+    await expect(response.json()).resolves.toMatchObject({ error: 'NIM balance is temporarily unavailable' })
   })
 
   it('rejects malformed addresses before contacting an upstream', async () => {

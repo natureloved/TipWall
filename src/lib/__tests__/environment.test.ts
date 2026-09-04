@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { platformSupportUrl } from '../environment'
+import { NIMIQ_GET_NIM_URL, NIMIQ_PAY_LANDING_URL, platformSupportUrl } from '../environment'
 
 afterEach(() => vi.unstubAllEnvs())
+
+describe('Nimiq onboarding links', () => {
+  it('separates wallet setup from acquiring NIM', () => {
+    expect(NIMIQ_PAY_LANDING_URL).toBe('https://www.nimiq.com/nimiq-pay')
+    expect(NIMIQ_GET_NIM_URL).toBe('https://www.nimiq.com/buy-and-sell')
+  })
+})
 
 describe('platformSupportUrl', () => {
   it('returns a configured web funding link', () => {

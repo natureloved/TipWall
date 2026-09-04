@@ -33,20 +33,18 @@ export async function GET(request: Request, { params }: { params: Promise<{ hand
   const totalNIM = await getVerifiedTotalNim(h).catch(() => 0)
 
   // Inline sanitize: anonymous tips must never leak their sender through the
-  // live surface either.
-  const latest = head
-    ? (head.anonymous
-      ? { id: head.id, amountNIM: head.amountNIM, message: head.message, reason: head.reason, senderName: undefined, anonymous: true, timestamp: head.timestamp }
-      : { id: head.id, amountNIM: head.amountNIM, message: head.message, reason: head.reason, senderName: head.senderName, anonymous: false, timestamp: head.timestamp })
-    : null
+  // live surface either. Preserve the asset so USDT alerts show the right unit.
+  const toLiveTip = (tip: Tip) => tip.anonymous
+    ? { id: tip.id, amountNIM: tip.amountNIM, asset: tip.asset, amountUSDT: tip.amountUSDT, message: tip.message, reason: tip.reason, senderName: undefined, anonymous: true, timestamp: tip.timestamp }
+    : { id: tip.id, amountNIM: tip.amountNIM, asset: tip.asset, amountUSDT: tip.amountUSDT, message: tip.message, reason: tip.reason, senderName: tip.senderName, anonymous: false, timestamp: tip.timestamp }
+
+  const latest = head ? toLiveTip(head) : null
 
   return NextResponse.json(
     {
       headTipId: head?.id ?? null,
       latest,
-      newTips: newTips.map(t => t.anonymous
-        ? { id: t.id, amountNIM: t.amountNIM, message: t.message, reason: t.reason, senderName: undefined, anonymous: true, timestamp: t.timestamp }
-        : { id: t.id, amountNIM: t.amountNIM, message: t.message, reason: t.reason, senderName: t.senderName, anonymous: false, timestamp: t.timestamp }),
+      newTips: newTips.map(toLiveTip),
       totalNIM,
     },
     { headers: { 'Cache-Control': 'no-store' } },

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TipWall — wall with a tip jar slot">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#FBF7EE" stroke="#171614" stroke-width="3"/>
+  <!-- wall -->
+  <g fill="#E9E2D2" stroke="#171614" stroke-width="2.2" stroke-linejoin="round">
+    <rect x="8" y="18" width="22" height="10" rx="2"/>
+    <rect x="30" y="18" width="26" height="10" rx="2"/>
+    <rect x="8" y="28" width="14" height="10" rx="2"/>
+    <rect x="22" y="28" width="20" height="10" rx="2"/>
+    <rect x="42" y="28" width="14" height="10" rx="2"/>
+    <rect x="8" y="38" width="22" height="10" rx="2"/>
+    <rect x="30" y="38" width="26" height="10" rx="2"/>
+    <rect x="8" y="48" width="14" height="10" rx="2"/>
+    <rect x="22" y="48" width="34" height="10" rx="2"/>
+  </g>
+  <!-- tip jar slot at top-center: rounded rectangle in coral, with a coin half-in -->
+  <g>
+    <rect x="20" y="11" width="24" height="14" rx="4" fill="#F05A3C" stroke="#171614" stroke-width="2.4"/>
+    <!-- slot opening -->
+    <rect x="26" y="14.5" width="12" height="2.6" rx="1.3" fill="#171614"/>
+    <!-- coin dropping in -->
+    <circle cx="32" cy="8.5" r="5" fill="#F6B221" stroke="#171614" stroke-width="2"/>
+    <path d="M32 10.5 L30.2 7.6 H31.7 L30.6 5.5 L33.6 8.4 H32.1 Z" fill="#171614"/>
+  </g>
+</svg>

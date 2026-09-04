@@ -172,7 +172,7 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
         <CodeSnippet value={overlayUrl} copied={copied === 'overlay'} onCopy={() => copy('overlay', overlayUrl)} />
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-[#5f574b]">
           <span>{t('shareObs')}</span>
-          <a href={`/${handle}/overlay`} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#b9382a] underline underline-offset-4 hover:text-[#171614]">
+          <a href={`/${handle}/overlay?preview=1`} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#b9382a] underline underline-offset-4 hover:text-[#171614]">
             {t('previewOverlay')}
           </a>
         </div>

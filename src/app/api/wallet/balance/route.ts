@@ -5,10 +5,12 @@ import { withinRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
-const FALLBACK_RPC = 'https://rpc.nimiqwatch.com'
+// Keep the documented Nimiq node first, then use the community relay as a
+// secondary option. A configured URL still takes precedence over both.
+const FALLBACK_RPCS = ['https://api.nimiq.com', 'https://rpc.nimiqwatch.com']
 
 function rpcCandidates(): string[] {
-  return [process.env.NIMIQ_RPC_URL, FALLBACK_RPC]
+  return [process.env.NIMIQ_RPC_URL, ...FALLBACK_RPCS]
     .filter((value, index, values): value is string => Boolean(value) && values.indexOf(value) === index)
 }
 
@@ -27,6 +29,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'A valid Nimiq address is required' }, { status: 400 })
   }
 
+  // Keep an explicit zero as a last resort. Some relays can temporarily
+  // report zero for an account while another healthy node already has the
+  // funded state; prefer a positive result from any later candidate.
+  let confirmedZero = false
   for (const url of rpcCandidates()) {
     try {
       const response = await fetch(url, {
@@ -44,9 +50,18 @@ export async function GET(request: NextRequest) {
 
       const payload = await response.json() as { result?: unknown; error?: unknown }
       if (payload.error) continue
-      // Nodes commonly return null for an address with no account yet.
-      const balanceLuna = payload.result === null ? 0 : parseBalanceLuna(payload)
+      // A null result means this relay did not resolve the account. It is not
+      // safe to turn that into zero: a relay can return null for an unsupported
+      // method, an address/network mismatch, or a stale index. Only an
+      // explicit balance field is authoritative; otherwise try the next node.
+      if (payload.result == null) continue
+      const balanceLuna = parseBalanceLuna(payload)
       if (balanceLuna == null) continue
+
+      if (balanceLuna === 0) {
+        confirmedZero = true
+        continue
+      }
 
       return NextResponse.json(
         { address, balanceLuna, balanceNIM: balanceLuna / 100000 },
@@ -55,6 +70,13 @@ export async function GET(request: NextRequest) {
     } catch {
       // Try the next configured/public relay.
     }
+  }
+
+  if (confirmedZero) {
+    return NextResponse.json(
+      { address, balanceLuna: 0, balanceNIM: 0 },
+      { headers: { 'Cache-Control': 'no-store' } },
+    )
   }
 
   return NextResponse.json({ error: 'NIM balance is temporarily unavailable' }, { status: 503 })

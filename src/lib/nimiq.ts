@@ -38,11 +38,19 @@ export async function initNimiq() {
 }
 
 export async function getSenderAddress(): Promise<string | null> {
-  if (nimiqCache?.senderAddress) return nimiqCache.senderAddress
   try {
     const nimiq = await getNimiq()
     const accounts = await nimiq.listAccounts()
-    return Array.isArray(accounts) ? accounts[0] : null
+    // Refresh the list on every payment-related read. Nimiq Pay users can
+    // switch the selected account while the mini app remains open; returning
+    // the cached first account would then show the wrong balance and attach
+    // the wrong sender identity to the payment record.
+    if (isErrorResponse(accounts)) return null
+    const address = Array.isArray(accounts)
+      ? accounts.find(account => typeof account === 'string' && account.trim()) || null
+      : null
+    if (nimiqCache) nimiqCache.senderAddress = address
+    return address
   } catch {
     return null
   }

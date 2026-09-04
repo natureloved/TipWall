@@ -9,6 +9,7 @@ import LiveSignalCard from '@/components/LiveSignalCard'
 import RecentActivity from '@/components/RecentActivity'
 import PlatformSupportLink from '@/components/PlatformSupportLink'
 import CreateWallForm from '@/components/CreateWallForm'
+import { NIMIQ_GET_NIM_URL } from '@/lib/environment'
 
 type DemoNote = { text: string; from: string; reason: string; amount?: string; color: string; rotate: string; top: string; left: string }
 
@@ -74,7 +75,7 @@ export default function HomePage() {
         <p className="landing-lede">Tip people, projects, and communities directly in NIM, and leave the reason it mattered. A public wall of support, insight, and small moments that last.</p>
         <div className="landing-actions"><button className="landing-btn landing-btn-dark" onClick={scrollToCreate}>Make your wall <span>↗</span></button><Link className="landing-btn landing-btn-light" href="/explore">Explore walls <span>→</span></Link></div>
         <div className="landing-trust"><span>No fees, ever</span><span>Wall owners keep 100%</span><span>Tips arrive in seconds</span></div>
-        <p className="landing-nim-note">New here? <strong>NIM</strong> is Nimiq&apos;s digital cash. Send it straight to someone&apos;s wallet in seconds, no account needed. <a href="https://www.nimiq.com/get-nim/" target="_blank" rel="noopener noreferrer">Get NIM ↗</a></p>
+        <p className="landing-nim-note">New here? <strong>NIM</strong> is Nimiq&apos;s digital cash. Send it straight to someone&apos;s wallet in seconds, no account needed. <a href={NIMIQ_GET_NIM_URL} target="_blank" rel="noopener noreferrer">Get NIM ↗</a></p>
       </div>
       <AppreciationBoard onCreate={scrollToCreate} />
     </section>

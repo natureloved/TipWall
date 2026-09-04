@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TipWall — bolt pierces wall">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#FBF7EE" stroke="#171614" stroke-width="3"/>
+  <!-- wall: 3 rows of cleaner bricks, occupies lower 60% -->
+  <g fill="#E9E2D2" stroke="#171614" stroke-width="2.2" stroke-linejoin="round">
+    <rect x="8" y="34" width="14" height="9" rx="1.6"/>
+    <rect x="22" y="34" width="20" height="9" rx="1.6"/>
+    <rect x="42" y="34" width="14" height="9" rx="1.6"/>
+    <rect x="8" y="43" width="22" height="9" rx="1.6"/>
+    <rect x="30" y="43" width="14" height="9" rx="1.6"/>
+    <rect x="44" y="43" width="12" height="9" rx="1.6"/>
+    <rect x="8" y="52" width="14" height="9" rx="1.6"/>
+    <rect x="22" y="52" width="22" height="9" rx="1.6"/>
+    <rect x="44" y="52" width="12" height="9" rx="1.6"/>
+  </g>
+  <!-- gold bolt, large, tilted -6°, breaks top edge of wall -->
+  <g transform="rotate(-8 32 30)">
+    <!-- coin disc behind the bolt, only a sliver visible to anchor "money" -->
+    <path d="M48 30 a16 16 0 0 0 -32 0 v6 h32 z" fill="#F6B221" stroke="#171614" stroke-width="2.4" stroke-linejoin="round"/>
+    <!-- bolt -->
+    <path d="M36 12 L20 34 H30 L26 50 L46 26 H36 Z"
+          fill="#F6B221" stroke="#171614" stroke-width="2.6" stroke-linejoin="round"/>
+  </g>
+</svg>

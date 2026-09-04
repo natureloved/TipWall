@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TipWall — coin behind wall">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#FBF7EE" stroke="#171614" stroke-width="3"/>
+  <!-- wall: two clean courses, no taper -->
+  <g fill="#E9E2D2" stroke="#171614" stroke-width="2.2" stroke-linejoin="round">
+    <rect x="8" y="36" width="24" height="11" rx="2"/>
+    <rect x="32" y="36" width="24" height="11" rx="2"/>
+    <rect x="8" y="47" width="11" height="11" rx="2"/>
+    <rect x="19" y="47" width="26" height="11" rx="2"/>
+    <rect x="45" y="47" width="11" height="11" rx="2"/>
+  </g>
+  <!-- coin half behind wall, tip (lightning bolt) on the face -->
+  <g>
+    <circle cx="32" cy="28" r="14" fill="#F6B221" stroke="#171614" stroke-width="2.6"/>
+    <!-- lightning bolt, single closed path, fat enough to read at 16px -->
+    <path d="M33.5 19.5 L26 30 H31 L28.5 36.5 L38 25.5 H33 Z"
+          fill="#171614" stroke="#171614" stroke-width="1.2" stroke-linejoin="round"/>
+  </g>
+</svg>

@@ -9,11 +9,10 @@ import { init } from '@nimiq/mini-app-sdk'
 
 export const NIMIQ_PAY_IOS_URL = 'https://apps.apple.com/app/nimiq-pay/id6471844738'
 export const NIMIQ_PAY_ANDROID_URL = 'https://play.google.com/store/apps/details?id=com.nimiq.pay'
-export const NIMIQ_PAY_LANDING_URL = 'https://nimiq.com/nimiq-pay/'
-// Nimiq's newcomer page covers wallet setup and the available ways to acquire
-// NIM. Keep this as a single constant so every onboarding surface points to the
-// same, maintained entry point.
-export const NIMIQ_GET_NIM_URL = 'https://www.nimiq.com/get-nim/'
+export const NIMIQ_PAY_LANDING_URL = 'https://www.nimiq.com/nimiq-pay'
+// Keep acquisition links separate from wallet-install links: someone who
+// already has a wallet should land directly on Nimiq's buy-and-sell options.
+export const NIMIQ_GET_NIM_URL = 'https://www.nimiq.com/buy-and-sell'
 
 /**
  * Optional external funding destination for TipWall maintenance. It is

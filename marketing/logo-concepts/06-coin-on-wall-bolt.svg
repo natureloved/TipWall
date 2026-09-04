@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TipWall — bolt breaks the wall">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#FBF7EE" stroke="#171614" stroke-width="3"/>
+  <!-- a single, calm wall course at the bottom -->
+  <g fill="#E9E2D2" stroke="#171614" stroke-width="2.2" stroke-linejoin="round">
+    <rect x="8" y="46" width="22" height="12" rx="2"/>
+    <rect x="30" y="46" width="26" height="12" rx="2"/>
+  </g>
+  <!-- coin resting on the wall, tilted, lightning bolt inscribed, NO tape -->
+  <g transform="rotate(-8 32 26)">
+    <circle cx="32" cy="26" r="14" fill="#F6B221" stroke="#171614" stroke-width="2.6"/>
+    <!-- lightning bolt, slightly offset so it reads as a mark, not a hole -->
+    <path d="M34 16 L24 28 H30 L28 36 L40 24 H33.5 Z"
+          fill="#171614" stroke="#171614" stroke-width="1" stroke-linejoin="round"/>
+    <!-- coin bottom resting on wall: a tiny ink shadow line at the contact point -->
+  </g>
+  <!-- contact shadow under the coin -->
+  <ellipse cx="32" cy="48.5" rx="11" ry="1.6" fill="#171614" opacity="0.18"/>
+</svg>

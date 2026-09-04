@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="TipWall — T monogram in a brick">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#FBF7EE" stroke="#171614" stroke-width="3"/>
+  <!-- wall of bricks, full bleed -->
+  <g fill="#E9E2D2" stroke="#171614" stroke-width="2">
+    <rect x="6" y="22" width="20" height="12" rx="2"/>
+    <rect x="26" y="22" width="20" height="12" rx="2"/>
+    <rect x="46" y="22" width="12" height="12" rx="2"/>
+    <rect x="6" y="34" width="12" height="12" rx="2"/>
+    <rect x="18" y="34" width="28" height="12" rx="2"/>
+    <rect x="46" y="34" width="12" height="12" rx="2"/>
+    <rect x="6" y="46" width="20" height="12" rx="2"/>
+    <rect x="26" y="46" width="20" height="12" rx="2"/>
+    <rect x="46" y="46" width="12" height="12" rx="2"/>
+  </g>
+  <!-- ONE brick in the middle is the gold "tip" brick - it's the TipWall -->
+  <g>
+    <rect x="18" y="34" width="28" height="12" rx="2" fill="#F6B221" stroke="#171614" stroke-width="2.2"/>
+    <!-- T monogram in the gold brick -->
+    <path d="M22 39 H42 V42.5 H34 V51 H30 V42.5 H22 Z" fill="#171614"/>
+  </g>
+</svg>

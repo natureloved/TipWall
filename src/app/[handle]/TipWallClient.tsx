@@ -21,6 +21,7 @@ import { getNimiq, getSenderAddress } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { timeAgo } from '@/lib/time'
 import { useTranslations } from '@/lib/i18n'
+import { usdtPaymentsConfigured } from '@/lib/usdt'
 
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: CreatorProfile }) {
   const profile = initialProfile
@@ -45,6 +46,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [manageOpen, setManageOpen] = useState(false)
   const [weeklyRank, setWeeklyRank] = useState<number | null>(null)
   const t = useTranslations()
+  const usdtEnabled = usdtPaymentsConfigured(profile.usdtPolygonAddress)
 
   const loadTips = useCallback(() => {
     setTipsLoadError(false)
@@ -208,7 +210,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 <a href={`/${handle}/dashboard`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">📊 Dashboard</a>
                 <a href={`/${handle}/analytics`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">📈 Analytics</a>
                 <a href={`/${handle}/edit`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">✏️ Edit wall</a>
-                <a href={`/${handle}/overlay`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">🎥 Stream overlay</a>
+                <a href={`/${handle}/overlay?preview=1`} className="px-4 py-2 rounded-xl text-sm font-semibold text-white hover:bg-white/10 transition-colors">🎥 Stream overlay</a>
               </div>
             )}
             <button
@@ -284,7 +286,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 >
                   <span className="absolute inset-0 translate-x-[-100%] bg-gradient-to-r from-white/0 to-white/30 transition-transform duration-500 group-hover:translate-x-[100%]" />
                   <span className="text-xl">💸</span>
-                  {t('sendTip')}
+                  <span className="flex flex-col items-center leading-tight">
+                    <span>{t('sendTip')}</span>
+                    {usdtEnabled && <span className="mt-0.5 text-[11px] font-semibold opacity-75">NIM · {t('payWithUsdt')}</span>}
+                  </span>
                 </button>
 
                 <div className="flex items-center justify-center gap-3 text-sm text-slate-400 animate-slide-up" style={{animationDelay: '0.32s'}}>
@@ -331,7 +336,10 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                 className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg rounded-2xl font-bold text-slate-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl"
               >
                 <span className="text-xl">💸</span>
-                {t('sendTip')}
+                <span className="flex flex-col items-center leading-tight">
+                  <span>{t('sendTip')}</span>
+                  {usdtEnabled && <span className="mt-0.5 text-[11px] font-semibold opacity-75">NIM · {t('payWithUsdt')}</span>}
+                </span>
               </button>
             </div>
           ) : (
@@ -397,7 +405,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
       </div>
 
       <div className="creator-sticky-tip sticky-tip-cta fixed bottom-0 inset-x-0 z-20 px-4 pt-3 backdrop-blur border-t sm:hidden">
-        <button onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }} className="w-full rounded-2xl bg-amber-400 py-3.5 font-bold text-slate-900 shadow-xl">💸 Send a tip + feedback</button>
+        <button onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }} className="w-full rounded-2xl bg-amber-400 py-3.5 font-bold text-slate-900 shadow-xl">
+          <span className="flex flex-col items-center leading-tight">
+            <span>💸 Send a tip + feedback</span>
+            {usdtEnabled && <span className="mt-0.5 text-[11px] font-semibold opacity-75">NIM · {t('payWithUsdt')}</span>}
+          </span>
+        </button>
       </div>
 
       {showTipModal && (

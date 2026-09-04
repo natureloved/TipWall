@@ -1,10 +1,12 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { TIP_REASON_LABELS, type TipReason } from '@/lib/types'
+import { TIP_REASON_LABELS, type TipAsset, type TipReason } from '@/lib/types'
 
 type LiveTip = {
   id: string
   amountNIM: number
+  asset?: TipAsset
+  amountUSDT?: number
   message?: string
   reason?: TipReason
   senderName?: string
@@ -19,12 +21,27 @@ const ALERT_MS = 8000
  * OBS browser-source overlay: transparent page that pops an animated sticky
  * note whenever a new tip lands. Add as a Browser Source (1920x1080) in OBS.
  */
-export default function OverlayClient({ handle }: { handle: string }) {
+export default function OverlayClient({ handle, preview = false }: { handle: string; preview?: boolean }) {
   const [queue, setQueue] = useState<LiveTip[]>([])
   const lastHead = useRef<string | null>(null)
   const initialized = useRef(false)
   const alertId = queue[0]?.id
-  const alert = queue[0] || null
+  // A regular OBS source stays empty between alerts. The preview route needs a
+  // deterministic sample so opening the creator link in a browser is useful.
+  const previewAlert: LiveTip = {
+    id: 'preview-alert',
+    amountNIM: 100,
+    message: 'A new verified tip will appear here while you stream.',
+    reason: 'helpful_content',
+    senderName: 'Preview supporter',
+    anonymous: false,
+    timestamp: 0,
+  }
+  const alert = queue[0] || (preview ? previewAlert : null)
+  const showingPreviewSample = preview && !queue[0]
+  const amountLabel = alert
+    ? alert.asset === 'USDT' ? `${alert.amountUSDT ?? 0} USDT` : `${alert.amountNIM} NIM`
+    : ''
 
   // Play one alert at a time so a burst of tips remains legible on stream.
   useEffect(() => {
@@ -71,13 +88,13 @@ export default function OverlayClient({ handle }: { handle: string }) {
       <style>{'html,body{background:transparent !important}'}</style>
       <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-live="polite">
         {alert && (
-          <div key={`${alert.id}-${alert.timestamp}`} className="overlay-note absolute left-10 bottom-10 w-[380px] max-w-[80vw]">
+          <div key={`${alert.id}-${alert.timestamp}`} className={`${showingPreviewSample ? '' : 'overlay-note'} absolute left-10 bottom-10 w-[380px] max-w-[80vw]`}>
             <div className="tip-note-card !p-5">
               <div className="flex items-baseline justify-between gap-3">
                 <span className="truncate text-base font-bold text-[#171614]">
                   {alert.anonymous ? '️ Anonymous' : alert.senderName || 'A supporter'}
                 </span>
-                <span className="shrink-0 text-xl font-black text-[#171614]">{alert.amountNIM} NIM</span>
+                <span className="shrink-0 text-xl font-black text-[#171614]">{amountLabel}</span>
               </div>
               {alert.reason && (
                 <p className="mt-1 text-xs font-semibold text-[#5f574b]">

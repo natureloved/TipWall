@@ -9,9 +9,13 @@ export const metadata = {
   robots: { index: false, follow: false },
 }
 
-export default async function OverlayPage({ params }: { params: Promise<{ handle: string }> }) {
+export default async function OverlayPage({ params, searchParams }: {
+  params: Promise<{ handle: string }>
+  searchParams: Promise<{ preview?: string }>
+}) {
   const { handle } = await params
+  const { preview } = await searchParams
   const profile = await getProfile(handle)
   if (!profile) notFound()
-  return <OverlayClient handle={handle} />
+  return <OverlayClient handle={handle} preview={preview === '1'} />
 }

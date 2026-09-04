@@ -52,6 +52,22 @@ Optional deployment setting:
 - `NEXT_PUBLIC_SUPPORT_URL` — optional HTTPS/HTTP sponsor or maintenance-funding link. It is shown separately from wall tips and never changes the 0% fee.
 - `NEXT_PUBLIC_USDT_POLYGON_TOKEN_ADDRESS` — public copy of the Polygon USDT contract address. When set together with `POLYGON_RPC_URL` and a wall owner's Polygon payout address, supporters can pay in USDT from an EVM wallet or QR code.
 
+NIM and USDT use different networks here: NIM is sent to the creator's `NQ…`
+Nimiq address through Nimiq Pay, while USDT is sent to the optional `0x…`
+Polygon address through an EVM-compatible wallet. The USDT address can be any
+wallet the creator controls; a Nimiq-only address cannot receive Polygon USDT.
+To diagnose deployment configuration without exposing secrets, open
+`/api/health` and check that `polygonRpcConfigured`,
+`usdtServerTokenConfigured`, and `usdtPublicTokenConfigured` are all `true`.
+
+### Stream overlay
+
+Use `https://<your-app>/<handle>/overlay` as an OBS Browser Source at 1920x1080.
+It is intentionally transparent and shows only newly verified tips, so a clean
+browser tab can look empty between alerts. The creator links open
+`/overlay?preview=1`, which shows a sample alert for visual testing; do not use
+the preview query in OBS.
+
 When `next dev` cannot reach the configured Upstash endpoint because of a local network or sandbox restriction, TipWall automatically switches to a shared in-memory KV store after the first transport failure. This keeps local UI and API flows usable; local data is cleared when the dev server restarts, and production never uses this fallback.
 
 3. Run development server:

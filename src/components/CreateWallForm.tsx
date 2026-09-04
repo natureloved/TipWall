@@ -7,8 +7,7 @@ import Image from 'next/image'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle, nimiqAddressError } from '@/lib/profile-auth'
 import { CREATOR_CATEGORIES, type CreatorCategory } from '@/lib/types'
-import { buildNimiqPayDeepLink, detectNimiqPay, isMobileDevice } from '@/lib/environment'
-import { NIMIQ_GET_NIM_URL } from '@/lib/environment'
+import { buildNimiqPayDeepLink, detectNimiqPay, isMobileDevice, NIMIQ_PAY_LANDING_URL } from '@/lib/environment'
 
 type Step = 1 | 2 | 3
 
@@ -173,7 +172,7 @@ export default function CreateWallForm() {
             <div className="create-handoff">
               <p>Wallet signatures happen inside Nimiq Pay. Open this page there, then come back to step 2.</p>
               {isMobileDevice() ? <a href={deepLink} className="landing-btn landing-btn-dark landing-submit">Open in Nimiq Pay <span>↗</span></a> : <>{handoffQr && <Image src={handoffQr} alt="Scan to open TipWall in Nimiq Pay" width={220} height={220} unoptimized />}<p className="create-step-help">Scan this code with your phone to continue in Nimiq Pay.</p></>}
-              <a href={NIMIQ_GET_NIM_URL} target="_blank" rel="noopener noreferrer" className="create-inline-link">New to NIM? Get a wallet first</a>
+              <a href={NIMIQ_PAY_LANDING_URL} target="_blank" rel="noopener noreferrer" className="create-inline-link">New to NIM? Get a wallet first</a>
             </div>
           ) : (
             <button type="button" className="landing-wallet-btn" onClick={connectOwnerWallet} disabled={connecting || inNimiqPay === null}>{inNimiqPay === null ? 'Checking wallet...' : connecting ? 'Connecting...' : 'Connect Nimiq Wallet'}</button>
