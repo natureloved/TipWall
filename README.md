@@ -52,6 +52,8 @@ Optional deployment setting:
 - `NEXT_PUBLIC_SUPPORT_URL` — optional HTTPS/HTTP sponsor or maintenance-funding link. It is shown separately from wall tips and never changes the 0% fee.
 - `NEXT_PUBLIC_USDT_POLYGON_TOKEN_ADDRESS` — public copy of the Polygon USDT contract address. When set together with `POLYGON_RPC_URL` and a wall owner's Polygon payout address, supporters can pay in USDT from an EVM wallet or QR code.
 
+When `next dev` cannot reach the configured Upstash endpoint because of a local network or sandbox restriction, TipWall automatically switches to a shared in-memory KV store after the first transport failure. This keeps local UI and API flows usable; local data is cleared when the dev server restarts, and production never uses this fallback.
+
 3. Run development server:
 ```bash
 npm run dev

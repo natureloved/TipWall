@@ -10,15 +10,17 @@ import { NEW_WALL_GRACE_MS } from './explore'
 import { logError } from './logger'
 import { LocalKv } from './local-kv'
 
-const localKv = new LocalKv()
-const localFallbackEnabled = process.env.NODE_ENV === 'development' || process.env.TIPWALL_LOCAL_KV_FALLBACK === '1'
+type TipWallRuntime = typeof globalThis & { __tipwallLocalKv?: LocalKv }
+const runtime = globalThis as TipWallRuntime
+const localKv = runtime.__tipwallLocalKv ?? (runtime.__tipwallLocalKv = new LocalKv())
+const localFallbackEnabled = process.env.NODE_ENV === 'development'
 let remoteKvUnavailable = false
 let fallbackReported = false
-type LocalKvMethod = (...args: unknown[]) => unknown
+type LocalKvMethod = (this: LocalKv, ...args: unknown[]) => unknown
 
 function invokeLocalKv(method: PropertyKey, args: unknown[]): unknown {
   const localMethod = (localKv as unknown as Record<string, LocalKvMethod>)[String(method)]
-  return localMethod(...args)
+  return localMethod.apply(localKv, args)
 }
 
 function isTransportError(error: unknown): boolean {

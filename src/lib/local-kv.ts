@@ -72,7 +72,7 @@ export class LocalKv {
 
   async lpush(key: string, ...items: unknown[]): Promise<number> {
     const list = this.value<unknown[]>(key) || []
-    for (const item of items.reverse()) list.unshift(item)
+    for (const item of items) list.unshift(item)
     this.values.set(key, list)
     return list.length
   }
