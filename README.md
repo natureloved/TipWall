@@ -139,7 +139,7 @@ check it matches `profile.walletAddress` (and `ownerPublicKey` when present).
 
 ## Deploy
 
-Deploy to Vercel with the KV integration for persistent storage. Set `CRON_SECRET` so the configured five-minute Vercel Cron can reconcile pending tips through `/api/cron/reverify`.
+Deploy to Vercel with the KV integration for persistent storage. Set `CRON_SECRET` so the configured daily Vercel Cron can reconcile pending tips through `/api/cron/reverify`. The daily schedule is compatible with Vercel Hobby; upgrade to Pro or use an external scheduler if pending tips need reconciliation every few minutes.
 
 ### Monitoring
 
