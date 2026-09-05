@@ -477,7 +477,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         <div className="tip-modal-footer sticky bottom-0 -mx-6 -mb-6 px-6 pt-4 pb-6">
           <button
             onClick={handleSendTip}
-            disabled={loading || !finalAmount || insufficientFunds}
+            disabled={loading || !finalAmount}
             className="w-full transform rounded-xl bg-[#171614] py-3.5 text-sm font-bold text-[#fffdf7] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#171614]"
           >
             {loading

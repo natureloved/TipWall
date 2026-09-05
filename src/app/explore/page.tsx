@@ -351,11 +351,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       className="surface explore-card block rounded-2xl hover:border-amber-400/50 p-5"
                       style={{ animationDelay: `${220 + Math.min(i, 8) * 65}ms` }}
                     >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <WallAvatar profile={profile} size="h-9 w-9" />
-                        <p className="font-bold text-amber-300 truncate">
-                          {profile.displayName || `@${profile.handle}`}
-                        </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <WallAvatar profile={profile} size="h-9 w-9" />
+                          <p className="min-w-0 truncate font-bold text-amber-300">
+                            {profile.displayName || `@${profile.handle}`}
+                          </p>
+                        </div>
                         {totalNIM > 0 ? (
                           <p className="shrink-0 text-xs font-semibold text-emerald-400">
                             {Math.round(totalNIM).toLocaleString()} NIM
@@ -400,11 +402,13 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       className="surface explore-card block rounded-2xl hover:border-emerald-400/50 p-5"
                       style={{ animationDelay: `${250 + i * 65}ms` }}
                     >
-                      <div className="flex items-baseline justify-between gap-3">
-                        <WallAvatar profile={profile} size="h-9 w-9" />
-                        <p className="font-bold text-amber-300 truncate">
-                          {profile.displayName || `@${profile.handle}`}
-                        </p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <WallAvatar profile={profile} size="h-9 w-9" />
+                          <p className="min-w-0 truncate font-bold text-amber-300">
+                            {profile.displayName || `@${profile.handle}`}
+                          </p>
+                        </div>
                         <p className="shrink-0 text-xs font-semibold text-emerald-400">New</p>
                       </div>
                       <p className="text-xs text-slate-500 mt-0.5">@{profile.handle}</p>
@@ -430,10 +434,12 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       style={{ animationDelay: `${180 + Math.min(i, 8) * 65}ms` }}
                     >
                       <div className="flex items-center justify-between gap-3">
-                        <WallAvatar profile={profile} size="h-9 w-9" />
-                        <p className="min-w-0 font-bold text-amber-300 truncate">
-                          {profile.displayName || `@${profile.handle}`}
-                        </p>
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <WallAvatar profile={profile} size="h-9 w-9" />
+                          <p className="min-w-0 truncate font-bold text-amber-300">
+                            {profile.displayName || `@${profile.handle}`}
+                          </p>
+                        </div>
                         {isNew ? (
                           <span className="flex-none text-[10px] font-bold uppercase tracking-wide text-emerald-300 bg-emerald-400/15 border border-emerald-400/30 rounded-full px-1.5 py-0.5">New</span>
                         ) : (

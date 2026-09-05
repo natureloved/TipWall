@@ -4,7 +4,7 @@ import { type ClaimIntent, type CreatorProfile } from '@/lib/types'
 import TipModal from '@/components/TipModal'
 import InstallNimiqPrompt from '@/components/InstallNimiqPrompt'
 import { detectNimiqPay, wallUrl, isMobileDevice } from '@/lib/environment'
-import { getSenderAddress } from '@/lib/nimiq'
+import { getSenderAddresses } from '@/lib/nimiq'
 
 /**
  * Resume a preserved tip from any device. Opened via a claim link, this page
@@ -41,14 +41,23 @@ export default function ClaimClient({ claim, profile }: { claim: ClaimIntent; pr
       if (cancelled) return
       setWalletBalanceLoading(true)
       try {
-        const address = await getSenderAddress()
-        if (!address) {
+        const addresses = await getSenderAddresses()
+        if (addresses.length === 0) {
           if (!cancelled) setWalletBalanceNim(null)
           return
         }
-        const response = await fetch(`/api/wallet/balance?address=${encodeURIComponent(address)}`)
-        const data = response.ok ? await response.json() as { balanceNIM?: number } : null
-        if (!cancelled) setWalletBalanceNim(data && typeof data.balanceNIM === 'number' ? data.balanceNIM : null)
+        const balances = await Promise.all(addresses.map(async address => {
+          try {
+            const response = await fetch(`/api/wallet/balance?address=${encodeURIComponent(address)}`, { cache: 'no-store' })
+            if (!response.ok) return null
+            const data = await response.json() as { balanceNIM?: number }
+            return typeof data.balanceNIM === 'number' ? data.balanceNIM : null
+          } catch {
+            return null
+          }
+        }))
+        const available = balances.filter((balance): balance is number => typeof balance === 'number')
+        if (!cancelled) setWalletBalanceNim(available.length ? Math.max(...available) : null)
       } catch {
         if (!cancelled) setWalletBalanceNim(null)
       } finally {

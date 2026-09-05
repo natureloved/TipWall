@@ -7,7 +7,13 @@ export default async function EditProfilePage({ params }: { params: Promise<{ ha
   const profile = await getProfile(handle)
   if (!profile) notFound()
   // Never ship secrets to the client; the public profile fields are fine.
-  return <EditProfileClient handle={profile.handle} profile={stripSensitiveProfileFields(profile)} />
+  return (
+    <EditProfileClient
+      handle={profile.handle}
+      profile={stripSensitiveProfileFields(profile)}
+      hasNotifyTelegram={Boolean(profile.notifyTelegram)}
+    />
+  )
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ handle: string }> }) {

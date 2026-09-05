@@ -227,6 +227,19 @@ describe('wallet balance route', () => {
     await expect(response.json()).resolves.toMatchObject({ error: 'NIM balance is temporarily unavailable' })
   })
 
+  it('uses the account explorer when RPC relays cannot resolve a funded account', async () => {
+    vi.stubEnv('NIMIQ_RPC_URL', 'https://rpc.test')
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => ({
+      ok: true,
+      json: async () => String(input).includes('/api/v1/account/')
+        ? { balance: 750000 }
+        : { result: null },
+    })))
+    const response = await getWalletBalance(new NextRequest(`https://tipwall.test/api/wallet/balance?address=${encodeURIComponent(PROFILE.walletAddress)}`))
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({ balanceLuna: 750000, balanceNIM: 7.5 })
+  })
+
   it('rejects malformed addresses before contacting an upstream', async () => {
     const response = await getWalletBalance(new NextRequest('https://tipwall.test/api/wallet/balance?address=NQ00'))
     expect(response.status).toBe(400)

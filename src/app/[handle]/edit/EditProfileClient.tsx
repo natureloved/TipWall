@@ -19,7 +19,7 @@ const THEME_SWATCHES: { id: WallTheme; label: string; paper: string; accent: str
   { id: 'sun', label: 'Sun', paper: '#f8ecd7', accent: '#e0862f' },
 ]
 
-export default function EditProfileClient({ handle, profile }: { handle: string; profile: CreatorProfile }) {
+export default function EditProfileClient({ handle, profile, hasNotifyTelegram = false }: { handle: string; profile: CreatorProfile; hasNotifyTelegram?: boolean }) {
   const t = useTranslations()
   const [wallet, setWallet] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -249,6 +249,11 @@ export default function EditProfileClient({ handle, profile }: { handle: string;
           </div>
           <div>
             <label className={labelClass}>{t('editTelegram')}</label>
+            {hasNotifyTelegram && !notifyTelegram && !notifyClear && (
+              <p className="mb-2 rounded-lg border border-[#9ab6a2] bg-[#edf5ee] px-3 py-2 text-xs font-semibold text-[#315c3e]" role="status">
+                {t('editWebhookSaved')}
+              </p>
+            )}
             <input
               value={notifyTelegram}
               onChange={e => setNotifyTelegram(e.target.value)}

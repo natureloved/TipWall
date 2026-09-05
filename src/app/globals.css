@@ -257,7 +257,8 @@ input::placeholder, textarea::placeholder { color: var(--tw-muted); opacity:1; }
 .tip-reply-note { background:#fffdf7; border:1px dashed rgba(23,22,20,.45); color:var(--tw-ink-soft); }
 .overlay-note { animation:overlay-note-life 8s ease forwards; }
 @keyframes overlay-note-life { 0% { opacity:0; transform:translateY(24px) rotate(-4deg) scale(.9); } 6% { opacity:1; transform:translateY(0) rotate(-1deg) scale(1); } 88% { opacity:1; } 100% { opacity:0; transform:translateY(-12px) rotate(1deg); } }
-.creator-sticky-tip { background:rgba(244,240,230,.96); border-color:rgba(23,22,20,.25); }
+.creator-sticky-tip { background:color-mix(in srgb, var(--tw-paper) 96%, transparent); border-color:color-mix(in srgb, var(--tw-ink) 25%, transparent); }
+.tw-wall .creator-sticky-tip button { background:var(--tw-coral) !important; color:var(--tw-ink) !important; }
 .tip-modal-sheet { background:#fffaf0 !important; color:var(--tw-ink) !important; border-color:var(--tw-coral) !important; }
 .tip-modal-sheet { width:min(100%,760px) !important; overscroll-behavior:contain; scrollbar-gutter:stable; }
 .tip-modal-sheet > * { position:relative; z-index:1; }

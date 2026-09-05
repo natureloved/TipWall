@@ -89,6 +89,7 @@ const TRANSLATIONS: Record<Locale, Record<string, string>> = {
     suppTipOne: '{n} tip',
     suppTipMany: '{n} tips',
     editBio: 'Bio',
+    editWebhookSaved: 'A Telegram alert webhook is already saved. Enter a new one to replace it, or remove it below.',
     editContentLink: 'Content link',
     editWorkingOn: 'Currently working on',
     editGoalLabel: 'Goal label',

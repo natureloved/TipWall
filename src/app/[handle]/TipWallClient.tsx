@@ -17,7 +17,7 @@ import FirstVisitIntro from '@/components/FirstVisitIntro'
 import { detectNimiqPay } from '@/lib/environment'
 import { loadPendingTipIntent, clearPendingTipIntent } from '@/lib/tip-intent'
 import { track } from '@/lib/analytics'
-import { getNimiq, getSenderAddress } from '@/lib/nimiq'
+import { getNimiq, getSenderAddresses } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { timeAgo } from '@/lib/time'
 import { useTranslations } from '@/lib/i18n'
@@ -125,14 +125,26 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
       if (cancelled) return
       setWalletBalanceLoading(true)
       try {
-        const address = await getSenderAddress()
-        if (!address) {
+        const addresses = await getSenderAddresses()
+        if (addresses.length === 0) {
           if (!cancelled) setWalletBalanceNim(null)
           return
         }
-        const response = await fetch(`/api/wallet/balance?address=${encodeURIComponent(address)}`)
-        const data = response.ok ? await response.json() as { balanceNIM?: number } : null
-        if (!cancelled) setWalletBalanceNim(data && typeof data.balanceNIM === 'number' ? data.balanceNIM : null)
+        // A wallet can expose more than one account. Show the available
+        // balance across those accounts so a zero-balance first account does
+        // not hide funds in the account the wallet will use for the payment.
+        const balances = await Promise.all(addresses.map(async address => {
+          try {
+            const response = await fetch(`/api/wallet/balance?address=${encodeURIComponent(address)}`, { cache: 'no-store' })
+            if (!response.ok) return null
+            const data = await response.json() as { balanceNIM?: number }
+            return typeof data.balanceNIM === 'number' ? data.balanceNIM : null
+          } catch {
+            return null
+          }
+        }))
+        const available = balances.filter((balance): balance is number => typeof balance === 'number')
+        if (!cancelled) setWalletBalanceNim(available.length ? Math.max(...available) : null)
       } catch {
         if (!cancelled) setWalletBalanceNim(null)
       } finally {
@@ -402,15 +414,15 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             )}
           </p>
         </div>
-      </div>
 
-      <div className="creator-sticky-tip sticky-tip-cta fixed bottom-0 inset-x-0 z-20 px-4 pt-3 backdrop-blur border-t sm:hidden">
-        <button onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }} className="w-full rounded-2xl bg-amber-400 py-3.5 font-bold text-slate-900 shadow-xl">
-          <span className="flex flex-col items-center leading-tight">
-            <span>💸 Send a tip + feedback</span>
-            {usdtEnabled && <span className="mt-0.5 text-[11px] font-semibold opacity-75">NIM · {t('payWithUsdt')}</span>}
-          </span>
-        </button>
+        <div className="creator-sticky-tip sticky-tip-cta fixed bottom-0 inset-x-0 z-20 px-4 pt-3 backdrop-blur border-t sm:hidden">
+          <button onClick={() => { track(handle, 'TIP_BUTTON_CLICKED'); setShowTipModal(true) }} className="w-full rounded-2xl bg-amber-400 py-3.5 font-bold text-slate-900 shadow-xl">
+            <span className="flex flex-col items-center leading-tight">
+              <span>💸 Send a tip + feedback</span>
+              {usdtEnabled && <span className="mt-0.5 text-[11px] font-semibold opacity-75">NIM · {t('payWithUsdt')}</span>}
+            </span>
+          </button>
+        </div>
       </div>
 
       {showTipModal && (

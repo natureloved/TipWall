@@ -10,6 +10,50 @@ import {
 let nimiqInstance: ReturnType<typeof init> | null = null
 let nimiqCache: { senderAddress: string | null; deviceId: string | null } | null = null
 
+/** Normalize account responses from the injected provider without trusting a
+ * provider-specific wrapper shape. The SDK currently returns string[], but a
+ * few host versions wrap it in { accounts } or { result }. */
+export function extractAccountAddresses(value: unknown): string[] {
+  const found: string[] = []
+  const seen = new Set<object>()
+  const visit = (current: unknown) => {
+    if (typeof current === 'string') {
+      const address = current.trim()
+      if (address && !found.includes(address)) found.push(address)
+      return
+    }
+    if (!current || typeof current !== 'object' || seen.has(current)) return
+    seen.add(current)
+    if (Array.isArray(current)) {
+      current.forEach(visit)
+      return
+    }
+    const record = current as Record<string, unknown>
+    for (const key of ['accounts', 'result', 'data']) {
+      if (record[key] !== undefined) visit(record[key])
+    }
+  }
+  visit(value)
+  return found
+}
+
+function isSerializedTransaction(value: string): boolean {
+  return /^(?:0x)?[0-9a-f]{200,}$/i.test(value)
+}
+
+async function broadcastSerializedTransaction(serializedTx: string): Promise<string> {
+  const response = await fetch('/api/broadcast', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ serializedTx: serializedTx.replace(/^0x/i, '') }),
+  })
+  const data = await response.json().catch(() => ({})) as { hash?: unknown; error?: unknown }
+  if (!response.ok || typeof data.hash !== 'string' || !data.hash) {
+    throw new Error(typeof data.error === 'string' ? data.error : 'Could not broadcast the transaction. Please try again.')
+  }
+  return data.hash
+}
+
 // Export a cached singleton - critical for Mini App context detection
 export function getNimiq() {
   if (!nimiqInstance) {
@@ -23,7 +67,7 @@ export async function initNimiq() {
   try {
     const nimiq = await getNimiq()
     const accounts = await nimiq.listAccounts()
-    const senderAddress = Array.isArray(accounts) ? accounts[0] : null
+    const senderAddress = extractAccountAddresses(accounts)[0] || null
     let deviceId: string | null = null
     try {
       const id = await requestDeviceIdentifier({ reason: 'Prevent tip spam and rate limiting' })
@@ -37,7 +81,7 @@ export async function initNimiq() {
   }
 }
 
-export async function getSenderAddress(): Promise<string | null> {
+export async function getSenderAddresses(): Promise<string[]> {
   try {
     const nimiq = await getNimiq()
     const accounts = await nimiq.listAccounts()
@@ -45,15 +89,17 @@ export async function getSenderAddress(): Promise<string | null> {
     // switch the selected account while the mini app remains open; returning
     // the cached first account would then show the wrong balance and attach
     // the wrong sender identity to the payment record.
-    if (isErrorResponse(accounts)) return null
-    const address = Array.isArray(accounts)
-      ? accounts.find(account => typeof account === 'string' && account.trim()) || null
-      : null
-    if (nimiqCache) nimiqCache.senderAddress = address
-    return address
+    if (isErrorResponse(accounts)) return []
+    const addresses = extractAccountAddresses(accounts)
+    if (nimiqCache) nimiqCache.senderAddress = addresses[0] || null
+    return addresses
   } catch {
-    return null
+    return []
   }
+}
+
+export async function getSenderAddress(): Promise<string | null> {
+  return (await getSenderAddresses())[0] || null
 }
 
 /** Helper to read either { error } responses or plain values from the SDK. */
@@ -76,7 +122,7 @@ export async function connectWallet(): Promise<string> {
   if (isErrorResponse(accounts)) {
     throw new Error(accounts.error?.message || 'Could not list wallet accounts.')
   }
-  const address = Array.isArray(accounts) ? accounts[0] : null
+  const address = extractAccountAddresses(accounts)[0] || null
   if (!address) throw new Error('No Nimiq account found in the wallet.')
   if (nimiqCache) nimiqCache.senderAddress = address
   return address
@@ -156,7 +202,22 @@ export async function sendNimTip(params: {
     if (isErrorResponse(result)) {
       return { txHash: null, error: result.error?.message || 'Transaction failed' }
     }
-    return { txHash: result as string }
+    if (typeof result === 'string') {
+      // The Mini App SDK returns a serialized transaction. Older hosts may
+      // return an already-broadcast hash, so support both contracts.
+      const txHash = isSerializedTransaction(result)
+        ? await broadcastSerializedTransaction(result)
+        : result
+      return { txHash }
+    }
+    if (result && typeof result === 'object') {
+      const returned = result as Record<string, unknown>
+      if (typeof returned.hash === 'string' && returned.hash) return { txHash: returned.hash }
+      if (typeof returned.serializedTx === 'string' && returned.serializedTx) {
+        return { txHash: await broadcastSerializedTransaction(returned.serializedTx) }
+      }
+    }
+    return { txHash: null, error: 'Wallet did not return a transaction.' }
   } catch (err) {
     return { txHash: null, error: err instanceof Error ? err.message : 'Payment failed' }
   }
