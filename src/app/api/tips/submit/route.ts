@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getProfile, getTips, recordTipAtomically, addMilestone, markClaimClaimed, getClaim, trackEvent, checkRateLimit, getVerifiedTotalNim, initializeVerifiedTotal, addVerifiedNim, touchActivity } from '@/lib/kv'
+import { getProfile, getTips, recordTipAtomically, addMilestone, markClaimClaimed, getClaim, trackEvent, checkRateLimit, getVerifiedTotalNim, initializeVerifiedTotal, addVerifiedNim, touchActivity, claimTipTelegramNotification, markTipTelegramNotified, releaseTipTelegramNotification } from '@/lib/kv'
 import { Tip, MilestoneEvent, getGoalMilestones } from '@/lib/types'
 import { checkMilestone } from '@/lib/milestones'
 import { verifyTxDetails } from '@/lib/verify-tx'
 import { verifyUsdtTxDetails } from '@/lib/verify-usdt'
 import { getClientIp } from '@/lib/request'
 import { logError } from '@/lib/logger'
+import { sendTelegramTipNotification } from '@/lib/telegram'
 
 const MAX_TIPS_PER_WINDOW = 5
 const MAX_TIP_NIM = 100_000_000
@@ -64,20 +65,21 @@ export async function POST(req: NextRequest) {
     }
     if (!await recordTipAtomically(handle, txHash, tip)) return NextResponse.json({ error: 'tip already recorded for this transaction' }, { status: 409 })
     await touchActivity(handle)
-    // Owner opt-in notification. Fire-and-forget: a slow or dead webhook must
-    // never delay or fail the tip response.
+    // Owner opt-in notification. Await the outbound request so serverless
+    // runtimes cannot terminate before Telegram receives it. A notification
+    // failure never rolls back an already-recorded payment.
     if (verified && profile.notifyTelegram) {
-      const webhook = profile.notifyTelegram
-      const who = tip.anonymous ? 'Someone' : tip.senderName || 'A supporter'
-      const text = `💸 ${who} tipped you ${asset === 'USDT' ? `${amountUSDT} USDT` : `${amountNIM} NIM`}${tip.message ? ` — “${tip.message}”` : ''}`
-      Promise.resolve()
-        .then(() => fetch(webhook, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
-          signal: AbortSignal.timeout(3000),
-        }))
-        .catch(() => {})
+      const claimedAt = Date.now()
+      try {
+        if (await claimTipTelegramNotification(handle, tip.id, claimedAt)) {
+          const sent = await sendTelegramTipNotification(profile, tip)
+          if (sent) await markTipTelegramNotified(handle, tip.id)
+          else await releaseTipTelegramNotification(handle, tip.id, claimedAt)
+        }
+      } catch (error) {
+        await releaseTipTelegramNotification(handle, tip.id, claimedAt).catch(() => {})
+        logError('telegram_notification_failed', error, { handle })
+      }
     }
     const newTotal = verified && asset === 'NIM' ? await addVerifiedNim(handle, amountNIM) : previousTotal
     let milestone: MilestoneEvent | null = null

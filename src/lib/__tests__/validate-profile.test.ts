@@ -8,6 +8,7 @@ import {
   DISPLAY_NAME_MAX,
   GOAL_TARGET_MAX,
   validatePolygonAddress,
+  validateNotifyTelegram,
 } from '../validate-profile'
 
 describe('validateHandle', () => {
@@ -37,6 +38,14 @@ describe('validatePolygonAddress', () => {
   it('rejects malformed payout addresses', () => {
     expect(validatePolygonAddress('0x1234')).toMatch(/valid Polygon/)
     expect(validatePolygonAddress('not-an-address')).toMatch(/valid Polygon/)
+  })
+})
+
+describe('validateNotifyTelegram', () => {
+  it('requires a Telegram sendMessage URL with a chat id', () => {
+    expect(validateNotifyTelegram('https://api.telegram.org/bot123:abc/sendMessage?chat_id=456')).toBeNull()
+    expect(validateNotifyTelegram('https://api.telegram.org/bot123:abc')).toMatch(/sendMessage/)
+    expect(validateNotifyTelegram('https://api.telegram.org/bot123:abc/sendMessage')).toMatch(/chat_id/)
   })
 })
 

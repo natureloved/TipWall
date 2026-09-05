@@ -74,6 +74,8 @@ export function buildWallSnapshotPayload(input: {
       const portableTip = { ...tip }
       delete portableTip.verificationAttempts
       delete portableTip.nextVerificationAt
+      delete portableTip.telegramNotificationClaimedAt
+      delete portableTip.telegramNotifiedAt
       if (portableTip.anonymous) {
         portableTip.senderAddress = ''
         delete portableTip.senderName

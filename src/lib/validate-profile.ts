@@ -56,7 +56,15 @@ export function validateContentUrl(url: string): string | null {
 export function validateNotifyTelegram(url: string): string | null {
   if (!url) return null
   if (url.length > 200) return 'Telegram webhook is too long'
-  if (!url.startsWith('https://api.telegram.org/bot')) return 'Must be a https://api.telegram.org/bot… webhook URL'
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'api.telegram.org' || !/^\/bot[^/]+\/sendMessage$/.test(parsed.pathname)) {
+      return 'Must be a https://api.telegram.org/bot<TOKEN>/sendMessage URL'
+    }
+    if (!parsed.searchParams.get('chat_id')) return 'Telegram URL must include a chat_id query parameter'
+  } catch {
+    return 'Telegram webhook must be a valid HTTPS URL'
+  }
   return null
 }
 

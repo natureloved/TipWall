@@ -197,6 +197,35 @@ export class LocalKv {
 
     const rows = (await this.lrange<Record<string, unknown>>(keys[0], 0, -1))
     const tipId = args[0]
+
+    if (script.includes('telegramNotificationClaimedAt') && script.includes('telegramNotifiedAt') && script.includes("ARGV[3]")) {
+      const item = rows.find(row => row.id === tipId)
+      if (!item || item.telegramNotifiedAt) return 0
+      const now = Number(args[1])
+      const claimed = Number(item.telegramNotificationClaimedAt || 0)
+      if (claimed > 0 && now - claimed < Number(args[2])) return 0
+      item.telegramNotificationClaimedAt = now
+      await this.replaceList(keys[0], rows)
+      return 1
+    }
+
+    if (script.includes('item.telegramNotifiedAt=tonumber')) {
+      const index = rows.findIndex(row => row.id === tipId)
+      if (index < 0) return 0
+      rows[index].telegramNotifiedAt = Number(args[1])
+      rows[index].telegramNotificationClaimedAt = undefined
+      await this.replaceList(keys[0], rows)
+      return 1
+    }
+
+    if (script.includes('telegramNotificationClaimedAt or 0') && script.includes('ARGV[2]')) {
+      const index = rows.findIndex(row => row.id === tipId)
+      if (index < 0 || Number(rows[index].telegramNotificationClaimedAt || 0) !== Number(args[1])) return 0
+      rows[index].telegramNotificationClaimedAt = undefined
+      await this.replaceList(keys[0], rows)
+      return 1
+    }
+
     const index = rows.findIndex(row => row.id === tipId)
     if (index < 0) return 0
 

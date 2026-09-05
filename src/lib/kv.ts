@@ -8,6 +8,7 @@ import { checkMilestone } from './milestones'
 import { weekIndex, streakWeeks } from './time'
 import { NEW_WALL_GRACE_MS } from './explore'
 import { logError } from './logger'
+import { sendTelegramTipNotification } from './telegram'
 import { LocalKv } from './local-kv'
 
 type TipWallRuntime = typeof globalThis & { __tipwallLocalKv?: LocalKv }
@@ -359,6 +360,8 @@ export function sanitizeTips(tips: Tip[], options: { includeHidden?: boolean } =
     // content that should be exposed to visitors or exported to creators.
     delete publicTip.verificationAttempts
     delete publicTip.nextVerificationAt
+    delete publicTip.telegramNotificationClaimedAt
+    delete publicTip.telegramNotifiedAt
     if (!options.includeHidden) delete publicTip.hiddenAt
     if (publicTip.anonymous) {
       publicTip.senderAddress = ''
@@ -596,6 +599,7 @@ export async function getTips(handle: string): Promise<Tip[]> {
 export async function reverifyPendingTips(handle: string, walletAddress: string): Promise<Tip[]> {
   const key = `${PREFIX}tips:${handle.toLowerCase()}`
   const tips = await getTips(handle)
+  const profile = await getProfile(handle)
   const now = Date.now()
   // Only tips old enough that a real one would be indexed by now, so we don't
   // fight the submit-time verification or clobber an in-flight lpush.
@@ -619,7 +623,7 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
   }>()
   for (const t of pending) {
     const res = t.asset === 'USDT'
-      ? await verifyUsdtTxDetails(t.txHash, (await getProfile(handle))?.usdtPolygonAddress || '', t.amountUSDT || 0, 1)
+      ? await verifyUsdtTxDetails(t.txHash, profile?.usdtPolygonAddress || '', t.amountUSDT || 0, 1)
       : await verifyTxDetails(t.txHash, walletAddress, Math.round(t.amountNIM * 100000), 1)
     if (res.result === 'verified') updates.set(t.id, { action: 'verify', senderAddress: res.senderAddress })
     else if (res.result === 'mismatch') updates.set(t.id, { action: 'remove' })
@@ -646,20 +650,35 @@ export async function reverifyPendingTips(handle: string, walletAddress: string)
   // Tips that just confirmed on-chain now count toward the lifetime total, and
   // may push the wall over a milestone the submit-time check couldn't award.
   // Milestones are goal-relative, so award against this creator's derived ladder.
-  const goalTarget = (await getProfile(handle))?.goal?.targetNIM ?? 1000
+  const goalTarget = profile?.goal?.targetNIM ?? 1000
   const milestones = getGoalMilestones(goalTarget)
   for (const t of current) {
     if (updates.get(t.id)?.action !== 'verify') continue
     // Multiple readers can reverify the same pending record concurrently. The
     // verified-tx set makes promotion and its lifetime aggregates idempotent.
-    if (!await markVerifiedTxSeen(handle, t.txHash)) continue
-    const prevTotal = await getVerifiedTotalNim(handle)
-    const newTotal = t.asset === 'USDT' ? await getVerifiedTotalNim(handle) : await addVerifiedNim(handle, t.amountNIM)
-    if (t.asset !== 'USDT') {
-      const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress, milestones)
-      if (event) await addMilestone(handle, event)
+    if (await markVerifiedTxSeen(handle, t.txHash)) {
+      const prevTotal = await getVerifiedTotalNim(handle)
+      const newTotal = t.asset === 'USDT' ? await getVerifiedTotalNim(handle) : await addVerifiedNim(handle, t.amountNIM)
+      if (t.asset !== 'USDT') {
+        const event = checkMilestone(prevTotal, newTotal, t.anonymous ? 'Anonymous' : t.senderAddress, milestones)
+        if (event) await addMilestone(handle, event)
+      }
+      await trackEvent(handle, 'TIP_COMPLETED')
     }
-    await trackEvent(handle, 'TIP_COMPLETED')
+    if (profile?.notifyTelegram) {
+      const claimedAt = Date.now()
+      try {
+        if (await claimTipTelegramNotification(handle, t.id, claimedAt)) {
+          const promotedTip = { ...t, verified: true, senderAddress: updates.get(t.id)?.senderAddress || t.senderAddress }
+          const sent = await sendTelegramTipNotification(profile, promotedTip)
+          if (sent) await markTipTelegramNotified(handle, t.id)
+          else await releaseTipTelegramNotification(handle, t.id, claimedAt)
+        }
+      } catch (error) {
+        await releaseTipTelegramNotification(handle, t.id, claimedAt).catch(() => {})
+        logError('telegram_notification_failed', error, { handle })
+      }
+    }
   }
   return rebuilt
 }
@@ -692,6 +711,39 @@ export async function setTipHidden(handle: string, tipId: string, hidden: boolea
     `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then if item.deletedAt and ARGV[2]~='1' then return -1 end; if ARGV[2]=='1' then item.hiddenAt=tonumber(ARGV[3]) else item.hiddenAt=nil end; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)); return 1 end end; return 0`,
     [key],
     [tipId, hidden ? '1' : '0', String(Date.now())],
+  )
+  return Number(result) === 1
+}
+
+/** Claim a Telegram notification slot once, with a short expiry for crashed sends. */
+export async function claimTipTelegramNotification(handle: string, tipId: string, now = Date.now(), lockMs = 5 * 60 * 1000): Promise<boolean> {
+  const key = `${PREFIX}tips:${handle.toLowerCase()}`
+  const result = await kv.eval(
+    `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then if item.telegramNotifiedAt then return 0 end; local claimed=tonumber(item.telegramNotificationClaimedAt or 0); local now=tonumber(ARGV[2]); if claimed>0 and now-claimed<tonumber(ARGV[3]) then return 0 end; item.telegramNotificationClaimedAt=now; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)); return 1 end end; return 0`,
+    [key],
+    [tipId, String(now), String(lockMs)],
+  )
+  return Number(result) === 1
+}
+
+/** Mark a successfully accepted Telegram alert and clear its in-flight claim. */
+export async function markTipTelegramNotified(handle: string, tipId: string, notifiedAt = Date.now()): Promise<boolean> {
+  const key = `${PREFIX}tips:${handle.toLowerCase()}`
+  const result = await kv.eval(
+    `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] then item.telegramNotifiedAt=tonumber(ARGV[2]); item.telegramNotificationClaimedAt=nil; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)); return 1 end end; return 0`,
+    [key],
+    [tipId, String(notifiedAt)],
+  )
+  return Number(result) === 1
+}
+
+/** Release a failed notification claim so a later cron run can retry it. */
+export async function releaseTipTelegramNotification(handle: string, tipId: string, claimedAt: number): Promise<boolean> {
+  const key = `${PREFIX}tips:${handle.toLowerCase()}`
+  const result = await kv.eval(
+    `local rows=redis.call('LRANGE',KEYS[1],0,-1); for i,row in ipairs(rows) do local ok,item=pcall(cjson.decode,row); if ok and item.id==ARGV[1] and tonumber(item.telegramNotificationClaimedAt or 0)==tonumber(ARGV[2]) then item.telegramNotificationClaimedAt=nil; redis.call('LSET',KEYS[1],i-1,cjson.encode(item)); return 1 end end; return 0`,
+    [key],
+    [tipId, String(claimedAt)],
   )
   return Number(result) === 1
 }

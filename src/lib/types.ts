@@ -158,6 +158,10 @@ export interface Tip {
   hiddenAt?: number
   /** Set when public supporter content was permanently removed by the owner. */
   deletedAt?: number
+  /** Internal claim used to prevent concurrent Telegram notification sends. */
+  telegramNotificationClaimedAt?: number
+  /** Set after Telegram accepts the notification for this tip. */
+  telegramNotifiedAt?: number
 }
 
 export interface Supporter {
