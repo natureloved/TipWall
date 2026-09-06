@@ -21,7 +21,7 @@ import { getNimiq, getSenderAddresses } from '@/lib/nimiq'
 import { normalizeAddress } from '@/lib/profile-auth'
 import { timeAgo } from '@/lib/time'
 import { useTranslations } from '@/lib/i18n'
-import { usdtPaymentsConfigured } from '@/lib/usdt'
+import { usdtPaymentsConfigured, usdtTokenAddress } from '@/lib/usdt'
 
 export default function TipWallClient({ handle, initialProfile }: { handle: string; initialProfile: CreatorProfile }) {
   const profile = initialProfile
@@ -45,8 +45,21 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
   const [showMission, setShowMission] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
   const [weeklyRank, setWeeklyRank] = useState<number | null>(null)
+  const [usdtTokenAddressValue, setUsdtTokenAddressValue] = useState(() => usdtTokenAddress())
   const t = useTranslations()
-  const usdtEnabled = usdtPaymentsConfigured(profile.usdtPolygonAddress)
+  const usdtEnabled = usdtPaymentsConfigured(profile.usdtPolygonAddress, usdtTokenAddressValue)
+
+  useEffect(() => {
+    if (!profile.usdtPolygonAddress || usdtTokenAddressValue) return
+    let cancelled = false
+    fetch('/api/payments/config', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() as Promise<{ tokenAddress?: string | null }> : null)
+      .then(data => {
+        if (!cancelled && data?.tokenAddress) setUsdtTokenAddressValue(data.tokenAddress)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [profile.usdtPolygonAddress, usdtTokenAddressValue])
 
   const loadTips = useCallback(() => {
     setTipsLoadError(false)
@@ -433,6 +446,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           creatorHandle={handle}
           creatorWalletAddress={profile.walletAddress}
           creatorUsdtAddress={profile.usdtPolygonAddress}
+          usdtTokenAddress={usdtTokenAddressValue}
           creatorDisplayName={profile.displayName}
           nimiqAvailable={nimiqAvailable}
           goal={profile.goal}

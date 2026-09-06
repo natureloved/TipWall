@@ -7,7 +7,7 @@ import {
   getTips,
   LEADERBOARD_WINDOW_MS,
 } from '@/lib/kv'
-import { TIP_REASON_LABELS, CREATOR_CATEGORIES, type CreatorProfile, type Tip, type TipReason, type CreatorCategory } from '@/lib/types'
+import { CREATOR_CATEGORIES, type CreatorProfile, type Tip, type CreatorCategory } from '@/lib/types'
 import { logError } from '@/lib/logger'
 import { EXPLORE_SORTS, NEW_WALL_GRACE_MS, includeWallInExplore, isProfileComplete, parseExploreSort, rotateWallsDaily, sortWalls, wallMatches } from '@/lib/explore'
 import MissionLink from '@/components/MissionLink'
@@ -37,6 +37,10 @@ export const metadata = {
 
 const MAX_WALLS = 24
 
+// Code remains a valid creator category for existing profiles and owner
+// settings, but it is intentionally omitted from public Explore controls.
+const HIDDEN_EXPLORE_CATEGORIES = new Set<CreatorCategory>(['code'])
+
 // Cap the "Just joined" section so nobody can flood the front door by
 // mass-registering handles.
 const MAX_NEW_WALLS = 6
@@ -49,7 +53,6 @@ type ExploreWall = {
   isNew: boolean
   profileComplete: boolean
   lastTipAt: number | null
-  topReason: TipReason | null
 }
 
 async function loadWalls(): Promise<ExploreWall[]> {
@@ -79,14 +82,12 @@ async function loadWalls(): Promise<ExploreWall[]> {
           0,
         )
         const recentTips = tips.filter((t: Tip) => t.verified && t.timestamp >= cutoff).length
-        const reasons = (Object.keys(TIP_REASON_LABELS) as TipReason[]).map(reason => ({ reason, count: visibleTips.filter(t => t.verified && t.reason === reason).length })).sort((a, b) => b.count - a.count)
-        const topReason = reasons[0]?.count ? reasons[0].reason : null
         // Most recent verified tip overall powers the activity line.
         const lastTipAt = visibleTips.reduce<number | null>(
           (latest, t) => (t.verified && (latest === null || t.timestamp > latest) ? t.timestamp : latest),
           null,
         )
-        return { wall: { profile, totalNIM, recentNIM, recentTips, isNew, profileComplete, lastTipAt, topReason }, failed: false }
+        return { wall: { profile, totalNIM, recentNIM, recentTips, isNew, profileComplete, lastTipAt }, failed: false }
       } catch {
         return { wall: null, failed: true }
       }
@@ -126,7 +127,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const params = await searchParams
   const query = String(params.q || '').trim().toLowerCase()
   const activeTag = String(params.tag || '').trim().toLowerCase()
-  const activeCategory = (Object.keys(CREATOR_CATEGORIES) as CreatorCategory[]).includes(params.cat as CreatorCategory) ? params.cat as CreatorCategory : null
+  const activeCategory = (Object.keys(CREATOR_CATEGORIES) as CreatorCategory[]).includes(params.cat as CreatorCategory) && !HIDDEN_EXPLORE_CATEGORIES.has(params.cat as CreatorCategory) ? params.cat as CreatorCategory : null
   const activeSort = parseExploreSort(params.sort)
   const filtersActive = Boolean(query || activeTag || activeCategory)
   let allWalls: ExploreWall[] = []
@@ -164,7 +165,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
   // Categories present in the directory power the filter chips (most walls first).
   const categoryCounts = new Map<CreatorCategory, number>()
-  for (const w of allWalls) if (w.profile.category) {
+  for (const w of allWalls) if (w.profile.category && !HIDDEN_EXPLORE_CATEGORIES.has(w.profile.category)) {
     categoryCounts.set(w.profile.category, (categoryCounts.get(w.profile.category) || 0) + 1)
   }
   const categoryChips = [...categoryCounts.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
@@ -276,7 +277,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 <h2 className="flex items-center gap-2 text-lg font-bold text-white"><span className="explore-live-dot" aria-hidden="true" /> {t('exploreMostTipped')}</h2>
                 <p className="text-xs text-slate-500 mb-3">{t('exploreUpdated')}</p>
                 <div className="space-y-3">
-                  {trending.map(({ profile, totalNIM, recentNIM, isNew, lastTipAt, topReason }, i) => (
+                  {trending.map(({ profile, totalNIM, recentNIM, isNew, lastTipAt }, i) => (
                     <Link
                       key={profile.handle}
                       href={`/${profile.handle}`}
@@ -306,8 +307,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                         {profile.achievement && (
                           <p className="text-xs text-amber-200/80 mt-1 truncate">🏆 {profile.achievement}</p>
                         )}
-                        {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
-                        {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {t(`reason_${topReason}`)}</span>}
+                        {profile.category && !HIDDEN_EXPLORE_CATEGORIES.has(profile.category) && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
                         {!!profile.tags?.length && (
                           <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
                             {profile.tags.map(tag => (
@@ -344,7 +344,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                   </h2>
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rest.map(({ profile, totalNIM, topReason }, i) => (
+                  {rest.map(({ profile, totalNIM }, i) => (
                     <Link
                       key={profile.handle}
                       href={`/${profile.handle}`}
@@ -375,8 +375,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       {profile.achievement && (
                         <p className="text-xs text-amber-200/80 mt-2 truncate">🏆 {profile.achievement}</p>
                       )}
-                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
-                      {topReason && <span className="inline-flex mt-2 ml-1 items-center gap-1 text-[11px] text-sky-300 bg-sky-400/10 border border-sky-400/20 rounded-full px-2 py-0.5">{TIP_REASON_LABELS[topReason].emoji} {t(`reason_${topReason}`)}</span>}
+                      {profile.category && !HIDDEN_EXPLORE_CATEGORIES.has(profile.category) && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
                         {!!profile.tags?.length && (
                           <span className="mt-2 ml-1 inline-flex flex-wrap gap-1">
                             {profile.tags.map(tag => (
@@ -458,7 +457,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                       {activeSort === 'new' && (
                         <p className="mt-2 text-xs text-slate-500">{localizedTimeAgo(profile.createdAt, locale)}</p>
                       )}
-                      {profile.category && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
+                      {profile.category && !HIDDEN_EXPLORE_CATEGORIES.has(profile.category) && <span className="inline-flex mt-2 items-center gap-1 text-[11px] text-amber-200 bg-amber-400/10 border border-amber-400/25 rounded-full px-2 py-0.5">{CREATOR_CATEGORIES[profile.category].emoji} {t(`category_${profile.category}`)}</span>}
                     </Link>
                   ))}
                 </div>

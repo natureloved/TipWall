@@ -10,8 +10,9 @@ export function usdtTokenAddress(): string {
   return validatePolygonAddress(value) ? '' : value
 }
 
-export function usdtPaymentsConfigured(recipient?: string): boolean {
-  return Boolean(recipient && !validatePolygonAddress(recipient) && usdtTokenAddress())
+export function usdtPaymentsConfigured(recipient?: string, tokenAddress?: string): boolean {
+  const token = tokenAddress || usdtTokenAddress()
+  return Boolean(recipient && !validatePolygonAddress(recipient) && token && !validatePolygonAddress(token))
 }
 
 export function usdtToBaseUnits(amount: number): bigint {

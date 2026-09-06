@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { buildUsdtPaymentLink, usdtToBaseUnits } from '../usdt'
+import { buildUsdtPaymentLink, usdtPaymentsConfigured, usdtToBaseUnits } from '../usdt'
 
 describe('USDT helpers', () => {
   it('converts decimal USDT to six-decimal base units', () => {
@@ -11,5 +11,9 @@ describe('USDT helpers', () => {
     expect(buildUsdtPaymentLink({ recipient: '0x2222222222222222222222222222222222222222', amountUSDT: 2 })).toBe(
       'ethereum:0x1111111111111111111111111111111111111111@137/transfer?address=0x2222222222222222222222222222222222222222&uint256=2000000',
     )
+  })
+
+  it('accepts a token address resolved from the server at runtime', () => {
+    expect(usdtPaymentsConfigured('0x2222222222222222222222222222222222222222', '0x1111111111111111111111111111111111111111')).toBe(true)
   })
 })

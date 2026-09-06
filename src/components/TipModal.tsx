@@ -13,12 +13,13 @@ import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const PRESET_AMOUNTS = [25, 100, 250, 500]
 
-export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, creatorUsdtAddress, creatorDisplayName, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken, goal, totalNIM, walletBalanceNim = null, walletBalanceLoading = false }: {
+export default function TipModal({ isOpen, onClose, creatorHandle, creatorWalletAddress, creatorUsdtAddress, usdtTokenAddress, creatorDisplayName, onTipSuccess, nimiqAvailable = null, onNeedsInstall, initialAmount, initialMessage, welcome = false, claimToken, goal, totalNIM, walletBalanceNim = null, walletBalanceLoading = false }: {
   isOpen: boolean
   onClose: () => void
   creatorHandle: string
   creatorWalletAddress: string
   creatorUsdtAddress?: string
+  usdtTokenAddress?: string
   /** Shown in the Nimiq Hub payment popup so supporters know who they pay. */
   creatorDisplayName?: string
   onTipSuccess: (tip: { senderAddress: string; amountNIM: number; amountUSDT?: number; asset?: TipAsset; message?: string; txHash: string; milestone?: number | null; pending: boolean }) => void
@@ -86,12 +87,12 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   }, [isOpen, onClose])
 
   const finalAmount = Number(amount)
-  const usdtEnabled = usdtPaymentsConfigured(creatorUsdtAddress)
+  const usdtEnabled = usdtPaymentsConfigured(creatorUsdtAddress, usdtTokenAddress)
   const insufficientFunds = asset === 'NIM' && nimiqAvailable === true && walletBalanceNim != null && finalAmount > walletBalanceNim
   const amountLabel = asset === 'USDT' ? 'USDT' : 'NIM'
   let usdtPaymentLink = ''
   if (usdtEnabled && asset === 'USDT' && creatorUsdtAddress && Number.isFinite(finalAmount) && finalAmount > 0) {
-    try { usdtPaymentLink = buildUsdtPaymentLink({ recipient: creatorUsdtAddress, amountUSDT: finalAmount }) } catch { /* invalid input leaves the QR hidden */ }
+    try { usdtPaymentLink = buildUsdtPaymentLink({ tokenAddress: usdtTokenAddress, recipient: creatorUsdtAddress, amountUSDT: finalAmount }) } catch { /* invalid input leaves the QR hidden */ }
   }
 
   useEffect(() => {
@@ -202,7 +203,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
       if (asset === 'USDT') {
         setLoading(true)
         setError('')
-        const result = await sendUsdtTip({ recipient: creatorUsdtAddress!, amountUSDT: finalAmount })
+        const result = await sendUsdtTip({ tokenAddress: usdtTokenAddress, recipient: creatorUsdtAddress!, amountUSDT: finalAmount })
         await recordTip(result.txHash, result.senderAddress, 'USDT')
         reset()
         return

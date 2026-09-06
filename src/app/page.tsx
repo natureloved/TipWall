@@ -6,7 +6,6 @@ import Link from 'next/link'
 import MissionLink from '@/components/MissionLink'
 import EcosystemStats from '@/components/EcosystemStats'
 import LiveSignalCard from '@/components/LiveSignalCard'
-import RecentActivity from '@/components/RecentActivity'
 import PlatformSupportLink from '@/components/PlatformSupportLink'
 import CreateWallForm from '@/components/CreateWallForm'
 import { NIMIQ_GET_NIM_URL } from '@/lib/environment'
@@ -66,21 +65,19 @@ export default function HomePage() {
       <Link href="/" className="landing-logo"><Image src="/logo.svg" alt="TipWall logo" width={38} height={38} /><span>TipWall</span></Link>
       <nav><Link href="/explore"><span className="nav-full">Explore walls</span><span className="nav-short">Explore</span></Link><button onClick={scrollToCreate}><span className="nav-full">Create a wall</span><span className="nav-short">Create</span> <span>↗</span></button></nav>
     </header>
-    <aside className="landing-supporter-line" aria-label="Support someone">Here to support someone? <Link href="/explore">Find their wall →</Link></aside>
-    <RecentActivity />
     <section className="landing-hero">
       <div className="landing-hero-copy">
         <p className="landing-eyebrow"><i className="landing-live-dot" /> SUPPORT THAT SAYS SOMETHING</p>
         <h1>Every supporter<br />leaves a <em>mark.</em></h1>
         <p className="landing-lede">Tip people, projects, and communities directly in NIM, and leave the reason it mattered. A public wall of support, insight, and small moments that last.</p>
-        <div className="landing-actions"><button className="landing-btn landing-btn-dark" onClick={scrollToCreate}>Make your wall <span>↗</span></button><Link className="landing-btn landing-btn-light" href="/explore">Explore walls <span>→</span></Link></div>
+        <div className="landing-actions"><Link className="landing-btn landing-btn-dark" href="/explore">Find a wall to support <span>→</span></Link></div>
         <div className="landing-trust"><span>No fees, ever</span><span>Wall owners keep 100%</span><span>Tips arrive in seconds</span></div>
         <p className="landing-nim-note">New here? <strong>NIM</strong> is Nimiq&apos;s digital cash. Send it straight to someone&apos;s wallet in seconds, no account needed. <a href={NIMIQ_GET_NIM_URL} target="_blank" rel="noopener noreferrer">Get NIM ↗</a></p>
       </div>
       <AppreciationBoard onCreate={scrollToCreate} />
     </section>
     <section className="landing-section landing-three"><div><p className="landing-section-kicker">A better kind of support</p><h2>Money is useful.<br /><em>Meaning is memorable.</em></h2></div><div className="landing-steps"><div><b>01</b><h3>Find someone worth backing</h3><p>Browse walls for people, projects, and communities you want to see grow.</p></div><div><b>02</b><h3>Tip with a reason</h3><p>Choose a signal like Helpful content, Open source, or Great idea.</p></div><div><b>03</b><h3>Make it part of their story</h3><p>Your NIM goes straight to their wallet. Your words stay on the wall.</p></div></div></section>
-    <section className="landing-insight"><div><p className="landing-section-kicker">What wall owners learn</p><h2>Your supporters are telling you<br /><em>what to do next.</em></h2><p>Every reason becomes a signal. See whether people value your tutorials, your ideas, your art, or the fact that you keep showing up.</p><Link href="/explore" className="landing-text-link">See public walls →</Link></div><LiveSignalCard /></section>
+    <section className="landing-insight"><div><p className="landing-section-kicker">What wall owners learn</p><h2>Your supporters are telling you<br /><em>what to do next.</em></h2><p>Every reason becomes a signal. See whether people value your tutorials, your ideas, your art, or the fact that you keep showing up.</p></div><LiveSignalCard /></section>
     <section className="landing-create"><div><p className="landing-section-kicker">Ready when you are</p><h2>Put your name<br /><em>on the wall.</em></h2><p>Set up a TipWall in a few guided steps. Connect your Nimiq wallet, choose your link, and start collecting meaningful support.</p></div><div ref={setupRef}><CreateWallForm /></div></section>
     <EcosystemStats />
     <footer className="landing-footer"><Link href="/" className="landing-logo"><Image src="/logo.svg" alt="TipWall logo" width={30} height={30} /><span>TipWall</span></Link><MissionLink labelKey="learnAboutTipWall" variant="home" /><Link href="/faq" className="text-[#b9382a] underline underline-offset-4">FAQ</Link><PlatformSupportLink /><span>Built for people, projects, and communities on Nimiq · 0% platform fee</span></footer>
