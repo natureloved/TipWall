@@ -4,10 +4,10 @@ import FiatHint from '@/components/FiatHint'
 import { useTranslations } from '@/lib/i18n'
 import { timeAgo } from '@/lib/time'
 
-export default function TipFeed({ tips }: { tips: Tip[] }) {
+export default function TipFeed({ tips, animationDelay = '0.4s' }: { tips: Tip[]; animationDelay?: string }) {
   const t = useTranslations()
   return (
-    <div className="tip-note-board surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay: '0.4s'}} suppressHydrationWarning>
+    <div className="tip-note-board surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay}} suppressHydrationWarning>
       <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-1">Wall of appreciation</h2>
       <p className="text-xs text-slate-500 mb-4">Messages and reasons from the people your work helped.</p>
       {!tips.length && (

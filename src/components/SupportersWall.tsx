@@ -60,7 +60,7 @@ function AvatarChip({ s, idx, size = 'w-12 h-12 text-xl' }: { s: { address: stri
   )
 }
 
-export default function SupportersWall({ supporters, collapsible = false }: { supporters: { address: string; totalNIM: number; totalUSDT?: number; tipCount: number; name?: string; streakWeeks?: number }[]; collapsible?: boolean }) {
+export default function SupportersWall({ supporters, collapsible = false, animationDelay = '0.4s' }: { supporters: { address: string; totalNIM: number; totalUSDT?: number; tipCount: number; name?: string; streakWeeks?: number }[]; collapsible?: boolean; animationDelay?: string }) {
   const t = useTranslations()
   // Collapsed by default on the public wall: the count row keeps the first
   // scroll light, the full grid is one tap away.
@@ -75,7 +75,7 @@ export default function SupportersWall({ supporters, collapsible = false }: { su
         onClick={() => setOpen(true)}
         aria-expanded={false}
         className="surface w-full rounded-2xl px-5 py-4 shadow-lg text-left transition-all hover:shadow-xl hover:border-amber-400/30 animate-slide-up focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
-        style={{animationDelay: '0.4s'}}
+        style={{animationDelay}}
       >
         <div className="flex items-center gap-3">
           <div className="flex -space-x-2" suppressHydrationWarning>
@@ -100,7 +100,7 @@ export default function SupportersWall({ supporters, collapsible = false }: { su
   }
 
   return (
-    <div className="surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay: '0.4s'}}>
+    <div className="surface rounded-2xl p-6 shadow-lg animate-slide-up" style={{animationDelay}}>
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
         <p className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{t('supporters')} ({supporters.length})</p>
         {collapsible && supporters.length > 0 && (

@@ -336,6 +336,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
             </div>
           </div>
 
+          {/* Featured work gives visitors context before they scan the wall or
+              its totals. Keep it immediately below the identity and CTA so the
+              creator's work, rather than a raw link at the end of the page,
+              explains what the support is for. */}
+          {profile.contentUrl && <ContentPreviewCard key={`${handle}:${profile.contentUrl}`} url={profile.contentUrl} handle={handle} />}
+
           {tipsLoading ? (
             <div className="wall-content-loading" role="status" aria-live="polite"><span className="wall-loading-spinner" /><p>Opening the appreciation wall...</p></div>
           ) : tipsLoadError ? (
@@ -377,9 +383,13 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
               </div>
 
               {/* The feed is the heart of the wall - it leads, right after stats. */}
-              <TipFeed tips={tips} />
+              <TipFeed tips={tips} animationDelay="0.48s" />
 
-              {/* Goal + milestones share one compact card (only when a goal exists). */}
+              {/* Supporters collapse to a count row - full grid one tap away. */}
+              <SupportersWall supporters={supporters} collapsible animationDelay="0.54s" />
+
+              {/* Goal + milestones follow the community proof: first show who
+                  is supporting the creator, then show the campaign target. */}
               {profile.goal && (
                 <GoalCard
                   label={profile.goal.label || 'Goal'}
@@ -388,17 +398,12 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
                   smashed={goalSmashed}
                   milestones={goalMilestones}
                   unlocked={unlockedMilestones}
+                  animationDelay="0.60s"
                 />
               )}
 
-              {/* Supporters collapse to a count row - full grid one tap away. */}
-              <SupportersWall supporters={supporters} collapsible />
-
-              {/* Content Preview */}
-              {profile.contentUrl && <ContentPreviewCard url={profile.contentUrl} handle={handle} />}
-
               {topReason && (
-                <div className="surface-soft rounded-2xl px-5 py-4 flex items-center gap-3 animate-slide-up">
+                <div className="surface-soft rounded-2xl px-5 py-4 flex items-center gap-3 animate-slide-up" style={{animationDelay: '0.66s'}}>
                   <span className="text-2xl">{TIP_REASON_LABELS[topReason.reason].emoji}</span>
                   <div className="min-w-0"><p className="text-[11px] uppercase tracking-wide font-bold text-sky-300">What your audience values</p><p className="text-sm text-slate-200 mt-0.5">Supporters most often come for <strong>{TIP_REASON_LABELS[topReason.reason].label.toLowerCase()}</strong>.</p></div>
                 </div>
@@ -407,7 +412,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
           )}
 
           {/* Share Button */}
-          <ShareButton handle={handle} />
+          <ShareButton handle={handle} animationDelay="0.72s" />
 
           {/* Viral footer: every wall is a doorway into the rest */}
           <p className="text-center text-xs text-slate-400 pb-24 sm:pb-4">
@@ -553,17 +558,18 @@ function StatCard({ value, label, index, suppressHydrationWarning }: { value: Re
   )
 }
 
-function GoalCard({ label, percentTrue, percent, smashed, milestones, unlocked }: {
+function GoalCard({ label, percentTrue, percent, smashed, milestones, unlocked, animationDelay = '0.4s' }: {
   label: string
   percentTrue: number
   percent: number
   smashed: boolean
   milestones: number[]
   unlocked: number[]
+  animationDelay?: string
 }) {
   const t = useTranslations()
   return (
-    <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay: '0.4s'}}>
+    <div className="rounded-2xl bg-slate-800/60 backdrop-blur p-6 shadow-lg hover:shadow-xl transition-all border-2 border-amber-400/10 hover:border-amber-400/30 animate-slide-up" style={{animationDelay}}>
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-semibold text-slate-400 uppercase tracking-wide">{label}</span>
         <span className="text-xl font-bold bg-gradient-to-r from-amber-300 to-amber-500 bg-clip-text text-transparent">
@@ -604,7 +610,7 @@ function GoalCard({ label, percentTrue, percent, smashed, milestones, unlocked }
   )
 }
 
-function ShareButton({ handle }: { handle: string }) {
+function ShareButton({ handle, animationDelay = '0.4s' }: { handle: string; animationDelay?: string }) {
   const [copied, setCopied] = useState(false)
   const t = useTranslations()
   const copyUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/${handle}`
@@ -612,7 +618,7 @@ function ShareButton({ handle }: { handle: string }) {
   return (
     <button
       className="flex items-center justify-center gap-2 mx-auto w-auto rounded-full bg-transparent px-6 py-3 text-sm font-semibold text-amber-300 border-2 border-amber-400/40 hover:bg-amber-400/10 hover:border-amber-400/60 transition-colors duration-200 animate-slide-up"
-      style={{animationDelay: '0.4s'}}
+      style={{animationDelay}}
       onClick={async () => {
         await navigator.clipboard.writeText(copyUrl)
         setCopied(true)
