@@ -80,6 +80,16 @@ export default function HomePage() {
     <section className="landing-insight"><div><p className="landing-section-kicker">What wall owners learn</p><h2>Your supporters are telling you<br /><em>what to do next.</em></h2><p>Every reason becomes a signal. See whether people value your tutorials, your ideas, your art, or the fact that you keep showing up.</p></div><LiveSignalCard /></section>
     <section className="landing-create"><div><p className="landing-section-kicker">Ready when you are</p><h2>Put your name<br /><em>on the wall.</em></h2><p>Set up a TipWall in a few guided steps. Connect your Nimiq wallet, choose your link, and start collecting meaningful support.</p></div><div ref={setupRef}><CreateWallForm /></div></section>
     <EcosystemStats />
-    <footer className="landing-footer"><Link href="/" className="landing-logo"><Image src="/logo.svg" alt="TipWall logo" width={30} height={30} /><span>TipWall</span></Link><MissionLink labelKey="learnAboutTipWall" variant="home" /><Link href="/faq" className="text-[#b9382a] underline underline-offset-4">FAQ</Link><PlatformSupportLink /><span>Built for people, projects, and communities on Nimiq · 0% platform fee</span></footer>
+    <footer className="landing-footer">
+      <Link href="/" className="landing-logo"><Image src="/logo.svg" alt="TipWall logo" width={30} height={30} /><span>TipWall</span></Link>
+      <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2" aria-label="Footer navigation">
+        <MissionLink labelKey="learnAboutTipWall" variant="home" />
+        <Link href="/faq" className="text-[#b9382a] underline underline-offset-4">FAQ</Link>
+        <Link href="/privacy" className="text-[#b9382a] underline underline-offset-4">Privacy</Link>
+        <Link href="/terms" className="text-[#b9382a] underline underline-offset-4">Terms</Link>
+        <PlatformSupportLink />
+      </nav>
+      <span className="max-w-[290px] text-right leading-relaxed max-[800px]:basis-full max-[800px]:max-w-none max-[800px]:text-left">Direct support. Lasting thanks. Built on Nimiq.</span>
+    </footer>
   </main>
 }

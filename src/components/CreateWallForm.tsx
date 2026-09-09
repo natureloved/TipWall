@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
-import Link from 'next/link'
 import Image from 'next/image'
 import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle, nimiqAddressError } from '@/lib/profile-auth'
@@ -198,7 +197,7 @@ export default function CreateWallForm() {
         </section>
       )}
       {error && <p className="landing-error" role="alert">{error}</p>}
-      <p className="landing-form-foot">You can edit your profile, links, and theme after launch. <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link></p>
+      <p className="landing-form-foot">You can edit your profile, links, and theme after launch.</p>
     </form>
   )
 }
