@@ -26,7 +26,7 @@ try {
     const page = await browser.newPage({ viewportSize: viewport, locale })
     await page.goto(baseUrl, { waitUntil: 'networkidle' })
     assert.equal(await page.locator('h1').first().innerText(), 'Every supporter\nleaves a mark.')
-    assert.equal(await page.getByRole('button', { name: /Make your wall/i }).isVisible(), true)
+    assert.equal(await page.getByRole('button', { name: /Create a wall/i }).isVisible(), true)
     await page.getByRole('link', { name: /Explore/i }).first().click()
     await page.waitForURL('**/explore')
     assert.equal(await page.locator('h1').innerText(), exploreHeading)
