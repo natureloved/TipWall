@@ -12,8 +12,15 @@ const WIDTH = 1200
 const HEIGHT = 630
 
 export async function GET() {
-  const logo = await readFile(path.join(process.cwd(), 'public', 'android-chrome-512x512.png'))
+  // logo.png is the tiled mark (transparent corners). The maskable icon would
+  // work too, but it carries its own padded field, so the tile would read as a
+  // second frame sitting inside this card's border.
+  const logo = await readFile(path.join(process.cwd(), 'public', 'logo.png'))
   const logoSrc = `data:image/png;base64,${logo.toString('base64')}`
+  // Matches the art's own corner radius (21.5% of the edge) so the border
+  // traces the mark instead of clipping inside its curve.
+  const LOGO_SIZE = 300
+  const LOGO_RADIUS = Math.round(LOGO_SIZE * 0.215)
 
   return new ImageResponse(
     (
@@ -33,9 +40,9 @@ export async function GET() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={logoSrc}
-          width={300}
-          height={300}
-          style={{ borderRadius: 44, border: '5px solid #171614', boxShadow: '12px 12px 0 #F05A3C' }}
+          width={LOGO_SIZE}
+          height={LOGO_SIZE}
+          style={{ borderRadius: LOGO_RADIUS, border: '5px solid #171614', boxShadow: '12px 12px 0 #F05A3C' }}
           alt=""
         />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
