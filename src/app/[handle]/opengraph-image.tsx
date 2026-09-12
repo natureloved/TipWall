@@ -1,4 +1,6 @@
 import { ImageResponse } from 'next/og'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import { getProfile, getVerifiedTotalNim } from '@/lib/kv'
 
 // Social share card for a creator wall (rendered for og:image / twitter:image).
@@ -9,8 +11,23 @@ export const alt = 'TipWall public support wall'
 // Slack at once should share one KV read + Satori render, not stampede.
 export const revalidate = 300
 
+/**
+ * The brand mark, read from public/ so the card can never drift from the icon
+ * set. Returns null if the file is unreadable on a given host - the header then
+ * falls back to the wordmark alone, because a share card must never 500.
+ */
+async function loadBrandMark(): Promise<string | null> {
+  try {
+    const png = await readFile(path.join(process.cwd(), 'public', 'logo.png'))
+    return `data:image/png;base64,${png.toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
 export default async function Image({ params }: { params: Promise<{ handle: string }> }) {
   const { handle } = await params
+  const brandMark = await loadBrandMark()
   let displayName = `@${handle}`
   let bio = ''
   let totalNIM = 0
@@ -50,7 +67,12 @@ export default async function Image({ params }: { params: Promise<{ handle: stri
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{ fontSize: 40 }}>⚡</div>
+            {brandMark ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brandMark} width={68} height={68} alt="" />
+            ) : (
+              <div style={{ fontSize: 40 }}>⚡</div>
+            )}
             <div style={{ fontSize: 36, fontWeight: 700, color: '#fbbf24' }}>TipWall</div>
           </div>
 

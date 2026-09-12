@@ -294,10 +294,25 @@ async function renderPoster(handle: string, displayName: string, url: string): P
 
   ctx.textAlign = 'center'
 
-  // Brand
-  ctx.fillStyle = '#b9382a'
+  // Brand lockup: the real mark plus the wordmark, centred as one group. If the
+  // mark cannot load we fall back to the wordmark alone rather than failing the
+  // whole poster.
+  const markSize = 76
+  const markGap = 16
   ctx.font = 'bold 44px sans-serif'
-  ctx.fillText('⚡ TipWall', W / 2, 110)
+  const wordWidth = ctx.measureText('TipWall').width
+  const groupLeft = (W - (markSize + markGap + wordWidth)) / 2
+  let markDrawn = false
+  try {
+    await drawImage(ctx, '/logo.png', groupLeft, 56, markSize, markSize)
+    markDrawn = true
+  } catch {
+    // fall through to the wordmark-only lockup
+  }
+  ctx.fillStyle = '#b9382a'
+  ctx.textAlign = markDrawn ? 'left' : 'center'
+  ctx.fillText('TipWall', markDrawn ? groupLeft + markSize + markGap : W / 2, 110)
+  ctx.textAlign = 'center'
 
   // Creator name (shrink to fit)
   ctx.fillStyle = '#171614'
@@ -327,15 +342,7 @@ async function renderPoster(handle: string, displayName: string, url: string): P
   ctx.stroke()
 
   const qrPng = await QRCode.toDataURL(url, { width: qrSize, margin: 0, color: { dark: '#171614', light: '#fffdf7' } })
-  await new Promise<void>((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => {
-      ctx.drawImage(img, (W - qrSize) / 2, cardY + cardPad, qrSize, qrSize)
-      resolve()
-    }
-    img.onerror = () => reject(new Error('QR render failed'))
-    img.src = qrPng
-  })
+  await drawImage(ctx, qrPng, (W - qrSize) / 2, cardY + cardPad, qrSize, qrSize)
 
   // URL + tagline
   ctx.fillStyle = '#b9382a'
@@ -346,6 +353,26 @@ async function renderPoster(handle: string, displayName: string, url: string): P
   ctx.fillText('Tip the person or project. Not the platform.', W / 2, cardY + cardSize + 150)
 
   return canvas.toDataURL('image/png')
+}
+
+/** Load an image and draw it once ready - used for the QR and the brand mark. */
+function drawImage(
+  ctx: CanvasRenderingContext2D,
+  src: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => {
+      ctx.drawImage(img, x, y, w, h)
+      resolve()
+    }
+    img.onerror = () => reject(new Error(`image render failed: ${src}`))
+    img.src = src
+  })
 }
 
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
