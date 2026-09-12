@@ -250,7 +250,7 @@ export default function TipWallClient({ handle, initialProfile }: { handle: stri
 
         <div className="relative z-10 w-full max-w-5xl mx-auto px-4 py-8 space-y-6">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 pb-4">
-            <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
+            <Link href="/" className="brand-logo-inline"><Image src="/logo.png" alt="TipWall logo" width={34} height={34} />TipWall</Link>
             <Link href="/explore" className="text-sm font-semibold text-slate-400">Explore walls</Link>
           </header>
           {/* Hero Section */}

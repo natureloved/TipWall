@@ -40,7 +40,7 @@ function AppreciationBoard({ onCreate }: { onCreate: () => void }) {
         <p>{note.text}</p>
         <footer><span>{note.from} · {note.reason}</span>{note.amount && <strong>{note.amount}</strong>}</footer>
       </article>)}
-      <div className="landing-board-mark"><Image src="/logo.svg" alt="" width={30} height={30} /> TipWall</div>
+      <div className="landing-board-mark"><Image src="/logo.png" alt="" width={30} height={30} /> TipWall</div>
     </div>
     <div className="landing-pin-form">
       <label htmlFor="demo-note">Try it: leave a note</label>
@@ -62,7 +62,7 @@ export default function HomePage() {
 
   return <main className="landing-page">
     <header className="landing-header">
-      <Link href="/" className="landing-logo"><Image src="/logo.svg" alt="TipWall logo" width={38} height={38} /><span>TipWall</span></Link>
+      <Link href="/" className="landing-logo"><Image src="/logo.png" alt="TipWall logo" width={38} height={38} /><span>TipWall</span></Link>
       <nav><Link href="/explore"><span className="nav-full">Explore walls</span><span className="nav-short">Explore</span></Link><button onClick={scrollToCreate}><span className="nav-full">Create a wall</span><span className="nav-short">Create</span> <span>↗</span></button></nav>
     </header>
     <section className="landing-hero">
@@ -81,7 +81,7 @@ export default function HomePage() {
     <section className="landing-create"><div><p className="landing-section-kicker">Ready when you are</p><h2>Put your name<br /><em>on the wall.</em></h2><p>Set up a TipWall in a few guided steps. Connect your Nimiq wallet, choose your link, and start collecting meaningful support.</p></div><div ref={setupRef}><CreateWallForm /></div></section>
     <EcosystemStats />
     <footer className="landing-footer">
-      <Link href="/" className="landing-logo"><Image src="/logo.svg" alt="TipWall logo" width={30} height={30} /><span>TipWall</span></Link>
+      <Link href="/" className="landing-logo"><Image src="/logo.png" alt="TipWall logo" width={30} height={30} /><span>TipWall</span></Link>
       <nav className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2" aria-label="Footer navigation">
         <MissionLink labelKey="learnAboutTipWall" variant="home" />
         <Link href="/faq" className="text-[#b9382a] underline underline-offset-4">FAQ</Link>

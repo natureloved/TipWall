@@ -196,7 +196,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
     <div className="app-shell explore-page min-h-screen text-white px-4 py-10">
       <div className="w-full max-w-6xl mx-auto">
         <header className="explore-header explore-reveal flex flex-wrap items-center justify-between gap-3 mb-10 border-b border-slate-700 pb-4">
-          <Link href="/" className="brand-logo-inline"><Image src="/logo.svg" alt="TipWall logo" width={34} height={34} />TipWall</Link>
+          <Link href="/" className="brand-logo-inline"><Image src="/logo.png" alt="TipWall logo" width={34} height={34} />TipWall</Link>
           <Link href="/?create=1" className="explore-create-link rounded-full border px-4 py-2 text-sm font-bold">{t('exploreCreateWall')}</Link>
         </header>
         <div className="explore-hero explore-reveal text-center mb-8" style={{ animationDelay: '60ms' }}>
