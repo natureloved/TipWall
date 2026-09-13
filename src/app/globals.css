@@ -110,7 +110,7 @@ body {
 .landing-page { --paper:#f4f0e6; --paper-2:#e9e2d2; --cream:#fbf7ee; --ink:#171614; --muted:#635b4f; --coral:#f05a3c; --coral-text:#b9382a; --gold:#f6b221; min-height:100vh; background:var(--paper); color:var(--ink); font-family:ui-sans-serif,system-ui,sans-serif; overflow:hidden; }
 .landing-header { position:sticky; top:0; z-index:30; display:flex; align-items:center; justify-content:space-between; max-width:1240px; margin:auto; padding:17px 28px; background:rgba(244,240,230,.94); border-bottom:1.5px solid rgba(23,22,20,.2); backdrop-filter:blur(10px); }
 .landing-logo { display:flex; align-items:center; gap:10px; font-family:Georgia,serif; font-size:1.45rem; font-weight:700; letter-spacing:-.03em; }
-.landing-logo img { border:1px solid var(--ink); border-radius:9px; box-shadow:2px 2px 0 var(--ink); background:var(--cream); }
+.landing-logo img { border:none; border-radius:9px; box-shadow:none; background:transparent; }
 .landing-header nav { display:flex; align-items:center; gap:26px; font-size:.9rem; font-weight:600; }
 .landing-header nav button { padding:10px 16px; background:var(--ink); color:var(--cream); border:1.5px solid var(--ink); border-radius:999px; box-shadow:3px 3px 0 var(--coral); }
 .nav-short { display:none; }
@@ -341,7 +341,7 @@ input::placeholder, textarea::placeholder { color: var(--tw-muted); opacity:1; }
 .text-white\/20, .text-white\/30, .text-white\/40 { color:rgba(23,22,20,.48) !important; }
 .divide-slate-700\/60 > * + * { border-color:rgba(23,22,20,.35) !important; }
 .brand-logo-inline { display:inline-flex; align-items:center; gap:.5rem; font-family:Georgia,serif; font-weight:700; color:var(--tw-ink); }
-.brand-logo-inline img { border:1px solid var(--tw-ink); border-radius:7px; box-shadow:2px 2px 0 var(--tw-ink); background:#fffdf7; }
+.brand-logo-inline img { border:none; border-radius:7px; box-shadow:none; background:transparent; }
 .editorial-page { min-height:100vh; background:var(--tw-paper); color:var(--tw-ink); padding:2rem 1rem; }
 .editorial-card { max-width:760px; margin:auto; padding:2rem; background:#fffdf7; border:1.5px solid var(--tw-ink); border-radius:14px; box-shadow:6px 6px 0 var(--tw-ink); overflow-wrap:anywhere; }
 .creator-wall-loading { background:var(--tw-paper); color:var(--tw-ink); }
