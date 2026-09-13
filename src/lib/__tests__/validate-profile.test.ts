@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest'
+import path from 'node:path'
+import { readdirSync } from 'node:fs'
 import {
   validateHandle,
   validateContentUrl,
@@ -26,6 +28,51 @@ describe('validateHandle', () => {
       expect(validateHandle(reserved), reserved).toMatch(/reserved/)
       expect(isReservedHandle(reserved)).toBe(true)
     }
+  })
+
+  /**
+   * Guard against the class of bug where someone adds a route and forgets the
+   * reserved list. A creator who registers that word gets a wall that the real
+   * page silently shadows, and nothing errors - so only a test catches it.
+   *
+   * `launch` shipped unreserved and `roadmap` was added unreserved; both are
+   * fixed, and this stops the next one.
+   */
+  it('reserves every top-level route segment that could be a handle', () => {
+    const appDir = path.join(process.cwd(), 'src', 'app')
+    // A handle can only contain these characters, so a segment with anything
+    // else (e.g. `banner.png`) can never be produced by a handle and cannot
+    // collide with one.
+    const HANDLE_LEGAL = /^[a-z0-9_-]+$/
+
+    const hasRouteFile = (dir: string): boolean =>
+      readdirSync(dir, { withFileTypes: true }).some((entry) =>
+        entry.isFile()
+          ? /^(page|route)\.tsx?$/.test(entry.name)
+          : entry.isDirectory() && !entry.name.startsWith('[') && hasRouteFile(path.join(dir, entry.name)),
+      )
+
+    const examined: string[] = []
+    const missing: string[] = []
+
+    for (const entry of readdirSync(appDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const segment = entry.name
+      // `[handle]` is the dynamic segment itself; `_`-prefixed folders are
+      // private to Next and never routable.
+      if (segment.startsWith('[') || segment.startsWith('_')) continue
+      if (!HANDLE_LEGAL.test(segment)) continue
+      // A folder with no page/route file is not a route at all, so it cannot
+      // shadow anything (e.g. the empty `mobile-modal-check` scratch folders).
+      if (!hasRouteFile(path.join(appDir, segment))) continue
+      examined.push(segment)
+      if (!isReservedHandle(segment)) missing.push(segment)
+    }
+
+    expect(missing, `route segments missing from RESERVED_HANDLES: ${missing.join(', ')}`).toEqual([])
+    // Prove the walker actually found routes, so a broken traversal cannot make
+    // this test pass by examining nothing.
+    expect(examined).toEqual(expect.arrayContaining(['api', 'explore', 'roadmap']))
   })
 })
 

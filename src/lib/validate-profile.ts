@@ -15,7 +15,15 @@ export const GOAL_LABEL_MAX = 40
 export const GOAL_TARGET_MIN = 1
 export const GOAL_TARGET_MAX = 1_000_000_000
 
-/** Handles that collide with app routes / static files or invite impersonation. */
+/**
+ * Handles that collide with app routes / static files or invite impersonation.
+ *
+ * Every top-level route segment must be listed here, or a creator can register
+ * that word as a handle and find their wall shadowed by the real page.
+ * `launch` and `roadmap` were both missing; the guard test in
+ * `__tests__/validate-profile.test.ts` now enumerates `src/app` and fails if a
+ * new route is added without being reserved here.
+ */
 const RESERVED_HANDLES = new Set([
   'api', 'claim', 'sitemap', 'robots', 'manifest', 'favicon',
   'dashboard', 'analytics', 'edit', 'admin', 'settings', 'login', 'signup',
@@ -23,6 +31,7 @@ const RESERVED_HANDLES = new Set([
   '_next', 'next', 'vercel', 'www', 'app', 'about', 'terms', 'privacy',
   'support', 'help', 'faq', 'new', 'create', 'official', 'tipwall', 'nimiq',
   'share', 'explore', 'badge', 'overlay', 'embed', 's',
+  'launch', 'roadmap',
 ])
 
 export function isReservedHandle(handle: string): boolean {

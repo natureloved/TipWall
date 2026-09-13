@@ -47,6 +47,7 @@ next-env.d.ts
 
 # assistant session notes (not app code)
 /memory/
+/.workbuddy-ai/
 
 # local agent/tooling and generated previews
 /.agents/

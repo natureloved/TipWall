@@ -289,6 +289,9 @@ export async function recordTipAtomically(handle: string, txHash: string, tip: T
 
 const LUNA_PER_NIM = 100000
 
+/** Trailing window for the home page's "tips this week" proof figure. */
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+
 /**
  * Atomically record a txHash for a creator. Returns true the first time a hash
  * is seen and false on any repeat - lifetime replay protection that, unlike the
@@ -464,6 +467,12 @@ export type EcosystemStats = {
   tippedCreators: number
   totalNIM: number
   totalTips: number
+  /**
+   * Verified tips in the trailing 7 days, excluding tips the owner hid. Feeds
+   * the home page's weekly proof figure, which is only shown once it clears a
+   * floor - so this must never be inflated.
+   */
+  tipsThisWeek: number
   /** Verified tips per reason, powering the home page's live signal card. */
   reasonCounts: Record<string, number>
 }
@@ -497,7 +506,9 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
   let tippedCreators = 0
   let totalLuna = 0
   let totalTips = 0
+  let tipsThisWeek = 0
   const reasonCounts: Record<string, number> = {}
+  const weekStart = now - WEEK_MS
 
   for (const { luna, txCount, createdAt, tips } of perWall) {
     totalLuna += luna
@@ -510,6 +521,10 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
     if (tipped || (createdAt > 0 && now - createdAt < NEW_WALL_GRACE_MS)) walls++
     for (const tip of tips) {
       if (tip.verified && tip.reason) reasonCounts[tip.reason] = (reasonCounts[tip.reason] ?? 0) + 1
+      // Public proof figure, so a tip the owner hid does not count towards it.
+      // That makes this a subset of totalTips, which is the property that
+      // matters: the weekly figure can never exceed the all-time one.
+      if (tip.verified && !tip.hiddenAt && tip.timestamp >= weekStart) tipsThisWeek++
     }
   }
 
@@ -518,6 +533,7 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
     tippedCreators,
     totalNIM: totalLuna / LUNA_PER_NIM,
     totalTips,
+    tipsThisWeek,
     reasonCounts,
   }
 }

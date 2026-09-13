@@ -17,8 +17,19 @@ describe('withVerifiedEcosystemMinimum', () => {
       tippedCreators: 12,
       totalNIM: 25_000,
       totalTips: 300,
+      tipsThisWeek: 0,
       reasonCounts: {},
     })
+  })
+
+  // The weekly figure is a public claim about recent activity, so unlike the
+  // cumulative totals it has no verified floor to fall back on - the only
+  // honest floor is zero, and a live value must never be inflated by it.
+  it('floors the weekly figure at zero and passes live values through', () => {
+    expect(withVerifiedEcosystemMinimum({ tipsThisWeek: 0 }).tipsThisWeek).toBe(0)
+    expect(withVerifiedEcosystemMinimum({ tipsThisWeek: 12 }).tipsThisWeek).toBe(12)
+    expect(withVerifiedEcosystemMinimum(null).tipsThisWeek).toBe(0)
+    expect(withVerifiedEcosystemMinimum({ tipsThisWeek: -5 }).tipsThisWeek).toBe(0)
   })
 
   it('passes live reason counts through for the signal card', () => {
