@@ -39,6 +39,13 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png",
   },
+  // Google Search Console ownership verification. Emitted as a
+  // <meta name="google-site-verification"> tag. Driven by an env var so it is
+  // only included once the property is claimed; set NEXT_PUBLIC_GOOGLE_SITE_
+  // VERIFICATION in Vercel (and .env.local locally) to your GSC token.
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {
