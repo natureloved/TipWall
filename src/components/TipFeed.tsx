@@ -3,6 +3,7 @@ import { Tip, TIP_REASON_LABELS, TipReason } from '@/lib/types'
 import FiatHint from '@/components/FiatHint'
 import { useTranslations } from '@/lib/i18n'
 import { timeAgo } from '@/lib/time'
+import { USDT_DISPLAY } from '@/lib/usdt'
 
 export default function TipFeed({ tips, animationDelay = '0.4s' }: { tips: Tip[]; animationDelay?: string }) {
   const t = useTranslations()
@@ -46,7 +47,7 @@ export default function TipFeed({ tips, animationDelay = '0.4s' }: { tips: Tip[]
                 </div>
                 <div className="text-right flex-shrink-0">
                   <div className="text-lg font-bold bg-gradient-to-r from-amber-300 to-amber-400 bg-clip-text text-transparent whitespace-nowrap">
-                    {tip.asset === 'USDT' ? `${tip.amountUSDT || 0} USDT` : `${tip.amountNIM} NIM`}
+                    {tip.asset === 'USDT' ? `${tip.amountUSDT || 0} ${USDT_DISPLAY}` : `${tip.amountNIM} NIM`}
                   </div>
                   {tip.asset !== 'USDT' && <FiatHint nim={tip.amountNIM} className="block text-xs text-slate-500" />}
                   <div

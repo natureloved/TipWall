@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useTranslations } from '@/lib/i18n'
+import { USDT_DISPLAY } from '@/lib/usdt'
 
 // Deterministic avatar from the address: same supporter always gets the same
 // emoji + colour. Reads as an identity, unlike a "27"/"UK" hex fragment.
@@ -34,7 +35,7 @@ function AvatarChip({ s, idx, size = 'w-12 h-12 text-xl' }: { s: { address: stri
   return (
     <div className="relative">
       <div
-        title={`${s.name || `${s.address.slice(0, 6)}…${s.address.slice(-4)}`} · ${s.totalNIM > 0 ? `${s.totalNIM} NIM` : `${s.totalUSDT || 0} USDT`}`}
+        title={`${s.name || `${s.address.slice(0, 6)}…${s.address.slice(-4)}`} · ${s.totalNIM > 0 ? `${s.totalNIM} NIM` : `${s.totalUSDT || 0} ${USDT_DISPLAY}`}`}
         className={`${size} rounded-full flex items-center justify-center flex-shrink-0 shadow-md border-2 border-white/20 bg-gradient-to-br ${color}`}
       >
         {emoji}

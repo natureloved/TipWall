@@ -13,6 +13,16 @@ import { validatePolygonAddress } from './validate-profile'
 export const USDT_DECIMALS = 6
 export const POLYGON_CHAIN_ID = '0x89'
 
+/**
+ * Display name of the token at the configured Polygon address.
+ *
+ * The contract the Nimiq docs point at reports `symbol()`/`name()` as "USDT0"
+ * (verified on-chain), not "USDT". The internal asset code stays `'USDT'`
+ * because it is persisted on every stored tip and is part of the API contract -
+ * renaming it would orphan existing records. Only the label users see changes.
+ */
+export const USDT_DISPLAY = 'USDT0'
+
 /** ERC-20 `balanceOf(address)` selector. */
 const BALANCE_OF_SELECTOR = '0x70a08231'
 /** ERC-20 `transfer(address,uint256)` selector. */

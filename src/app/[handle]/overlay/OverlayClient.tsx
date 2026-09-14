@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { TIP_REASON_LABELS, type TipAsset, type TipReason } from '@/lib/types'
+import { USDT_DISPLAY } from '@/lib/usdt'
 
 type LiveTip = {
   id: string
@@ -40,7 +41,7 @@ export default function OverlayClient({ handle, preview = false }: { handle: str
   const alert = queue[0] || (preview ? previewAlert : null)
   const showingPreviewSample = preview && !queue[0]
   const amountLabel = alert
-    ? alert.asset === 'USDT' ? `${alert.amountUSDT ?? 0} USDT` : `${alert.amountNIM} NIM`
+    ? alert.asset === 'USDT' ? `${alert.amountUSDT ?? 0} ${USDT_DISPLAY}` : `${alert.amountNIM} NIM`
     : ''
 
   // Play one alert at a time so a burst of tips remains legible on stream.

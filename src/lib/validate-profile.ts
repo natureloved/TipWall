@@ -80,7 +80,7 @@ export function validateNotifyTelegram(url: string): string | null {
 /** Validate an EVM/Polygon payout address without accepting lookalike strings. */
 export function validatePolygonAddress(address: string): string | null {
   if (!address) return null
-  if (!POLYGON_ADDRESS_RE.test(address)) return 'USDT payout address must be a valid Polygon (0x…) address'
+  if (!POLYGON_ADDRESS_RE.test(address)) return 'USDT0 payout address must be a valid Polygon (0x…) address'
   return null
 }
 

@@ -99,7 +99,7 @@ export interface CreatorProfile {
   /** Optional structured links shown on the public wall. */
   socialLinks?: SocialLinks
   walletAddress: string
-  /** Optional Polygon address for receiving USDT (Polygon PoS). */
+  /** Optional Polygon address for receiving USDT0 (Polygon PoS). */
   usdtPolygonAddress?: string
   /**
    * Hex-encoded Ed25519 public key of the wallet that owns this profile,

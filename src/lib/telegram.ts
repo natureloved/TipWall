@@ -1,5 +1,6 @@
 import type { CreatorProfile, Tip } from './types'
 import { log } from './logger'
+import { USDT_DISPLAY } from './usdt'
 
 /**
  * Deliver a creator's tip alert through the owner-configured Telegram Bot API
@@ -23,7 +24,7 @@ export async function sendTelegramTipNotification(profile: CreatorProfile, tip: 
   }
 
   const who = tip.anonymous ? 'Someone' : tip.senderName || 'A supporter'
-  const amount = tip.asset === 'USDT' ? `${tip.amountUSDT || 0} USDT` : `${tip.amountNIM} NIM`
+  const amount = tip.asset === 'USDT' ? `${tip.amountUSDT || 0} ${USDT_DISPLAY}` : `${tip.amountNIM} NIM`
   const text = `💸 ${who} tipped you ${amount}${tip.message ? ` — “${tip.message}”` : ''}`
 
   try {

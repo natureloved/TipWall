@@ -7,6 +7,7 @@ import { connectWallet, signProfileAuth } from '@/lib/nimiq'
 import { normalizeHandle, nimiqAddressError } from '@/lib/profile-auth'
 import { CREATOR_CATEGORIES, type CreatorCategory } from '@/lib/types'
 import { buildNimiqPayDeepLink, detectNimiqPay, isMobileDevice, NIMIQ_PAY_LANDING_URL } from '@/lib/environment'
+import { USDT_DISPLAY } from '@/lib/usdt'
 
 type Step = 1 | 2 | 3
 
@@ -192,7 +193,7 @@ export default function CreateWallForm() {
           <label>Category<select value={category} onChange={event => setCategory(event.target.value as CreatorCategory | '')}><option value="">Choose later</option>{(Object.keys(CREATOR_CATEGORIES) as CreatorCategory[]).map(value => <option key={value} value={value}>{CREATOR_CATEGORIES[value].emoji} {CREATOR_CATEGORIES[value].label}</option>)}</select></label>
           <label>What are you working on?<input value={achievement} onChange={event => setAchievement(event.target.value)} placeholder="e.g. Building an AI agent" maxLength={80} /></label>
           <div className="create-social-fields"><p className="create-field-caption">Links people can use to find you</p>{SOCIAL_FIELDS.map(([key, label]) => <label key={key}>{label}<input value={socialLinks[key] || ''} onChange={event => updateSocial(key, event.target.value)} placeholder="https://..." inputMode="url" /></label>)}</div>
-          <label>USDT Polygon wallet <span>optional</span><input value={usdtPolygonAddress} onChange={event => setUsdtPolygonAddress(event.target.value)} placeholder="0x..." /></label>
+          <label>{USDT_DISPLAY} Polygon wallet <span>optional</span><input value={usdtPolygonAddress} onChange={event => setUsdtPolygonAddress(event.target.value)} placeholder="0x..." /></label>
           <div className="create-step-actions"><button type="button" className="create-back" onClick={() => setStep(2)}>Back</button><button className="landing-btn landing-btn-dark landing-submit" disabled={submitting}>{submitting ? 'Signing in wallet...' : 'Create support wall ↗'}</button></div>
         </section>
       )}

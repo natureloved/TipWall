@@ -4,7 +4,7 @@ import TipReasonPicker from './TipReasonPicker'
 import FiatHint from './FiatHint'
 import { TipReason, TIP_REASON_LABELS, type TipAsset } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
-import { buildUsdtPaymentLink, getEvmAddress, getUsdtBalance, sendUsdtTip, usdtPaymentsConfigured } from '@/lib/usdt'
+import { USDT_DISPLAY, buildUsdtPaymentLink, getEvmAddress, getUsdtBalance, sendUsdtTip, usdtPaymentsConfigured } from '@/lib/usdt'
 import { tipViaHub } from '@/lib/hub'
 import { isMobileDevice, NIMIQ_GET_NIM_URL } from '@/lib/environment'
 import { savePendingTipIntent } from '@/lib/tip-intent'
@@ -93,7 +93,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   const insufficientFunds = asset === 'NIM' && nimiqAvailable === true && walletBalanceNim != null && finalAmount > walletBalanceNim
   // Same idea for the USDT tab: only warn once a balance has actually been read.
   const insufficientUsdt = asset === 'USDT' && usdtBalance != null && finalAmount > usdtBalance
-  const amountLabel = asset === 'USDT' ? 'USDT' : 'NIM'
+  const amountLabel = asset === 'USDT' ? USDT_DISPLAY : 'NIM'
   let usdtPaymentLink = ''
   if (usdtEnabled && asset === 'USDT' && creatorUsdtAddress && Number.isFinite(finalAmount) && finalAmount > 0) {
     try { usdtPaymentLink = buildUsdtPaymentLink({ tokenAddress: usdtTokenAddress, recipient: creatorUsdtAddress, amountUSDT: finalAmount }) } catch { /* invalid input leaves the QR hidden */ }
@@ -110,19 +110,22 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   useEffect(() => {
     if (!isOpen || !usdtEnabled || asset !== 'USDT') return
     let cancelled = false
-    setUsdtBalanceLoading(true)
-    getEvmAddress()
-      .then(owner => (owner ? getUsdtBalance({ tokenAddress: usdtTokenAddress, owner }) : null))
-      .then(balance => {
-        if (cancelled) return
-        setUsdtBalance(balance)
-        setUsdtBalanceLoading(false)
-      })
-      .catch(() => {
-        if (cancelled) return
-        setUsdtBalance(null)
-        setUsdtBalanceLoading(false)
-      })
+    // Every setState here happens after an await, never synchronously in the
+    // effect body - a synchronous setState would cascade a second render.
+    const load = async () => {
+      const owner = await getEvmAddress()
+      if (cancelled) return
+      setUsdtBalanceLoading(true)
+      const balance = owner ? await getUsdtBalance({ tokenAddress: usdtTokenAddress, owner }) : null
+      if (cancelled) return
+      setUsdtBalance(balance)
+      setUsdtBalanceLoading(false)
+    }
+    load().catch(() => {
+      if (cancelled) return
+      setUsdtBalance(null)
+      setUsdtBalanceLoading(false)
+    })
     return () => { cancelled = true }
   }, [isOpen, usdtEnabled, asset, usdtTokenAddress])
 
@@ -210,7 +213,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     try {
       await recordTip(txHash, '', 'USDT')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not verify the USDT payment')
+      setError(err instanceof Error ? err.message : `Could not verify the ${USDT_DISPLAY} payment`)
     } finally {
       setLoading(false)
     }
@@ -220,7 +223,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     if (sendingRef.current) return
     const minimum = asset === 'USDT' ? 0.01 : 1
     if (!finalAmount || finalAmount < minimum) return setError(`Minimum tip is ${minimum} ${amountLabel}`)
-    if (asset === 'USDT' && !creatorUsdtAddress) return setError('This wall has not enabled USDT tips.')
+    if (asset === 'USDT' && !creatorUsdtAddress) return setError(`This wall has not enabled ${USDT_DISPLAY} tips.`)
     sendingRef.current = true
 
     const reset = () => { sendingRef.current = false }
@@ -531,7 +534,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
             {loading
               ? (nimiqAvailable !== true ? `⏳ ${t('waitingForWallet')}` : t('waiting'))
               : asset === 'USDT'
-                ? `💳 ${finalAmount || '?'} USDT: ${t('confirmUsdt')}`
+                ? `💳 ${finalAmount || '?'} ${USDT_DISPLAY}: ${t('confirmUsdt')}`
               : nimiqAvailable !== true
                 ? (isMobileDevice() ? `⚡ ${t('continueInNimiqPay')}` : `⚡ ${finalAmount || '?'} NIM: ${t('payWithNimiqWallet')}`)
                 : `💰 ${finalAmount || '?'} NIM: ${t('confirmTip')}`}

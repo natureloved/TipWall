@@ -1,5 +1,6 @@
 import { Supporter } from '@/lib/types'
 import { useTranslations } from '@/lib/i18n'
+import { USDT_DISPLAY } from '@/lib/usdt'
 
 function truncate(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
@@ -31,7 +32,7 @@ export default function DashboardSupporters({ supporters }: { supporters: Suppor
             </span>
             <span className="text-right font-bold text-[#171614]">
               {supporter.totalNIM > 0 && <span className="block">{supporter.totalNIM.toLocaleString()} NIM</span>}
-              {(supporter.totalUSDT || 0) > 0 && <span className="block">{supporter.totalUSDT!.toLocaleString()} USDT</span>}
+              {(supporter.totalUSDT || 0) > 0 && <span className="block">{supporter.totalUSDT!.toLocaleString()} {USDT_DISPLAY}</span>}
               <span className="block text-[0.68rem] font-medium text-[#746b5e]">
                 {t('suppTip', { count: supporter.tipCount, n: supporter.tipCount.toLocaleString() })}
               </span>

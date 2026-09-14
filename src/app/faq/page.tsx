@@ -16,7 +16,7 @@ const questions = [
   ['Can I tip anonymously?', 'Yes. Supporters can hide their address and name from the public wall. The transaction still remains verifiable on-chain.'],
   ['Can a wall owner edit or moderate their wall?', 'Yes. The owner wallet can update the profile, change its theme, reply to messages, hide content, remove public messages, and export a signed copy of the public history.'],
   ['What happens if I lose my wallet?', 'Ownership is wallet-based. Set a recovery wallet from the edit screen while you still have access, and keep a signed wall export as a portable backup.'],
-  ['Can I use another asset?', 'Some walls optionally accept USDT on Polygon. NIM remains the native TipWall payment path and is available on every wall.'],
+  ['Can I use another asset?', 'Some walls optionally accept USDT0 on Polygon. NIM remains the native TipWall payment path and is available on every wall.'],
 ]
 
 export default function FAQPage() {

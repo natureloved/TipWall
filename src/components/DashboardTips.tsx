@@ -4,6 +4,7 @@ import { type Tip } from '@/lib/types'
 import { signProfileAuth } from '@/lib/nimiq'
 import { localizedTimeAgo } from '@/lib/time'
 import { useLocale, useTranslations } from '@/lib/i18n'
+import { USDT_DISPLAY } from '@/lib/usdt'
 
 const REPLY_MAX = 120
 
@@ -87,7 +88,7 @@ export default function DashboardTips({ handle, tips, walletAddress }: { handle:
             <li key={tip.id} className="rounded-xl border border-[#171614]/25 bg-[#fffdf7] p-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="text-sm font-semibold text-[#171614]">{who}</span>
-                <span className="text-sm font-bold text-[#b9382a]">{tip.asset === 'USDT' ? `${tip.amountUSDT || 0} USDT` : `${tip.amountNIM} NIM`} · <span className="font-medium text-[#746b5e]">{localizedTimeAgo(tip.timestamp, locale)}</span></span>
+                <span className="text-sm font-bold text-[#b9382a]">{tip.asset === 'USDT' ? `${tip.amountUSDT || 0} ${USDT_DISPLAY}` : `${tip.amountNIM} NIM`} · <span className="font-medium text-[#746b5e]">{localizedTimeAgo(tip.timestamp, locale)}</span></span>
               </div>
               {tip.message && <p className="mt-1 text-sm text-[#5f574b]">“{tip.message}”</p>}
               {tip.hiddenAt && (
