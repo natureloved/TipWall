@@ -4,7 +4,7 @@ import TipReasonPicker from './TipReasonPicker'
 import FiatHint from './FiatHint'
 import { TipReason, TIP_REASON_LABELS, type TipAsset } from '@/lib/types'
 import { sendNimTip, getSenderAddress } from '@/lib/nimiq'
-import { buildUsdtPaymentLink, sendUsdtTip, usdtPaymentsConfigured } from '@/lib/usdt'
+import { buildUsdtPaymentLink, getEvmAddress, getUsdtBalance, sendUsdtTip, usdtPaymentsConfigured } from '@/lib/usdt'
 import { tipViaHub } from '@/lib/hub'
 import { isMobileDevice, NIMIQ_GET_NIM_URL } from '@/lib/environment'
 import { savePendingTipIntent } from '@/lib/tip-intent'
@@ -62,6 +62,8 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   const [error, setError] = useState('')
   const [usdtQr, setUsdtQr] = useState('')
   const [manualUsdtHash, setManualUsdtHash] = useState('')
+  const [usdtBalance, setUsdtBalance] = useState<number | null>(null)
+  const [usdtBalanceLoading, setUsdtBalanceLoading] = useState(false)
   const sendingRef = useRef(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const t = useTranslations()
@@ -89,6 +91,8 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
   const finalAmount = Number(amount)
   const usdtEnabled = usdtPaymentsConfigured(creatorUsdtAddress, usdtTokenAddress)
   const insufficientFunds = asset === 'NIM' && nimiqAvailable === true && walletBalanceNim != null && finalAmount > walletBalanceNim
+  // Same idea for the USDT tab: only warn once a balance has actually been read.
+  const insufficientUsdt = asset === 'USDT' && usdtBalance != null && finalAmount > usdtBalance
   const amountLabel = asset === 'USDT' ? 'USDT' : 'NIM'
   let usdtPaymentLink = ''
   if (usdtEnabled && asset === 'USDT' && creatorUsdtAddress && Number.isFinite(finalAmount) && finalAmount > 0) {
@@ -99,6 +103,28 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
     if (!usdtPaymentLink) return
     QRCode.toDataURL(usdtPaymentLink, { width: 220, margin: 1, color: { dark: '#171614', light: '#ffffff' } }).then(setUsdtQr).catch(() => setUsdtQr(''))
   }, [usdtPaymentLink])
+
+  // USDT balance, mirroring the NIM balance line. `eth_accounts` is a passive
+  // read (no wallet prompt) and `eth_call` needs no confirmation, so opening
+  // the USDT tab never nags the supporter just to show a number.
+  useEffect(() => {
+    if (!isOpen || !usdtEnabled || asset !== 'USDT') return
+    let cancelled = false
+    setUsdtBalanceLoading(true)
+    getEvmAddress()
+      .then(owner => (owner ? getUsdtBalance({ tokenAddress: usdtTokenAddress, owner }) : null))
+      .then(balance => {
+        if (cancelled) return
+        setUsdtBalance(balance)
+        setUsdtBalanceLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setUsdtBalance(null)
+        setUsdtBalanceLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [isOpen, usdtEnabled, asset, usdtTokenAddress])
 
   // Compact goal progress for the modal - only meaningful when the creator set a
   // goal. Mirrors the wall's logic: true % can exceed 100 (label), bar caps at 100.
@@ -424,6 +450,27 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
           </div>
         )}
 
+        {/* USDT balance, read with a read-only eth_call - mirrors the NIM line
+            so the two tabs report the supporter's funds the same way. */}
+        {asset === 'USDT' && usdtEnabled && usdtBalanceLoading && (
+          <p className="mb-4 text-center text-xs font-medium text-[#746b5e]" role="status">
+            {t('checkingWalletBalance')}
+          </p>
+        )}
+
+        {asset === 'USDT' && usdtEnabled && !usdtBalanceLoading && usdtBalance != null && !insufficientUsdt && (
+          <p className="mb-4 text-center text-xs font-medium text-[#746b5e]" role="status">
+            {t('usdtBalanceLabel', { n: usdtBalance.toLocaleString(undefined, { maximumFractionDigits: 6 }) })}
+          </p>
+        )}
+
+        {asset === 'USDT' && usdtEnabled && !usdtBalanceLoading && insufficientUsdt && (
+          <div className="mb-4 rounded-xl border border-[#d8b06b] bg-[#fff6df] p-3 text-sm text-[#6f5524]" role="status">
+            <p className="font-bold">{t('usdtInsufficient', { n: usdtBalance!.toLocaleString(undefined, { maximumFractionDigits: 6 }) })}</p>
+            <p className="mt-1 text-xs leading-relaxed">{t('usdtPolygonBody')}</p>
+          </div>
+        )}
+
         {asset === 'NIM' && nimiqAvailable === true && walletBalanceLoading && (
           <p className="mb-4 text-center text-xs font-medium text-[#746b5e]" role="status">
             {t('checkingWalletBalance')}
@@ -478,7 +525,7 @@ export default function TipModal({ isOpen, onClose, creatorHandle, creatorWallet
         <div className="tip-modal-footer sticky bottom-0 -mx-6 -mb-6 px-6 pt-4 pb-6">
           <button
             onClick={handleSendTip}
-            disabled={loading || !finalAmount}
+            disabled={loading || !finalAmount || insufficientUsdt}
             className="w-full transform rounded-xl bg-[#171614] py-3.5 text-sm font-bold text-[#fffdf7] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#b9382a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f05a3c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffaf0] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:bg-[#171614]"
           >
             {loading
