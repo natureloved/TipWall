@@ -70,7 +70,10 @@ export default function HomePage() {
         <p className="landing-eyebrow"><i className="landing-live-dot" /> SUPPORT THAT SAYS SOMETHING</p>
         <h1>Every supporter<br />leaves a <em>mark.</em></h1>
         <p className="landing-lede">Tip people, projects, and communities directly in NIM, and leave the reason it mattered. A public wall of support, insight, and small moments that last.</p>
-        <div className="landing-actions"><Link className="landing-btn landing-btn-dark" href="/explore">Find a wall to support <span>→</span></Link></div>
+        <div className="landing-actions">
+          <Link className="landing-btn landing-btn-dark" href="/explore">Find someone to support <span>→</span></Link>
+          <button type="button" onClick={scrollToCreate} className="landing-btn landing-btn-light">Create your wall</button>
+        </div>
         <div className="landing-trust"><span>No fees, ever</span><span>Wall owners keep 100%</span><span>Tips arrive in seconds</span></div>
         {/* Real figures straight after the claims, so the proof is above the
             fold on a laptop instead of buried at the bottom of the page. */}
