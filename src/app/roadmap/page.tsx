@@ -8,13 +8,13 @@ export const metadata = {
     title: 'TipWall Roadmap',
     description: 'What TipWall ships today, what is being built next, and what is still being explored.',
     url: 'https://tipwall.vercel.app/roadmap',
-    images: [{ url: '/banner.png?v=2', width: 1200, height: 630 }],
+    images: [{ url: '/banner.png?v=3', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TipWall Roadmap',
     description: 'What TipWall ships today, what is being built next, and what is still being explored.',
-    images: ['/banner.png?v=2'],
+    images: ['/banner.png?v=3'],
   },
 }
 

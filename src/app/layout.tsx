@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     title: "TipWall | Public Support Walls",
     description: "Public support walls for people, projects, and communities on Nimiq",
     siteName: "TipWall",
-    images: [{ url: "/banner.png?v=2", width: 1200, height: 630 }],
+    images: [{ url: "/banner.png?v=3", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "TipWall | Public Support Walls",
     description: "Public support walls for people, projects, and communities on Nimiq",
-    images: ["/banner.png?v=2"],
+    images: ["/banner.png?v=3"],
   },
   // TipWall logo as the site icon everywhere: browser tabs (ico/png),
   // iOS home screen (apple-touch-icon), Android/PWA (manifest icons below

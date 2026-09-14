@@ -25,13 +25,13 @@ export const metadata = {
     title: 'Most supported walls this week',
     description: 'Live directory of public support walls on Nimiq. Support people directly, not the platform.',
     url: 'https://tipwall.vercel.app/explore',
-    images: [{ url: '/banner.png?v=2', width: 1200, height: 630 }],
+    images: [{ url: '/banner.png?v=3', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Most supported walls this week',
     description: 'Live directory of public support walls on Nimiq. Support people directly, not the platform.',
-    images: ['/banner.png?v=2'],
+    images: ['/banner.png?v=3'],
   },
 }
 

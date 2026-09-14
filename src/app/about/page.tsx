@@ -9,13 +9,13 @@ export const metadata = {
     title: 'Why I built TipWall',
     description: 'The story behind TipWall: why direct support matters, and why it is built on Nimiq.',
     url: 'https://tipwall.vercel.app/about',
-    images: [{ url: '/banner.png?v=2', width: 1200, height: 630 }],
+    images: [{ url: '/banner.png?v=3', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Why I built TipWall',
     description: 'The story behind TipWall: why direct support matters, and why it is built on Nimiq.',
-    images: ['/banner.png?v=2'],
+    images: ['/banner.png?v=3'],
   },
 }
 

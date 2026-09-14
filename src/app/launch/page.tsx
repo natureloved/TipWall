@@ -13,14 +13,14 @@ export const metadata = {
     description:
       'A Nimiq Pay Mini App where supporters tip you NIM directly. You keep 100%. Free forever.',
     url: 'https://tipwall.vercel.app/launch',
-    images: [{ url: '/banner.png?v=2', width: 1200, height: 630 }],
+    images: [{ url: '/banner.png?v=3', width: 1200, height: 630 }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Support people directly, not the platform',
     description:
       'A Nimiq Pay Mini App where supporters tip you NIM directly. You keep 100%. Free forever.',
-    images: ['/banner.png?v=2'],
+    images: ['/banner.png?v=3'],
   },
 }
 
