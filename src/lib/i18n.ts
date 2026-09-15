@@ -1392,6 +1392,19 @@ Object.assign(TRANSLATIONS.zh, { dashTipsDeleted: '公开内容已永久移除' 
 Object.assign(TRANSLATIONS.ja, { dashTipsDeleted: '公開コンテンツを完全に削除しました' })
 Object.assign(TRANSLATIONS.ko, { dashTipsDeleted: '공개 콘텐츠가 영구 삭제되었습니다' })
 
+// Share-kit verifiable export: an owner-only action, surfaced when a non-owner
+// (or a supporter browsing the public share page) tries to self-serve it.
+Object.assign(TRANSLATIONS.en, { exportOwnerOnly: 'Only the wall owner can download the signed export. Open the dashboard to continue.' })
+Object.assign(TRANSLATIONS.es, { exportOwnerOnly: 'Solo el dueño del muro puede descargar la instantánea firmada. Abre el panel para continuar.' })
+Object.assign(TRANSLATIONS.de, { exportOwnerOnly: 'Nur der Eigentümer des Murals kann den signierten Schnappschuss herunterladen. Öffne das Dashboard, um fortzufahren.' })
+Object.assign(TRANSLATIONS.fr, { exportOwnerOnly: 'Seul le propriétaire du mur peut télécharger l’instantané signé. Ouvrez le tableau de bord pour continuer.' })
+Object.assign(TRANSLATIONS.it, { exportOwnerOnly: 'Solo il proprietario del muro può scaricare l’istantanea firmata. Apri la dashboard per continuare.' })
+Object.assign(TRANSLATIONS.pt, { exportOwnerOnly: 'Apenas o dono do mural pode baixar o instantâneo assinado. Abra o painel para continuar.' })
+Object.assign(TRANSLATIONS.ru, { exportOwnerOnly: 'Только владелец стены может скачать подписанный снимок. Откройте панель управления, чтобы продолжить.' })
+Object.assign(TRANSLATIONS.zh, { exportOwnerOnly: '只有墙的拥有者才能下载签名快照。请打开仪表板继续。' })
+Object.assign(TRANSLATIONS.ja, { exportOwnerOnly: '壁の所有者のみが署名付きスナップショットをダウンロードできます。続行するにはダッシュボードを開いてください。' })
+Object.assign(TRANSLATIONS.ko, { exportOwnerOnly: '담벼락 소유자만 서명된 스냅샷을 다운로드할 수 있습니다. 계속하려면 대시보드를 여세요.' })
+
 /**
  * The Nimiq Pay host injects the user's chosen language before page scripts
  * run. The docs are explicit that this is preferable to `navigator.language`,

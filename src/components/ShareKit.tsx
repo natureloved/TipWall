@@ -5,6 +5,9 @@ import { creatorShareText, openShare, canNativeShare, envWallUrl, type ShareChan
 import { track } from '@/lib/analytics'
 import { useTranslations } from '@/lib/i18n'
 import { escapeHtml } from '@/lib/html'
+import { connectWallet, signProfileAuth, signWallSnapshot } from '@/lib/nimiq'
+import { buildSignedWallSnapshot, buildWallSnapshotMessage, buildWallSnapshotPayload } from '@/lib/wall-snapshot'
+import { type DashboardData } from '@/lib/types'
 
 /**
  * The creator's Share Kit: everything needed to put a wall where their
@@ -28,6 +31,9 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
   const [nativeShare, setNativeShare] = useState(false)
   const [showMore, setShowMore] = useState(false)
   const [posterUrl, setPosterUrl] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
+  const [exported, setExported] = useState(false)
 
   // `origin` is resolved from the browser after mount (see effect below). Until
   // then we must render the SAME value the server did, so both the server and
@@ -93,6 +99,56 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
       triggerDownload(png, `tipwall-${handle}-poster.png`)
       track(handle, 'WALL_SHARED')
     } catch { /* ignore */ }
+  }
+
+  /**
+   * Build a signed, portable wall snapshot entirely on the share page — no
+   * dashboard round-trip. Owner-only: we connect the wallet, prove ownership
+   * with a signed `view` proof, fetch the dashboard payload, then sign and
+   * download it. The API returns 401/403 when the signer is not the creator,
+   * which we surface as a clear "owner only" message rather than a raw error.
+   */
+  const downloadSignedExport = async () => {
+    setExporting(true)
+    setExportError('')
+    setExported(false)
+    try {
+      const address = await connectWallet()
+      const proof = await signProfileAuth({ action: 'view', handle, walletAddress: address })
+      const authHeader = btoa(JSON.stringify(proof))
+      const res = await fetch(`/api/dashboard/${handle}`, { headers: { 'x-tipwall-auth': authHeader } })
+      if (res.status === 401 || res.status === 403) {
+        setExportError(t('exportOwnerOnly'))
+        return
+      }
+      if (!res.ok) {
+        setExportError(t('exportError'))
+        return
+      }
+      const data = (await res.json()) as DashboardData
+      const payload = buildWallSnapshotPayload({
+        profile: data.profile,
+        tips: data.tips,
+        supporters: data.supporters,
+        milestones: data.milestonesUnlocked,
+        totalNIM: data.totalNIM,
+        totalTips: data.totalTips,
+      })
+      const signed = await signWallSnapshot(buildWallSnapshotMessage(payload))
+      const snapshot = buildSignedWallSnapshot(payload, signed)
+      const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json;charset=utf-8' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `tipwall-${handle}-snapshot.json`
+      a.click()
+      URL.revokeObjectURL(a.href)
+      setExported(true)
+      track(handle, 'WALL_SHARED')
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : t('exportError'))
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -179,7 +235,18 @@ export default function ShareKit({ handle, displayName, isNew = false }: {
       <section className="rounded-2xl border border-[#171614]/25 bg-[#fffdf7] p-5 shadow-[3px_3px_0_rgba(23,22,20,0.10)]">
         <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-[#b9382a]">{t('ownHistory')}</h2>
         <p className="mb-3 text-xs leading-relaxed text-[#746b5e]">{t('shareHistoryBody')}</p>
-        <a href={`/${handle}/dashboard`} className="inline-block w-full rounded-lg border border-[#171614] bg-[#171614] px-4 py-2.5 text-center text-sm font-bold text-[#fffdf7] transition-colors hover:bg-[#39342d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf7]">
+        <button
+          type="button"
+          onClick={downloadSignedExport}
+          disabled={exporting}
+          className="w-full rounded-lg border border-[#171614] bg-[#171614] px-4 py-2.5 text-sm font-bold text-[#fffdf7] transition-colors hover:bg-[#39342d] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf7] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {exporting ? t('exportSigning') : t('exportSnapshot')}
+        </button>
+        <p className="mt-2 min-h-[1rem] text-xs text-[#9d2c21]" role="status" aria-live="polite">
+          {exportError || (exported ? t('exportSigned') : '')}
+        </p>
+        <a href={`/${handle}/dashboard`} className="mt-2 inline-block w-full rounded-lg border border-[#171614]/35 bg-[#fffdf7] px-4 py-2.5 text-center text-sm font-semibold text-[#171614] transition-colors hover:border-[#b9382a] hover:bg-[#fff1eb] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b9382a] focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf7]">
           {t('openDashboardExport')}
         </a>
       </section>
