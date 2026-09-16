@@ -56,3 +56,7 @@ next-env.d.ts
 /skills-lock.json
 /TipWall-Launch-Package.md
 /scripts/promo/
+
+# video production pipeline (marketing/) - unrelated to the TipWall app; keep
+# it out of the repo so `git add .` / CI never picks up its source tree.
+/marketing/
