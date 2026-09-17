@@ -24,10 +24,10 @@ export type PublicEcosystemStats = {
 // legitimately can be empty, and the consumer only shows it above a floor, so
 // a stale response degrades to the all-time figure instead of overstating.
 export const VERIFIED_ECOSYSTEM_STATS: PublicEcosystemStats = {
-  walls: 8,
-  tippedCreators: 8,
-  totalNIM: 18_855,
-  totalTips: 67,
+  walls: 11,
+  tippedCreators: 10,
+  totalNIM: 19_805,
+  totalTips: 71,
   tipsThisWeek: 0,
   reasonCounts: {},
 }

@@ -211,6 +211,7 @@ export async function setProfileNX(profile: CreatorProfile): Promise<boolean> {
   const res = await kv.set(key, profile, { nx: true })
   if (res === 'OK') {
     await kv.sadd(`${PREFIX}profiles`, profile.handle.toLowerCase())
+    await invalidateEcosystemStatsCache()
     return true
   }
   return false
@@ -280,7 +281,9 @@ export async function recordTipAtomically(handle: string, txHash: string, tip: T
     [globalTxKey, txKey, verifiedTxKey, tipKey],
     [txHash, JSON.stringify(tip), tip.verified ? '1' : '0'],
   )
-  return Number(result) === 1
+  const ok = Number(result) === 1
+  if (ok) await invalidateEcosystemStatsCache()
+  return ok
 }
 
 // --- Lifetime aggregates ----------------------------------------------------
@@ -348,6 +351,7 @@ export async function initializeVerifiedTotal(handle: string, totalNIM: number):
 export async function addVerifiedNim(handle: string, amountNIM: number): Promise<number> {
   const key = `${PREFIX}vtotal:${handle.toLowerCase()}`
   const luna = await kv.incrby(key, Math.round(amountNIM * LUNA_PER_NIM))
+  await invalidateEcosystemStatsCache()
   return luna / LUNA_PER_NIM
 }
 
@@ -477,58 +481,112 @@ export type EcosystemStats = {
   reasonCounts: Record<string, number>
 }
 
+export const ECOSYSTEM_STATS_CACHE_KEY = `${PREFIX}cache:ecosystem_stats`
+
+export async function invalidateEcosystemStatsCache(): Promise<void> {
+  try {
+    await kv.del(ECOSYSTEM_STATS_CACHE_KEY)
+  } catch (err) {
+    logError('invalidate_ecosystem_stats_cache_failed', err)
+  }
+}
+
 export async function getEcosystemStats(): Promise<EcosystemStats> {
-  let handles = await kv.smembers<string[]>(`${PREFIX}profiles`)
-  handles = handles || []
+  try {
+    const cached = await kv.get<EcosystemStats>(ECOSYSTEM_STATS_CACHE_KEY)
+    if (cached && typeof cached === 'object' && typeof cached.walls === 'number') {
+      return cached
+    }
+  } catch {
+    // Cache read failed - proceed to compute
+  }
 
+  const handles = (await kv.smembers<string[]>(`${PREFIX}profiles`)) || []
   const now = Date.now()
-
-  // Per-wall reads run in parallel; each wall contributes its lifetime luna
-  // total, its distinct verified-txHash count, and its creation time. A flaky
-  // read degrades that wall to zeros instead of sinking the whole call.
-  const perWall = await Promise.all(
-    handles.map(async (h) => {
-      try {
-        const [luna, txCount, profile, tips] = await Promise.all([
-          kv.get<number>(`${PREFIX}vtotal:${h}`).then(v => Number(v ?? 0) || 0),
-          getVerifiedTipCount(h),
-          kv.get<CreatorProfile>(`${PREFIX}profile:${h.toLowerCase()}`),
-          kv.lrange<Tip>(`${PREFIX}tips:${h.toLowerCase()}`, 0, -1).then(t => t || []),
-        ])
-        return { luna, txCount, createdAt: Number(profile?.createdAt ?? 0), tips }
-      } catch {
-        return { luna: 0, txCount: 0, createdAt: 0, tips: [] as Tip[] }
-      }
-    }),
-  )
-
-  let walls = 0
-  let tippedCreators = 0
-  let totalLuna = 0
-  let totalTips = 0
-  let tipsThisWeek = 0
-  const reasonCounts: Record<string, number> = {}
   const weekStart = now - WEEK_MS
 
-  for (const { luna, txCount, createdAt, tips } of perWall) {
-    totalLuna += luna
-    totalTips += txCount
-    const tipped = luna > 0 || txCount > 0
-    if (tipped) tippedCreators++
-    // Count only walls Explore would list: tipped at least once, or still
-    // inside the new-wall grace window. Keeps this figure honest next to the
-    // directory instead of counting every registered handle.
-    if (tipped || (createdAt > 0 && now - createdAt < NEW_WALL_GRACE_MS)) walls++
-    for (const tip of tips) {
-      if (tip.verified && tip.reason) reasonCounts[tip.reason] = (reasonCounts[tip.reason] ?? 0) + 1
-      // Public proof figure, so a tip the owner hid does not count towards it.
-      // That makes this a subset of totalTips, which is the property that
-      // matters: the weekly figure can never exceed the all-time one.
-      if (tip.verified && !tip.hiddenAt && tip.timestamp >= weekStart) tipsThisWeek++
+  if (!handles.length) {
+    return {
+      walls: 0,
+      tippedCreators: 0,
+      totalNIM: 0,
+      totalTips: 0,
+      tipsThisWeek: 0,
+      reasonCounts: {},
     }
   }
 
-  return {
+  const vtotalKeys = handles.map(h => `${PREFIX}vtotal:${h}`)
+  const profileKeys = handles.map(h => `${PREFIX}profile:${h.toLowerCase()}`)
+
+  let vtotals: Array<number | null> = []
+  let profiles: Array<CreatorProfile | null> = []
+
+  try {
+    const [vt, pr] = await Promise.all([
+      kv.mget<Array<number | null>>(...vtotalKeys),
+      kv.mget<Array<CreatorProfile | null>>(...profileKeys),
+    ])
+    vtotals = vt || []
+    profiles = pr || []
+  } catch {
+    const [vt, pr] = await Promise.all([
+      Promise.all(vtotalKeys.map(k => kv.get<number>(k).catch(() => 0))),
+      Promise.all(profileKeys.map(k => kv.get<CreatorProfile>(k).catch(() => null))),
+    ])
+    vtotals = vt
+    profiles = pr
+  }
+
+  const candidateIndices: number[] = []
+  let walls = 0
+  let tippedCreators = 0
+  let totalLuna = 0
+
+  for (let i = 0; i < handles.length; i++) {
+    const luna = Number(vtotals[i] ?? 0) || 0
+    let prof = profiles[i]
+    if (typeof prof === 'string') {
+      try { prof = JSON.parse(prof) } catch {}
+    }
+    const createdAt = Number(prof?.createdAt ?? 0)
+    totalLuna += luna
+
+    const tipped = luna > 0
+    if (tipped) tippedCreators++
+    if (tipped || (createdAt > 0 && now - createdAt < NEW_WALL_GRACE_MS)) {
+      walls++
+    }
+    if (tipped || vtotals[i] == null) {
+      candidateIndices.push(i)
+    }
+  }
+
+  const [txCounts, tipsLists] = await Promise.all([
+    Promise.all(candidateIndices.map(i => getVerifiedTipCount(handles[i]))),
+    Promise.all(candidateIndices.map(i => kv.lrange<Tip>(`${PREFIX}tips:${handles[i].toLowerCase()}`, 0, -1).then(t => t || []).catch(() => [] as Tip[]))),
+  ])
+
+  let totalTips = 0
+  let tipsThisWeek = 0
+  const reasonCounts: Record<string, number> = {}
+
+  for (let idx = 0; idx < candidateIndices.length; idx++) {
+    const txCount = txCounts[idx] || 0
+    const tips = tipsLists[idx] || []
+    totalTips += txCount
+
+    for (const tip of tips) {
+      if (tip.verified && tip.reason) {
+        reasonCounts[tip.reason] = (reasonCounts[tip.reason] ?? 0) + 1
+      }
+      if (tip.verified && !tip.hiddenAt && tip.timestamp >= weekStart) {
+        tipsThisWeek++
+      }
+    }
+  }
+
+  const stats: EcosystemStats = {
     walls,
     tippedCreators,
     totalNIM: totalLuna / LUNA_PER_NIM,
@@ -536,6 +594,10 @@ export async function getEcosystemStats(): Promise<EcosystemStats> {
     tipsThisWeek,
     reasonCounts,
   }
+
+  await kv.set(ECOSYSTEM_STATS_CACHE_KEY, stats, { ex: 300 }).catch(() => {})
+
+  return stats
 }
 
 // --- Wall deletion -----------------------------------------------------------
@@ -597,6 +659,7 @@ export async function deleteProfileData(profile: CreatorProfile): Promise<void> 
     `${PREFIX}stats:${h}:${event}:refs`,
   ])
   await kv.del(...statKeys)
+  await invalidateEcosystemStatsCache()
 }
 
 export async function getTips(handle: string): Promise<Tip[]> {

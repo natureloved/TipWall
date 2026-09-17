@@ -34,7 +34,7 @@ export default function EcosystemStats() {
     // error - retry briefly so one hiccup can't pin the strip on floor values.
     const load = async (remaining: number) => {
       try {
-        const r = await fetch('/api/stats/ecosystem')
+        const r = await fetch('/api/stats/ecosystem', { cache: 'no-store' })
         const d = r.ok ? await r.json() : null
         if (!alive) return
         if (d && !d.stale) {
@@ -45,7 +45,8 @@ export default function EcosystemStats() {
       if (alive && remaining > 1) setTimeout(() => load(remaining - 1), 2500)
     }
     load(3)
-    return () => { alive = false }
+    const interval = setInterval(() => load(1), 60_000)
+    return () => { alive = false; clearInterval(interval) }
   }, [])
 
   // Three distinct dimensions. The previous third slot was "walls supported",

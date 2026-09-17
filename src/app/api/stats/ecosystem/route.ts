@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 300
 
 export async function GET(request: Request) {
-  if (!await withinRateLimit(request, 'ecosystem-stats', 30)) {
+  if (!await withinRateLimit(request, 'ecosystem-stats', 120)) {
     return NextResponse.json({ error: 'rate limited' }, { status: 429 })
   }
   try {
