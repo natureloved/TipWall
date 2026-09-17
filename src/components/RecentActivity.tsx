@@ -15,6 +15,10 @@ function describeTip(item: FeedItem): string {
     : `${who} tipped ${item.amountNIM} NIM to @${item.handle}`
 }
 
+const FALLBACK_PHRASE = 'SUPPORT SOMEONE · SAY WHY IT MATTERED · LEAVE A MARK · '
+// 8 repeats (~472 chars / ~3500px) ensures full seamless coverage across wide monitors
+const FALLBACK_TEXT = FALLBACK_PHRASE.repeat(8)
+
 /**
  * Real network activity in the homepage ticker slot. While loading, on
  * error, or before the first verified tips exist, it falls back to the
@@ -41,23 +45,30 @@ export default function RecentActivity() {
   }, [])
 
   if (!items || items.length === 0) {
-    return <div className="landing-ticker">
-      <span>SUPPORT SOMEONE · SAY WHY IT MATTERED · LEAVE A MARK · </span>
-      <span>SUPPORT SOMEONE · SAY WHY IT MATTERED · LEAVE A MARK · </span>
-    </div>
+    return (
+      <div className="landing-ticker" role="region" aria-label="Support slogan marquee">
+        <span>{FALLBACK_TEXT}</span>
+        <span aria-hidden="true">{FALLBACK_TEXT}</span>
+      </div>
+    )
   }
 
-  const text = `${items.map(describeTip).join('  ·  ')}  ·  `
-  // Longer strips need longer loops so the text stays readable.
-  const duration = Math.min(90, Math.max(26, items.length * 8))
+  let text = `${items.map(describeTip).join('  ·  ')}  ·  `
+  while (text.length < 350) {
+    text += text
+  }
+  // Longer strips need longer loops so the text stays readable (~50px/sec).
+  const duration = Math.min(120, Math.max(30, Math.round(text.length * 0.16)))
 
-  return <Link
-    href="/explore"
-    className="landing-ticker landing-ticker-live"
-    style={{ '--tick-duration': `${duration}s` } as React.CSSProperties}
-    aria-label="Recent tips across TipWall. Browse every wall"
-  >
-    <span>{text}</span>
-    <span aria-hidden="true">{text}</span>
-  </Link>
+  return (
+    <Link
+      href="/explore"
+      className="landing-ticker landing-ticker-live"
+      style={{ '--tick-duration': `${duration}s` } as React.CSSProperties}
+      aria-label="Recent tips across TipWall. Browse every wall"
+    >
+      <span>{text}</span>
+      <span aria-hidden="true">{text}</span>
+    </Link>
+  )
 }
