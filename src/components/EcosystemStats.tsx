@@ -30,9 +30,13 @@ export default function EcosystemStats() {
 
   useEffect(() => {
     let alive = true
+    let inFlight = false
+
     // A stale:true response is the route's fallback floor after a transient KV
     // error - retry briefly so one hiccup can't pin the strip on floor values.
     const load = async (remaining: number) => {
+      if (inFlight) return
+      inFlight = true
       try {
         const r = await fetch('/api/stats/ecosystem', { cache: 'no-store' })
         const d = r.ok ? await r.json() : null
@@ -41,12 +45,37 @@ export default function EcosystemStats() {
           setStats(withVerifiedEcosystemMinimum(d))
           return
         }
-      } catch { /* social proof is non-critical */ }
+      } catch { /* social proof is non-critical */ } finally {
+        inFlight = false
+      }
       if (alive && remaining > 1) setTimeout(() => load(remaining - 1), 2500)
     }
+
     load(3)
-    const interval = setInterval(() => load(1), 60_000)
-    return () => { alive = false; clearInterval(interval) }
+
+    // Poll every 12 seconds only when tab is visible to conserve Upstash commands & bandwidth
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+        return
+      }
+      load(1)
+    }, 12_000)
+
+    // Instantly refresh when the user switches back to this tab (e.g. after sending a tip)
+    const onVisible = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        load(1)
+      }
+    }
+    window.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onVisible)
+
+    return () => {
+      alive = false
+      clearInterval(interval)
+      window.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onVisible)
+    }
   }, [])
 
   // Three distinct dimensions. The previous third slot was "walls supported",

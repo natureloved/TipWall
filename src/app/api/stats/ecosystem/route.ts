@@ -4,19 +4,29 @@ import { VERIFIED_ECOSYSTEM_STATS, withVerifiedEcosystemMinimum } from '@/lib/pu
 import { withinRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
 
-// Cached at the edge for 5 min - this feeds a home-page social-proof strip, so
-// slightly stale figures are fine and we avoid scanning every wall per request.
-export const revalidate = 300
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+  Pragma: 'no-cache',
+}
 
 export async function GET(request: Request) {
   if (!await withinRateLimit(request, 'ecosystem-stats', 120)) {
-    return NextResponse.json({ error: 'rate limited' }, { status: 429 })
+    return NextResponse.json({ error: 'rate limited' }, { status: 429, headers: NO_CACHE_HEADERS })
   }
   try {
     const stats = await getEcosystemStats()
-    return NextResponse.json({ ...withVerifiedEcosystemMinimum(stats), stale: false })
+    return NextResponse.json(
+      { ...withVerifiedEcosystemMinimum(stats), stale: false },
+      { status: 200, headers: NO_CACHE_HEADERS }
+    )
   } catch {
-    return NextResponse.json({ ...VERIFIED_ECOSYSTEM_STATS, stale: true }, { status: 200 })
+    return NextResponse.json(
+      { ...VERIFIED_ECOSYSTEM_STATS, stale: true },
+      { status: 200, headers: NO_CACHE_HEADERS }
+    )
   }
 }
+
