@@ -70,12 +70,13 @@ export default function HomePage() {
       <div className="landing-hero-copy">
         <p className="landing-eyebrow"><i className="landing-live-dot" /> SUPPORT THAT SAYS SOMETHING</p>
         <h1>Every supporter<br />leaves a <em>mark.</em></h1>
-        <p className="landing-lede">Tip people, projects, and communities directly in NIM, and leave the reason it mattered. A public wall of support, insight, and small moments that last.</p>
+        <p className="landing-lede">Tip people, projects, and communities directly in NIM. Add the reason behind your support, and leave it on a public wall they can remember and learn from.</p>
+        <p className="landing-comparison">A wallet address moves money. <em>TipWall shows why it was sent.</em></p>
         <div className="landing-actions">
-          <Link className="landing-btn landing-btn-dark" href="/explore">Find someone to support <span>→</span></Link>
+          <Link className="landing-btn landing-btn-dark" href="/explore">Explore support walls <span>→</span></Link>
           <button type="button" onClick={scrollToCreate} className="landing-btn landing-btn-light">Create your wall</button>
         </div>
-        <div className="landing-trust"><span>No fees, ever</span><span>Wall owners keep 100%</span><span>Tips arrive in seconds</span></div>
+        <div className="landing-trust"><span>Direct NIM tips</span><span>Public reasons</span><span>Wall owners keep 100%</span></div>
         {/* Real figures straight after the claims, so the proof is above the
             fold on a laptop instead of buried at the bottom of the page. */}
         <EcosystemStats />
