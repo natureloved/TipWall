@@ -8,6 +8,7 @@ import RecentActivity from '@/components/RecentActivity'
 import LiveSignalCard from '@/components/LiveSignalCard'
 import PlatformSupportLink from '@/components/PlatformSupportLink'
 import CreateWallForm from '@/components/CreateWallForm'
+import ScrollToTop from '@/components/ScrollToTop'
 import { NIMIQ_GET_NIM_URL } from '@/lib/environment'
 
 type DemoNote = { text: string; from: string; reason: string; amount?: string; color: string; rotate: string; top: string; left: string }
@@ -105,5 +106,6 @@ export default function HomePage() {
       </nav>
       <span className="max-w-[290px] text-right leading-relaxed max-[800px]:basis-full max-[800px]:max-w-none max-[800px]:text-left">Direct support. Lasting thanks. Built on Nimiq.</span>
     </footer>
+    <ScrollToTop />
   </main>
 }

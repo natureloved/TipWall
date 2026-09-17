@@ -25,9 +25,9 @@ export type PublicEcosystemStats = {
 // a stale response degrades to the all-time figure instead of overstating.
 export const VERIFIED_ECOSYSTEM_STATS: PublicEcosystemStats = {
   walls: 11,
-  tippedCreators: 10,
-  totalNIM: 19_805,
-  totalTips: 71,
+  tippedCreators: 11,
+  totalNIM: 19_905,
+  totalTips: 72,
   tipsThisWeek: 0,
   reasonCounts: {},
 }

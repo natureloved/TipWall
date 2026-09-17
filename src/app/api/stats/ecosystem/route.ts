@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getEcosystemStats } from '@/lib/kv'
 import { VERIFIED_ECOSYSTEM_STATS, withVerifiedEcosystemMinimum } from '@/lib/public-snapshot'
-import { withinRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -12,10 +11,7 @@ const NO_CACHE_HEADERS = {
   Pragma: 'no-cache',
 }
 
-export async function GET(request: Request) {
-  if (!await withinRateLimit(request, 'ecosystem-stats', 120)) {
-    return NextResponse.json({ error: 'rate limited' }, { status: 429, headers: NO_CACHE_HEADERS })
-  }
+export async function GET() {
   try {
     const stats = await getEcosystemStats()
     return NextResponse.json(

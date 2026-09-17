@@ -7,15 +7,6 @@ import {
   type PublicEcosystemStats,
 } from '@/lib/public-snapshot'
 
-/**
- * Below this many verified tips in the trailing week we show the all-time
- * figure instead of the weekly one. A quiet week rendering "0 tips this week"
- * reads as an empty network, which is worse than making no weekly claim - and
- * because both numbers are true, there is nothing to gain by showing the zero.
- * Deliberately low: it marks "there is enough recent activity for a weekly
- * claim to mean something", not a marketing bar.
- */
-const WEEKLY_PROOF_FLOOR = 5
 
 /**
  * Live "the network is real" strip for the home page. It starts from the last
@@ -81,10 +72,10 @@ export default function EcosystemStats() {
   // Three distinct dimensions. The previous third slot was "walls supported",
   // which equals the wall count whenever every wall has been tipped at least
   // once - true for this network - so the panel read as if it had a bug.
-  const showWeekly = stats.tipsThisWeek >= WEEKLY_PROOF_FLOOR
-  const tips = showWeekly
-    ? { value: stats.tipsThisWeek, label: 'tips this week' }
-    : { value: stats.totalTips, label: stats.totalTips === 1 ? 'tip sent' : 'tips sent' }
+  const tips = {
+    value: stats.totalTips,
+    label: stats.totalTips === 1 ? 'tip sent' : 'tips sent',
+  }
 
   const items: { value: number; label: string }[] = [
     { value: stats.walls, label: stats.walls === 1 ? 'wall' : 'walls' },
